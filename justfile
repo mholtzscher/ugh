@@ -1,4 +1,4 @@
-# do justfile
+# ugh justfile
 # Run `just` to see available recipes
 
 # Default recipe: list available commands

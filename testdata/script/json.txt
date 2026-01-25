@@ -1,0 +1,7 @@
+# JSON list output
+exec ugh --db $WORK/db.sqlite add Read spec +work
+exec ugh --db $WORK/db.sqlite list --json
+cmp stdout want.json
+
+-- want.json --
+[{"id":1,"done":false,"description":"Read spec","projects":["work"],"contexts":[],"meta":{},"unknown":[],"todoTxt":"Read spec +work"}]

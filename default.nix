@@ -14,7 +14,7 @@
 }:
 
 buildGoApplication {
-  pname = "myapp";
+  pname = "ugh";
   version = "0.1";
   pwd = ./.;
   src = ./.;

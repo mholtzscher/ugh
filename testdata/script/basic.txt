@@ -1,0 +1,10 @@
+# Add and list tasks
+exec ugh --db $WORK/db.sqlite add Buy milk +groceries @home
+exec ugh --db $WORK/db.sqlite add (A) Call mom +family @phone due:2026-01-02
+
+exec ugh --db $WORK/db.sqlite list
+cmp stdout want-list.txt
+
+-- want-list.txt --
+(A) Call mom +family @phone due:2026-01-02
+Buy milk +groceries @home

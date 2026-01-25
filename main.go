@@ -1,9 +1,7 @@
 package main
 
-import (
-	"fmt"
-)
+import "github.com/mholtzscher/ugh/cmd"
 
 func main() {
-	fmt.Println("Hello flake")
+	cmd.Execute()
 }
