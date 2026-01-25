@@ -55,3 +55,7 @@ tidy:
 # Update gomod2nix.toml after dependency changes
 gomod2nix:
     gomod2nix > gomod2nix.toml
+
+# Generate sqlc code
+sqlc:
+    go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate
