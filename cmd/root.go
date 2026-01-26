@@ -3,12 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/mholtzscher/ugh/internal/output"
-	"github.com/mholtzscher/ugh/internal/store"
-	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
+
+	"github.com/mholtzscher/ugh/internal/output"
+	"github.com/mholtzscher/ugh/internal/store"
+
+	"github.com/spf13/cobra"
 )
 
 type rootOptions struct {
@@ -34,7 +37,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&rootOpts.DBPath, "db", "d", "", "path to sqlite database")
+	rootCmd.PersistentFlags().StringVarP(&rootOpts.DBPath, "db", "d", "", "path to sqlite database (defaults to OS data dir)")
 	rootCmd.PersistentFlags().BoolVarP(&rootOpts.JSON, "json", "j", false, "output json")
 	rootCmd.PersistentFlags().BoolVar(&rootOpts.NoColor, "no-color", false, "disable color output")
 	rootCmd.AddCommand(addCmd)
@@ -64,11 +67,41 @@ func openStore(ctx context.Context) (*store.Store, error) {
 }
 
 func defaultDBPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	dataDir, err := userDataDir()
 	if err != nil {
-		return "", fmt.Errorf("config dir: %w", err)
+		return "", err
 	}
-	return filepath.Join(configDir, "ugh", "ugh.sqlite"), nil
+	return filepath.Join(dataDir, "ugh", "ugh.sqlite"), nil
+}
+
+func userDataDir() (string, error) {
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS's "config" dir is ~/Library/Application Support.
+		configDir, err := os.UserConfigDir()
+		if err != nil {
+			return "", fmt.Errorf("user config dir: %w", err)
+		}
+		return configDir, nil
+	case "windows":
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			return localAppData, nil
+		}
+		configDir, err := os.UserConfigDir()
+		if err != nil {
+			return "", fmt.Errorf("user config dir: %w", err)
+		}
+		return configDir, nil
+	default:
+		if xdgDataHome := os.Getenv("XDG_DATA_HOME"); xdgDataHome != "" {
+			return xdgDataHome, nil
+		}
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("home dir: %w", err)
+		}
+		return filepath.Join(homeDir, ".local", "share"), nil
+	}
 }
 
 func outputWriter() output.Writer {

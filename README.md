@@ -57,7 +57,7 @@ ugh export - --all          # stdout
 ## Global Flags
 
 ```
---db <path>     Custom database path (default: ~/.config/ugh/ugh.sqlite)
+--db <path>     Custom database path (default: OS data dir, e.g. ~/.local/share/ugh/ugh.sqlite)
 --json          Output as JSON
 --no-color      Disable color output
 ```
