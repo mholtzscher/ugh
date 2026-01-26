@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mholtzscher/ugh/internal/store"
+	"github.com/mholtzscher/ugh/internal/todotxt"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -66,7 +67,7 @@ func writeHumanList(out io.Writer, tasks []*store.Task) error {
 			status,
 			emptyDash(task.Priority),
 			createdDateOrDash(task),
-			todoLine(task),
+			humanTaskText(task),
 		}
 		if err := appendRow(table, row); err != nil {
 			return err
@@ -183,4 +184,18 @@ func appendRow(table *tablewriter.Table, row []string) error {
 		values[i] = val
 	}
 	return table.Append(values...)
+}
+
+func humanTaskText(task *store.Task) string {
+	if task == nil {
+		return ""
+	}
+	parsed := todotxt.Parsed{
+		Description: task.Description,
+		Projects:    task.Projects,
+		Contexts:    task.Contexts,
+		Meta:        task.Meta,
+		Unknown:     task.Unknown,
+	}
+	return todotxt.Format(parsed)
 }
