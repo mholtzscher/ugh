@@ -202,5 +202,5 @@ Always use `outputWriter()` and its methods for consistent output.
 
 ### Dependencies
 
-- After adding/updating Go dependencies, run `just tidy`
+- After adding, removing, or updating Go dependencies, run `just tidy`
 - For Nix builds, also run `just gomod2nix` to update `gomod2nix.toml`
