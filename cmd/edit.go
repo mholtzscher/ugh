@@ -35,7 +35,7 @@ var editCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer st.Close()
+		defer func() { _ = st.Close() }()
 
 		current, err := st.GetTask(ctx, ids[0])
 		if err != nil {

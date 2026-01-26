@@ -98,7 +98,7 @@ var addCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer st.Close()
+		defer func() { _ = st.Close() }()
 
 		created, err := st.CreateTask(ctx, storeTask)
 		if err != nil {

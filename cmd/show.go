@@ -28,7 +28,7 @@ var showCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer st.Close()
+		defer func() { _ = st.Close() }()
 
 		task, err := st.GetTask(ctx, ids[0])
 		if err != nil {

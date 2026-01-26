@@ -21,7 +21,7 @@ var undoCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer st.Close()
+		defer func() { _ = st.Close() }()
 
 		count, err := st.SetDone(ctx, ids, false)
 		if err != nil {

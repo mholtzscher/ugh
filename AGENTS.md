@@ -4,7 +4,7 @@ This document provides essential information for AI coding agents working in thi
 
 ## Project Overview
 
-**ugh** is a todo.txt-inspired task CLI with SQLite storage, written in Go 1.24.
+**ugh** is a todo.txt-inspired task CLI with SQLite storage, written in Go 1.25.
 
 - **Module**: `github.com/mholtzscher/ugh`
 - **CLI Framework**: spf13/cobra

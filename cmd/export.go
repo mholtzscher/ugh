@@ -57,7 +57,7 @@ var exportCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer st.Close()
+		defer func() { _ = st.Close() }()
 
 		tasks, err := st.ListTasks(ctx, filters)
 		if err != nil {
@@ -72,7 +72,7 @@ var exportCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("create file: %w", err)
 			}
-			defer created.Close()
+			defer func() { _ = created.Close() }()
 			file = created
 		}
 

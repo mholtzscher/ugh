@@ -36,7 +36,7 @@ var importCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("open file: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 			reader = file
 		}
 
@@ -44,7 +44,7 @@ var importCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer st.Close()
+		defer func() { _ = st.Close() }()
 
 		scanner := bufio.NewScanner(reader)
 		buf := make([]byte, 0, 64*1024)

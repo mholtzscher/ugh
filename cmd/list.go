@@ -40,7 +40,7 @@ var listCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer st.Close()
+		defer func() { _ = st.Close() }()
 
 		tasks, err := st.ListTasks(ctx, filters)
 		if err != nil {
