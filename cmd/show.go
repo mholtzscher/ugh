@@ -28,7 +28,7 @@ var showCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer svc.Close()
+		defer func() { _ = svc.Close() }()
 
 		task, err := svc.GetTask(ctx, ids[0])
 		if err != nil {

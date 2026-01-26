@@ -27,7 +27,7 @@ var listCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer svc.Close()
+		defer func() { _ = svc.Close() }()
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			All:      listOpts.All,

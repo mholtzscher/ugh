@@ -34,7 +34,7 @@ var addCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer svc.Close()
+		defer func() { _ = svc.Close() }()
 
 		task, err := svc.CreateTask(ctx, service.CreateTaskRequest{
 			Line:      line,

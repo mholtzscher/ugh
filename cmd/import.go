@@ -43,7 +43,7 @@ var importCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer svc.Close()
+		defer func() { _ = svc.Close() }()
 
 		scanner := bufio.NewScanner(reader)
 		buf := make([]byte, 0, 64*1024)

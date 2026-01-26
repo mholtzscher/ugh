@@ -39,7 +39,7 @@ var editCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer svc.Close()
+		defer func() { _ = svc.Close() }()
 
 		saved, err := svc.UpdateTaskText(ctx, service.UpdateTaskRequest{
 			ID:   ids[0],

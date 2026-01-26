@@ -21,7 +21,7 @@ var undoCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer svc.Close()
+		defer func() { _ = svc.Close() }()
 
 		count, err := svc.SetDone(ctx, ids, false)
 		if err != nil {

@@ -20,7 +20,7 @@ var rmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer svc.Close()
+		defer func() { _ = svc.Close() }()
 
 		count, err := svc.DeleteTasks(ctx, ids)
 		if err != nil {
