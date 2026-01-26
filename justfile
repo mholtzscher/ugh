@@ -48,6 +48,12 @@ lint:
 # Run all checks (format, vet, lint, test, tidy, sqlc, govulncheck, gomod2nix)
 check: fmt vet lint test tidy sqlc govulncheck gomod2nix
 
+# Update Go dependencies
+update-deps:
+    go get -u ./...
+    go mod tidy
+    gomod2nix > gomod2nix.toml
+
 # Tidy go modules
 tidy:
     go mod tidy
@@ -63,3 +69,7 @@ sqlc:
 # Run govulncheck security scanner
 govulncheck:
     govulncheck ./...
+
+# Update flake inputs (package versions)
+update:
+    nix flake update
