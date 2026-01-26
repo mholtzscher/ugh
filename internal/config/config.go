@@ -45,6 +45,48 @@ func DefaultPath() (string, error) {
 	return filepath.Join(configDir, "ugh", "config.toml"), nil
 }
 
+func Save(path string, cfg Config) error {
+	if path == "" {
+		return errors.New("config path is empty")
+	}
+
+	configDir := filepath.Dir(path)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+
+	file, err := os.CreateTemp(configDir, "config-*.toml")
+	if err != nil {
+		return fmt.Errorf("create temp config: %w", err)
+	}
+	defer func() { _ = os.Remove(file.Name()) }()
+
+	if err := toml.NewEncoder(file).Encode(cfg); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("encode config: %w", err)
+	}
+	if err := file.Chmod(0o644); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("chmod config: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close temp config: %w", err)
+	}
+
+	if err := os.Rename(file.Name(), path); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			if removeErr := os.Remove(path); removeErr == nil {
+				err = os.Rename(file.Name(), path)
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("write config: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func Load(path string, allowMissing bool) (*LoadResult, error) {
 	if path == "" {
 		defaultPath, err := DefaultPath()

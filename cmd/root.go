@@ -34,13 +34,13 @@ var rootCmd = &cobra.Command{
 	Long:         "ugh is a todo.txt-inspired task CLI with SQLite storage.",
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return loadConfig()
+		return loadConfig(cmd)
 	},
 }
 
-func loadConfig() error {
+func loadConfig(cmd *cobra.Command) error {
 	configPath := rootOpts.ConfigPath
-	allowMissing := configPath == ""
+	allowMissing := configPath == "" || allowMissingConfig(cmd)
 
 	result, err := config.Load(configPath, allowMissing)
 	if err != nil {
@@ -58,6 +58,17 @@ func loadConfig() error {
 	loadedConfig = &result.Config
 	loadedConfigWas = result.WasLoaded
 	return nil
+}
+
+func allowMissingConfig(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+	if cmd.Name() == "set" || cmd.Name() == "init" {
+		parent := cmd.Parent()
+		return parent != nil && parent.Name() == "config"
+	}
+	return false
 }
 
 func effectiveDBPath() (string, error) {
@@ -109,6 +120,7 @@ func init() {
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(importCmd)
 	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(projectsCmd)
 	rootCmd.AddCommand(contextsCmd)
 }
