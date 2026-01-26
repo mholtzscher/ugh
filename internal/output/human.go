@@ -3,12 +3,14 @@ package output
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mholtzscher/ugh/internal/store"
+	"golang.org/x/term"
 )
 
 type Summary struct {
@@ -41,12 +43,28 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 }
 
 func writeHumanList(out io.Writer, tasks []*store.Task, noColor bool) error {
+	const (
+		idWidth       = 4
+		statusWidth   = 6
+		priorityWidth = 8
+		createdWidth  = 10
+		minTaskWidth  = 30
+		defaultTask   = 60
+	)
+	padding := 2 * 5
+	taskWidth := defaultTask
+	if width, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && width > 0 {
+		reserved := idWidth + statusWidth + priorityWidth + createdWidth + padding
+		if width > reserved+minTaskWidth {
+			taskWidth = width - reserved
+		}
+	}
 	columns := []table.Column{
-		{Title: "ID", Width: 6},
-		{Title: "St", Width: 3},
-		{Title: "Pri", Width: 4},
-		{Title: "Created", Width: 10},
-		{Title: "Task", Width: 60},
+		{Title: "ID", Width: idWidth},
+		{Title: "Status", Width: statusWidth},
+		{Title: "Priority", Width: priorityWidth},
+		{Title: "Created", Width: createdWidth},
+		{Title: "Task", Width: taskWidth},
 	}
 	rows := make([]table.Row, 0, len(tasks))
 	for _, task := range tasks {
@@ -62,9 +80,14 @@ func writeHumanList(out io.Writer, tasks []*store.Task, noColor bool) error {
 			todoLine(task),
 		})
 	}
+	height := len(rows) + 1
+	if height < 1 {
+		height = 1
+	}
 	model := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
+		table.WithHeight(height),
 		table.WithFocused(false),
 	)
 
@@ -74,7 +97,7 @@ func writeHumanList(out io.Writer, tasks []*store.Task, noColor bool) error {
 		styles := table.DefaultStyles()
 		header := styles.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240")).BorderBottom(true).Bold(true)
 		styles.Header = header
-		styles.Selected = styles.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57"))
+		styles.Selected = styles.Cell
 		model.SetStyles(styles)
 	}
 	_, err := fmt.Fprintln(out, model.View())
