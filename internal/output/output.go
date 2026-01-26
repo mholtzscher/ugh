@@ -65,6 +65,35 @@ func (w Writer) WriteTasks(tasks []*store.Task) error {
 	return nil
 }
 
+func (w Writer) WriteTags(tags []store.NameCount) error {
+	if w.JSON {
+		return writeJSON(w.Out, tags)
+	}
+
+	if w.TTY {
+		return writeHumanTags(w.Out, tags)
+	}
+	for _, tag := range tags {
+		if _, err := fmt.Fprintln(w.Out, tag.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w Writer) WriteTagsWithCounts(tags []store.NameCount) error {
+	if w.JSON {
+		return writeJSON(w.Out, tags)
+	}
+
+	for _, tag := range tags {
+		if _, err := fmt.Fprintf(w.Out, "%s\t%d\n", tag.Name, tag.Count); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (w Writer) WriteSummary(summary any) error {
 	if w.JSON {
 		return writeJSON(w.Out, summary)

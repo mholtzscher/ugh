@@ -199,3 +199,14 @@ func humanTaskText(task *store.Task) string {
 	}
 	return todotxt.Format(parsed)
 }
+
+func writeHumanTags(out io.Writer, tags []store.NameCount) error {
+	table := tablewriter.NewWriter(out)
+	table.Header("Name", "Count")
+	for _, tag := range tags {
+		if err := appendRow(table, []string{tag.Name, fmt.Sprintf("%d", tag.Count)}); err != nil {
+			return err
+		}
+	}
+	return table.Render()
+}

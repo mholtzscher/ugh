@@ -1,0 +1,44 @@
+# List projects and contexts
+exec ugh --db $WORK/db.sqlite add Buy milk +groceries @home
+exec ugh --db $WORK/db.sqlite add (A) Call mom +family @phone due:2026-01-02
+exec ugh --db $WORK/db.sqlite add Plan trip +travel
+exec ugh --db $WORK/db.sqlite add Review docs +work @office
+exec ugh --db $WORK/db.sqlite add Meeting +work @office
+exec ugh --db $WORK/db.sqlite done 5
+
+# Projects default (todo only)
+exec ugh --db $WORK/db.sqlite projects
+stdout 'family'
+stdout 'groceries'
+stdout 'travel'
+stdout 'work'
+! stdout 'misc'
+
+# Projects JSON
+exec ugh --db $WORK/db.sqlite projects --json
+stdout '\[.*\]'
+
+# Contexts default (todo only)
+exec ugh --db $WORK/db.sqlite contexts
+stdout 'home'
+stdout 'office'
+stdout 'phone'
+! stdout 'misc'
+
+# Projects with done task
+exec ugh --db $WORK/db.sqlite add Review logs +misc
+exec ugh --db $WORK/db.sqlite done 6
+exec ugh --db $WORK/db.sqlite projects
+! stdout 'misc'
+
+# Projects all
+exec ugh --db $WORK/db.sqlite projects --all
+stdout 'misc'
+
+# Contexts all
+exec ugh --db $WORK/db.sqlite contexts --all
+! stdout 'misc'
+
+# Projects done only
+exec ugh --db $WORK/db.sqlite projects --done
+stdout 'misc'

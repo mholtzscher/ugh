@@ -221,6 +221,43 @@ func (q *Queries) InsertUnknown(ctx context.Context, arg InsertUnknownParams) er
 	return err
 }
 
+const listContextCounts = `-- name: ListContextCounts :many
+SELECT tc.name, COUNT(t.id) AS count
+FROM task_contexts tc
+JOIN tasks t ON tc.task_id = t.id
+WHERE (?1 IS NULL OR t.done = ?1)
+GROUP BY tc.name
+ORDER BY tc.name ASC
+`
+
+type ListContextCountsRow struct {
+	Name  string `json:"name"`
+	Count int64  `json:"count"`
+}
+
+func (q *Queries) ListContextCounts(ctx context.Context, status interface{}) ([]ListContextCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listContextCounts, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListContextCountsRow
+	for rows.Next() {
+		var i ListContextCountsRow
+		if err := rows.Scan(&i.Name, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listContexts = `-- name: ListContexts :many
 SELECT task_id, name FROM task_contexts WHERE task_id IN (/*SLICE:ids*/?) ORDER BY task_id
 `
@@ -282,6 +319,43 @@ func (q *Queries) ListMeta(ctx context.Context, ids []int64) ([]TaskMetum, error
 	for rows.Next() {
 		var i TaskMetum
 		if err := rows.Scan(&i.TaskID, &i.Key, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProjectCounts = `-- name: ListProjectCounts :many
+SELECT tp.name, COUNT(t.id) AS count
+FROM task_projects tp
+JOIN tasks t ON tp.task_id = t.id
+WHERE (?1 IS NULL OR t.done = ?1)
+GROUP BY tp.name
+ORDER BY tp.name ASC
+`
+
+type ListProjectCountsRow struct {
+	Name  string `json:"name"`
+	Count int64  `json:"count"`
+}
+
+func (q *Queries) ListProjectCounts(ctx context.Context, status interface{}) ([]ListProjectCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProjectCounts, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProjectCountsRow
+	for rows.Next() {
+		var i ListProjectCountsRow
+		if err := rows.Scan(&i.Name, &i.Count); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

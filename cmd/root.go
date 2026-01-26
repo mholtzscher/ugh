@@ -109,6 +109,8 @@ func init() {
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(importCmd)
 	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(projectsCmd)
+	rootCmd.AddCommand(contextsCmd)
 }
 
 func openStore(ctx context.Context) (*store.Store, error) {

@@ -91,3 +91,19 @@ SELECT task_id, key, value FROM task_meta WHERE task_id IN (sqlc.slice('ids')) O
 
 -- name: ListUnknown :many
 SELECT task_id, ordinal, token FROM task_unknown WHERE task_id IN (sqlc.slice('ids')) ORDER BY task_id, ordinal;
+
+-- name: ListProjectCounts :many
+SELECT tp.name, COUNT(t.id) AS count
+FROM task_projects tp
+JOIN tasks t ON tp.task_id = t.id
+WHERE (sqlc.narg('status') IS NULL OR t.done = sqlc.narg('status'))
+GROUP BY tp.name
+ORDER BY tp.name ASC;
+
+-- name: ListContextCounts :many
+SELECT tc.name, COUNT(t.id) AS count
+FROM task_contexts tc
+JOIN tasks t ON tc.task_id = t.id
+WHERE (sqlc.narg('status') IS NULL OR t.done = sqlc.narg('status'))
+GROUP BY tc.name
+ORDER BY tc.name ASC;

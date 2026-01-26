@@ -143,6 +143,42 @@ func (s *TaskService) Close() error {
 	return s.store.Close()
 }
 
+type ListTagsRequest struct {
+	All      bool
+	DoneOnly bool
+	TodoOnly bool
+}
+
+func (s *TaskService) ListProjects(ctx context.Context, req ListTagsRequest) ([]store.NameCount, error) {
+	var status any
+	if req.DoneOnly {
+		status = int64(1)
+	} else if req.TodoOnly {
+		status = int64(0)
+	}
+
+	if !req.All && !req.DoneOnly && !req.TodoOnly {
+		status = int64(0)
+	}
+
+	return s.store.ListProjectCounts(ctx, status)
+}
+
+func (s *TaskService) ListContexts(ctx context.Context, req ListTagsRequest) ([]store.NameCount, error) {
+	var status any
+	if req.DoneOnly {
+		status = int64(1)
+	} else if req.TodoOnly {
+		status = int64(0)
+	}
+
+	if !req.All && !req.DoneOnly && !req.TodoOnly {
+		status = int64(0)
+	}
+
+	return s.store.ListContextCounts(ctx, status)
+}
+
 type UpdateTaskRequest struct {
 	ID   int64
 	Text string

@@ -27,3 +27,8 @@ type Filters struct {
 	Search   string
 	Sort     string
 }
+
+type NameCount struct {
+	Name  string
+	Count int64
+}

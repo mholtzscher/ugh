@@ -28,6 +28,10 @@ ugh list --project groceries
 ugh list --context errands
 ugh list --priority A
 
+# List available tags
+ugh projects
+ugh contexts
+
 # Complete tasks
 ugh done 1 2 3
 

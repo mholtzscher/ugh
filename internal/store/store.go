@@ -300,6 +300,30 @@ func (s *Store) insertTokens(ctx context.Context, id int64, task *Task) error {
 	return nil
 }
 
+func (s *Store) ListProjectCounts(ctx context.Context, status any) ([]NameCount, error) {
+	rows, err := s.queries.ListProjectCounts(ctx, status)
+	if err != nil {
+		return nil, fmt.Errorf("list project counts: %w", err)
+	}
+	result := make([]NameCount, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, NameCount{Name: row.Name, Count: row.Count})
+	}
+	return result, nil
+}
+
+func (s *Store) ListContextCounts(ctx context.Context, status any) ([]NameCount, error) {
+	rows, err := s.queries.ListContextCounts(ctx, status)
+	if err != nil {
+		return nil, fmt.Errorf("list context counts: %w", err)
+	}
+	result := make([]NameCount, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, NameCount{Name: row.Name, Count: row.Count})
+	}
+	return result, nil
+}
+
 func (s *Store) deleteTokens(ctx context.Context, id int64) error {
 	if err := s.queries.DeleteTokens(ctx, id); err != nil {
 		return fmt.Errorf("delete projects: %w", err)
