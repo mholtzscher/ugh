@@ -12,6 +12,7 @@
   ),
   mkGoEnv ? pkgs.mkGoEnv,
   gomod2nix ? pkgs.gomod2nix,
+  golangci-lint ? pkgs.golangci-lint,
 }:
 
 let
@@ -21,6 +22,6 @@ pkgs.mkShell {
   packages = [
     goEnv
     gomod2nix
-    pkgs.golangci-lint
+    golangci-lint
   ];
 }
