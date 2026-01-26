@@ -7,6 +7,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"path/filepath"
 	"time"
 
@@ -53,6 +55,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("set goose dialect: %w", err)
 	}
+	goose.SetLogger(log.New(io.Discard, "", 0))
 	if err := goose.Up(db, "migrations"); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
