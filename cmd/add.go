@@ -22,8 +22,9 @@ var addOpts struct {
 }
 
 var addCmd = &cobra.Command{
-	Use:   "add [todo.txt line]",
-	Short: "Add a task",
+	Use:     "add [todo.txt line]",
+	Aliases: []string{"a"},
+	Short:   "Add a task",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		line := strings.TrimSpace(strings.Join(args, " "))

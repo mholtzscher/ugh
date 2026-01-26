@@ -16,8 +16,9 @@ import (
 )
 
 var importCmd = &cobra.Command{
-	Use:   "import <path|->",
-	Short: "Import tasks from todo.txt",
+	Use:     "import <path|->",
+	Aliases: []string{"in"},
+	Short:   "Import tasks from todo.txt",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return errors.New("import requires a file path or -")

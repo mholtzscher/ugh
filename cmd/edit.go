@@ -16,8 +16,9 @@ var editOpts struct {
 }
 
 var editCmd = &cobra.Command{
-	Use:   "edit <id>",
-	Short: "Edit a task",
+	Use:     "edit <id>",
+	Aliases: []string{"e"},
+	Short:   "Edit a task",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return errors.New("edit requires a task id")

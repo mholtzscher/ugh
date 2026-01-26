@@ -8,8 +8,9 @@ import (
 )
 
 var doneCmd = &cobra.Command{
-	Use:   "done <id...>",
-	Short: "Mark tasks as done",
+	Use:     "done <id...>",
+	Aliases: []string{"d"},
+	Short:   "Mark tasks as done",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		ids, err := parseIDs(args)

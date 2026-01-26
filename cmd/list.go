@@ -18,8 +18,9 @@ var listOpts struct {
 }
 
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List tasks",
+	Use:     "list",
+	Aliases: []string{"ls", "l"},
+	Short:   "List tasks",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		filters := store.Filters{

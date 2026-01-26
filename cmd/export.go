@@ -24,8 +24,9 @@ var exportOpts struct {
 }
 
 var exportCmd = &cobra.Command{
-	Use:   "export <path|->",
-	Short: "Export tasks to todo.txt",
+	Use:     "export <path|->",
+	Aliases: []string{"ex"},
+	Short:   "Export tasks to todo.txt",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return errors.New("export requires a file path or -")

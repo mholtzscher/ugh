@@ -8,8 +8,9 @@ import (
 )
 
 var undoCmd = &cobra.Command{
-	Use:   "undo <id...>",
-	Short: "Mark tasks as not done",
+	Use:     "undo <id...>",
+	Aliases: []string{"u"},
+	Short:   "Mark tasks as not done",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		ids, err := parseIDs(args)
