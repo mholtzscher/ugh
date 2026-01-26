@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
+	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/store"
 
@@ -15,19 +16,73 @@ import (
 )
 
 type rootOptions struct {
-	DBPath  string
-	JSON    bool
-	NoColor bool
+	ConfigPath string
+	DBPath     string
+	JSON       bool
+	NoColor    bool
 }
+
+var (
+	rootOpts        rootOptions
+	loadedConfig    *config.Config
+	loadedConfigWas bool
+)
 
 var rootCmd = &cobra.Command{
 	Use:          "ugh",
 	Short:        "ugh is a todo.txt-inspired task CLI",
 	Long:         "ugh is a todo.txt-inspired task CLI with SQLite storage.",
 	SilenceUsage: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return loadConfig()
+	},
 }
 
-var rootOpts rootOptions
+func loadConfig() error {
+	configPath := rootOpts.ConfigPath
+	allowMissing := configPath == ""
+
+	result, err := config.Load(configPath, allowMissing)
+	if err != nil {
+		if errors.Is(err, config.ErrNotFound) && allowMissing {
+			loadedConfig = &config.Config{Version: config.DefaultVersion}
+			loadedConfigWas = false
+			return nil
+		}
+		if errors.Is(err, config.ErrNotFound) && !allowMissing {
+			return fmt.Errorf("config file not found: %s", configPath)
+		}
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	loadedConfig = &result.Config
+	loadedConfigWas = result.WasLoaded
+	return nil
+}
+
+func effectiveDBPath() (string, error) {
+	if rootOpts.DBPath != "" {
+		return rootOpts.DBPath, nil
+	}
+	if loadedConfig != nil && loadedConfig.DB.Path != "" {
+		var cfgPath string
+		if rootOpts.ConfigPath != "" {
+			cfgPath = rootOpts.ConfigPath
+		} else if loadedConfigWas {
+			defaultPath, err := config.DefaultPath()
+			if err != nil {
+				return "", fmt.Errorf("get default config path: %w", err)
+			}
+			cfgPath = defaultPath
+		}
+		dbPath, err := config.ResolveDBPath(cfgPath, loadedConfig.DB.Path)
+		if err != nil {
+			return "", fmt.Errorf("resolve db path from config: %w", err)
+		}
+		return dbPath, nil
+	}
+	return defaultDBPath()
+}
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
@@ -37,9 +92,14 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&rootOpts.DBPath, "db", "d", "", "path to sqlite database (defaults to OS data dir)")
+	rootCmd.PersistentFlags().StringVar(&rootOpts.ConfigPath, "config", "", "path to config file")
+
+	rootCmd.PersistentFlags().StringVarP(&rootOpts.DBPath, "db", "d", "", "path to sqlite database (overrides config)")
 	rootCmd.PersistentFlags().BoolVarP(&rootOpts.JSON, "json", "j", false, "output json")
 	rootCmd.PersistentFlags().BoolVar(&rootOpts.NoColor, "no-color", false, "disable color output")
+
+	rootCmd.PersistentFlags().SortFlags = false
+
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(showCmd)
@@ -52,13 +112,9 @@ func init() {
 }
 
 func openStore(ctx context.Context) (*store.Store, error) {
-	path := rootOpts.DBPath
-	if path == "" {
-		var err error
-		path, err = defaultDBPath()
-		if err != nil {
-			return nil, err
-		}
+	path, err := effectiveDBPath()
+	if err != nil {
+		return nil, err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("create db dir: %w", err)
@@ -106,9 +162,4 @@ func userDataDir() (string, error) {
 
 func outputWriter() output.Writer {
 	return output.NewWriter(rootOpts.JSON, rootOpts.NoColor)
-}
-
-func nowDate() *time.Time {
-	val := time.Now().UTC()
-	return &val
 }

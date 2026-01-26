@@ -1,0 +1,70 @@
+# Config file sets DB path
+-- config.toml --
+version = 1
+
+[db]
+path = "data/ugh.sqlite"
+--
+exec ugh --config config.toml add Buy milk +groceries
+exec ugh --config config.toml list
+stdout 'Buy milk'
+
+# Config file exists but doesn't set db path - should use default
+-- config-no-db.toml --
+version = 1
+--
+# This should use the default DB path since db.path is not set
+exec ugh --config config-no-db.toml add Test task @work
+stdout 'Test task'
+
+# Config file missing should fail
+! exec ugh --config $WORK/missing-config.toml add Test task
+stderr 'config file not found'
+
+# Config file with empty db.path should use default
+-- config-empty-path.toml --
+version = 1
+
+[db]
+path = ""
+--
+exec ugh --config config-empty-path.toml add Another task +misc
+stdout 'Another task'
+
+# Config file with db section but no path key should use default
+-- config-no-path-key.toml --
+version = 1
+
+[db]
+--
+exec ugh --config config-no-path-key.toml add Yet another task @home
+stdout 'Yet another task'
+
+# Config file without version should default to 1
+-- config-no-version.toml --
+
+[db]
+path = "data/no-version.sqlite"
+--
+exec ugh --config config-no-version.toml add Task without version specified
+stdout 'Task without version specified'
+
+# Config file with relative path resolves relative to config dir
+exec ugh --config config.toml list
+stdout 'Buy milk'
+
+# --db flag should override config db.path
+exec ugh --config config.toml --db $WORK/override.sqlite add Override task
+exec ugh --config config.toml --db $WORK/override.sqlite list
+stdout 'Override task'
+
+# Config file in subdirectory with relative db path
+exec sh -c 'mkdir -p $WORK/subdir && cat > $WORK/subdir/config.toml <<EOF
+version = 1
+
+[db]
+path = "data/ugh.sqlite"
+EOF'
+exec sh -c 'mkdir -p $WORK/subdir/data'
+exec ugh --config $WORK/subdir/config.toml add Relative path task +test
+stdout 'Relative path task'

@@ -54,12 +54,45 @@ ugh export - --all          # stdout
 - **JSON**: `--json` flag for machine-readable output
 - **Pipe**: Plain todo.txt format when piped
 
+## Configuration
+
+ugh can be configured with a TOML file. The default location is:
+
+- **Linux**: `~/.config/ugh/config.toml`
+- **macOS**: `~/Library/Application Support/ugh/config.toml`
+- **Windows**: `%AppData%\ugh\config.toml`
+
+Use the `--config` flag to specify a custom config path.
+
+### DB Path Resolution
+
+The database path is resolved in this order:
+
+1. `--db` flag (highest priority)
+2. `db.path` in the config file
+3. Default location: `~/.local/share/ugh/ugh.sqlite` (Linux)
+
+Example config file:
+
+```toml
+version = 1
+
+[db]
+path = "~/.local/share/ugh/ugh.sqlite"
+```
+
+Paths support:
+- Environment variable expansion (`$HOME`, `$USER`, etc.)
+- Home directory expansion (`~/`)
+- Relative paths (when set via config file, resolved relative to config file location)
+
 ## Global Flags
 
 ```
---db <path>     Custom database path (default: OS data dir, e.g. ~/.local/share/ugh/ugh.sqlite)
---json          Output as JSON
---no-color      Disable color output
+--config <path>  Path to config file
+--db <path>      Custom database path (overrides config)
+--json           Output as JSON
+--no-color       Disable color output
 ```
 
 ## todo.txt Format

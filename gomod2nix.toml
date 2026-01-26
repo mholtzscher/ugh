@@ -1,6 +1,9 @@
 schema = 3
 
 [mod]
+  [mod."github.com/BurntSushi/toml"]
+    version = "v1.6.0"
+    hash = "sha256-ptdUJvuc21ixeLt+M5way/na3aCnCO4MYHWulWp8NEY="
   [mod."github.com/clipperhouse/displaywidth"]
     version = "v0.6.2"
     hash = "sha256-BZ6sBZJXzS50do3OLK0UApMz/KVV7jnLEcyddWJ1Q1w="
