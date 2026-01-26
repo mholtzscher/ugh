@@ -131,10 +131,6 @@ func (s *TaskService) GetTask(ctx context.Context, id int64) (*store.Task, error
 	return s.store.GetTask(ctx, id)
 }
 
-func (s *TaskService) UpdateTask(ctx context.Context, task *store.Task) (*store.Task, error) {
-	return s.store.UpdateTask(ctx, task)
-}
-
 func (s *TaskService) SetDone(ctx context.Context, ids []int64, done bool) (int64, error) {
 	return s.store.SetDone(ctx, ids, done)
 }
@@ -145,6 +141,44 @@ func (s *TaskService) DeleteTasks(ctx context.Context, ids []int64) (int64, erro
 
 func (s *TaskService) Close() error {
 	return s.store.Close()
+}
+
+type UpdateTaskRequest struct {
+	ID   int64
+	Text string
+}
+
+func (s *TaskService) UpdateTaskText(ctx context.Context, req UpdateTaskRequest) (*store.Task, error) {
+	current, err := s.store.GetTask(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	parsed := todotxt.ParseLine(req.Text)
+	if parsed.CreationDate == nil {
+		if current.CreationDate != nil {
+			parsed.CreationDate = current.CreationDate
+		} else if parsed.Done && parsed.CompletionDate != nil {
+			parsed.CreationDate = parsed.CompletionDate
+		} else {
+			parsed.CreationDate = nowDate()
+		}
+	}
+
+	updated := &store.Task{
+		ID:             current.ID,
+		Done:           parsed.Done,
+		Priority:       parsed.Priority,
+		CompletionDate: parsed.CompletionDate,
+		CreationDate:   parsed.CreationDate,
+		Description:    parsed.Description,
+		Projects:       parsed.Projects,
+		Contexts:       parsed.Contexts,
+		Meta:           parsed.Meta,
+		Unknown:        parsed.Unknown,
+	}
+
+	return s.store.UpdateTask(ctx, updated)
 }
 
 func normalizePriority(p string) string {

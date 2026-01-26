@@ -10,8 +10,7 @@ import (
 	"strings"
 
 	"github.com/mholtzscher/ugh/internal/output"
-	"github.com/mholtzscher/ugh/internal/store"
-	"github.com/mholtzscher/ugh/internal/todotxt"
+	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -40,11 +39,11 @@ var importCmd = &cobra.Command{
 			reader = file
 		}
 
-		st, err := openStore(ctx)
+		svc, err := newTaskService(ctx)
 		if err != nil {
 			return err
 		}
-		defer func() { _ = st.Close() }()
+		defer svc.Close()
 
 		scanner := bufio.NewScanner(reader)
 		buf := make([]byte, 0, 64*1024)
@@ -58,22 +57,9 @@ var importCmd = &cobra.Command{
 				skipped++
 				continue
 			}
-			parsed := todotxt.ParseLine(line)
-			if parsed.CreationDate == nil {
-				parsed.CreationDate = nowDate()
-			}
-			task := &store.Task{
-				Done:           parsed.Done,
-				Priority:       parsed.Priority,
-				CompletionDate: parsed.CompletionDate,
-				CreationDate:   parsed.CreationDate,
-				Description:    parsed.Description,
-				Projects:       parsed.Projects,
-				Contexts:       parsed.Contexts,
-				Meta:           parsed.Meta,
-				Unknown:        parsed.Unknown,
-			}
-			if _, err := st.CreateTask(ctx, task); err != nil {
+			if _, err := svc.CreateTask(ctx, service.CreateTaskRequest{
+				Line: line,
+			}); err != nil {
 				return err
 			}
 			added++

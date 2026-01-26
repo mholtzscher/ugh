@@ -24,13 +24,13 @@ var showCmd = &cobra.Command{
 			return err
 		}
 
-		st, err := openStore(ctx)
+		svc, err := newTaskService(ctx)
 		if err != nil {
 			return err
 		}
-		defer func() { _ = st.Close() }()
+		defer svc.Close()
 
-		task, err := st.GetTask(ctx, ids[0])
+		task, err := svc.GetTask(ctx, ids[0])
 		if err != nil {
 			return err
 		}

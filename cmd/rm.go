@@ -16,13 +16,13 @@ var rmCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		st, err := openStore(ctx)
+		svc, err := newTaskService(ctx)
 		if err != nil {
 			return err
 		}
-		defer func() { _ = st.Close() }()
+		defer svc.Close()
 
-		count, err := st.DeleteTasks(ctx, ids)
+		count, err := svc.DeleteTasks(ctx, ids)
 		if err != nil {
 			return err
 		}

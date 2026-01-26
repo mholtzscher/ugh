@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/mholtzscher/ugh/internal/output"
-	"github.com/mholtzscher/ugh/internal/store"
+	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/mholtzscher/ugh/internal/todotxt"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +40,13 @@ var exportCmd = &cobra.Command{
 			return errors.New("--json cannot be used when exporting to stdout")
 		}
 
-		filters := store.Filters{
+		svc, err := newTaskService(ctx)
+		if err != nil {
+			return err
+		}
+		defer svc.Close()
+
+		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			All:      exportOpts.All,
 			DoneOnly: exportOpts.DoneOnly,
 			TodoOnly: exportOpts.TodoOnly,
@@ -48,18 +54,7 @@ var exportCmd = &cobra.Command{
 			Context:  exportOpts.Context,
 			Priority: exportOpts.Priority,
 			Search:   exportOpts.Search,
-		}
-		if !filters.All && !filters.DoneOnly && !filters.TodoOnly {
-			filters.TodoOnly = true
-		}
-
-		st, err := openStore(ctx)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = st.Close() }()
-
-		tasks, err := st.ListTasks(ctx, filters)
+		})
 		if err != nil {
 			return err
 		}

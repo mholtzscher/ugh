@@ -5,8 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/mholtzscher/ugh/internal/store"
-	"github.com/mholtzscher/ugh/internal/todotxt"
+	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -31,46 +30,21 @@ var editCmd = &cobra.Command{
 			return err
 		}
 
-		st, err := openStore(ctx)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = st.Close() }()
-
-		current, err := st.GetTask(ctx, ids[0])
-		if err != nil {
-			return err
-		}
-
 		line := strings.TrimSpace(editOpts.Text)
 		if line == "" {
 			return errors.New("todo text required")
 		}
 
-		parsed := todotxt.ParseLine(line)
-		if parsed.CreationDate == nil {
-			if current.CreationDate != nil {
-				parsed.CreationDate = current.CreationDate
-			} else if parsed.Done && parsed.CompletionDate != nil {
-				parsed.CreationDate = parsed.CompletionDate
-			} else {
-				parsed.CreationDate = nowDate()
-			}
+		svc, err := newTaskService(ctx)
+		if err != nil {
+			return err
 		}
-		updated := &store.Task{
-			ID:             current.ID,
-			Done:           parsed.Done,
-			Priority:       parsed.Priority,
-			CompletionDate: parsed.CompletionDate,
-			CreationDate:   parsed.CreationDate,
-			Description:    parsed.Description,
-			Projects:       parsed.Projects,
-			Contexts:       parsed.Contexts,
-			Meta:           parsed.Meta,
-			Unknown:        parsed.Unknown,
-		}
+		defer svc.Close()
 
-		saved, err := st.UpdateTask(ctx, updated)
+		saved, err := svc.UpdateTaskText(ctx, service.UpdateTaskRequest{
+			ID:   ids[0],
+			Text: line,
+		})
 		if err != nil {
 			return err
 		}
