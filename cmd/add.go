@@ -72,6 +72,13 @@ var addCmd = &cobra.Command{
 			}
 			parsed.CompletionDate = date
 		}
+		if parsed.CreationDate == nil {
+			if parsed.Done && parsed.CompletionDate != nil {
+				parsed.CreationDate = parsed.CompletionDate
+			} else {
+				parsed.CreationDate = nowDate()
+			}
+		}
 
 		meta, err := parseMetaFlags(addOpts.Meta)
 		if err != nil {

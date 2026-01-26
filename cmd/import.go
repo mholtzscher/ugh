@@ -59,6 +59,9 @@ var importCmd = &cobra.Command{
 				continue
 			}
 			parsed := todotxt.ParseLine(line)
+			if parsed.CreationDate == nil {
+				parsed.CreationDate = nowDate()
+			}
 			task := &store.Task{
 				Done:           parsed.Done,
 				Priority:       parsed.Priority,

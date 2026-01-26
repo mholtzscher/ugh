@@ -84,6 +84,8 @@ type TaskJSON struct {
 	Meta           map[string]string `json:"meta"`
 	Unknown        []string          `json:"unknown"`
 	TodoTxt        string            `json:"todoTxt"`
+	CreatedAt      string            `json:"createdAt"`
+	UpdatedAt      string            `json:"updatedAt"`
 }
 
 func toTaskJSON(task *store.Task) TaskJSON {
@@ -115,6 +117,8 @@ func toTaskJSON(task *store.Task) TaskJSON {
 		Meta:           meta,
 		Unknown:        unknown,
 		TodoTxt:        todoLine(task),
+		CreatedAt:      formatDateTime(task.CreatedAt),
+		UpdatedAt:      formatDateTime(task.UpdatedAt),
 	}
 }
 
@@ -143,4 +147,11 @@ func formatDate(val *time.Time) string {
 		return ""
 	}
 	return val.Format("2006-01-02")
+}
+
+func formatDateTime(val time.Time) string {
+	if val.IsZero() {
+		return ""
+	}
+	return val.UTC().Format(time.RFC3339)
 }

@@ -38,7 +38,7 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 	if task.Done {
 		status = "done"
 	}
-	_, err := fmt.Fprintf(out, "ID: %d\nStatus: %s\nPriority: %s\nCreated: %s\nCompleted: %s\nText: %s\n", task.ID, status, emptyDash(task.Priority), dateOrDash(task.CreationDate), dateOrDash(task.CompletionDate), todoLine(task))
+	_, err := fmt.Fprintf(out, "ID: %d\nStatus: %s\nPriority: %s\nCreated: %s\nCompleted: %s\nText: %s\n", task.ID, status, emptyDash(task.Priority), createdDateOrDash(task), dateOrDash(task.CompletionDate), todoLine(task))
 	return err
 }
 
@@ -76,7 +76,7 @@ func writeHumanList(out io.Writer, tasks []*store.Task, noColor bool) error {
 			fmt.Sprintf("%d", task.ID),
 			status,
 			emptyDash(task.Priority),
-			dateOrDash(task.CreationDate),
+			createdDateOrDash(task),
 			todoLine(task),
 		})
 	}
@@ -148,6 +148,19 @@ func dateOrDash(value *time.Time) string {
 		return "-"
 	}
 	return value.Format("2006-01-02")
+}
+
+func createdDateOrDash(task *store.Task) string {
+	if task == nil {
+		return "-"
+	}
+	if task.CreationDate != nil {
+		return task.CreationDate.Format("2006-01-02")
+	}
+	if !task.CreatedAt.IsZero() {
+		return task.CreatedAt.UTC().Format("2006-01-02")
+	}
+	return "-"
 }
 
 func joinIDs(ids []int64) string {

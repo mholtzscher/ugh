@@ -6,7 +6,7 @@ exec ugh --db $WORK/db.sqlite done 1
 cmp stdout want-done.txt
 
 exec ugh --db $WORK/db.sqlite list --done
-stdout 'x [0-9]{4}-[0-9]{2}-[0-9]{2} Task one'
+stdout 'x [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{4}-[0-9]{2}-[0-9]{2} Task one'
 ! stdout 'Task two'
 
 exec ugh --db $WORK/db.sqlite undo 1

@@ -1,7 +1,6 @@
 # JSON list output
-exec ugh --db $WORK/db.sqlite add Read spec +work
+exec ugh --db $WORK/db.sqlite add --created 2026-01-02 Read spec +work
 exec ugh --db $WORK/db.sqlite list --json
-cmp stdout want.json
+stdout '\[\{"id":1,"done":false,"creationDate":"2026-01-02","description":"Read spec","projects":\["work"\],"contexts":\[\],"meta":\{\},"unknown":\[\],"todoTxt":"2026-01-02 Read spec \+work","createdAt":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z","updatedAt":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"\}\]'
 
 -- want.json --
-[{"id":1,"done":false,"description":"Read spec","projects":["work"],"contexts":[],"meta":{},"unknown":[],"todoTxt":"Read spec +work"}]

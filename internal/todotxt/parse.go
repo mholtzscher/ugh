@@ -36,6 +36,9 @@ func ParseLine(line string) Parsed {
 			parsed.CreationDate = mustParseDate(tokens[idx])
 			idx++
 		}
+	} else if isDate(tokens[idx]) {
+		parsed.CreationDate = mustParseDate(tokens[idx])
+		idx++
 	}
 
 	descTokens := make([]string, 0, len(tokens)-idx)

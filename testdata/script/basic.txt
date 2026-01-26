@@ -3,8 +3,5 @@ exec ugh --db $WORK/db.sqlite add Buy milk +groceries @home
 exec ugh --db $WORK/db.sqlite add (A) Call mom +family @phone due:2026-01-02
 
 exec ugh --db $WORK/db.sqlite list
-cmp stdout want-list.txt
-
--- want-list.txt --
-(A) Call mom +family @phone due:2026-01-02
-Buy milk +groceries @home
+stdout '\(A\) [0-9]{4}-[0-9]{2}-[0-9]{2} Call mom \+family @phone due:2026-01-02'
+stdout '[0-9]{4}-[0-9]{2}-[0-9]{2} Buy milk \+groceries @home'

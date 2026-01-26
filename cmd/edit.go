@@ -70,6 +70,15 @@ var editCmd = &cobra.Command{
 		}
 
 		parsed := todotxt.ParseLine(line)
+		if parsed.CreationDate == nil {
+			if current.CreationDate != nil {
+				parsed.CreationDate = current.CreationDate
+			} else if parsed.Done && parsed.CompletionDate != nil {
+				parsed.CreationDate = parsed.CompletionDate
+			} else {
+				parsed.CreationDate = nowDate()
+			}
+		}
 		updated := &store.Task{
 			ID:             current.ID,
 			Done:           parsed.Done,
