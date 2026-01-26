@@ -34,8 +34,8 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&rootOpts.DBPath, "db", "", "path to sqlite database")
-	rootCmd.PersistentFlags().BoolVar(&rootOpts.JSON, "json", false, "output json")
+	rootCmd.PersistentFlags().StringVarP(&rootOpts.DBPath, "db", "d", "", "path to sqlite database")
+	rootCmd.PersistentFlags().BoolVarP(&rootOpts.JSON, "json", "j", false, "output json")
 	rootCmd.PersistentFlags().BoolVar(&rootOpts.NoColor, "no-color", false, "disable color output")
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(listCmd)

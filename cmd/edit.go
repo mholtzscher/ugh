@@ -80,5 +80,5 @@ var editCmd = &cobra.Command{
 }
 
 func init() {
-	editCmd.Flags().StringVar(&editOpts.Text, "text", "", "todo.txt formatted line")
+	editCmd.Flags().StringVarP(&editOpts.Text, "text", "t", "", "todo.txt formatted line")
 }

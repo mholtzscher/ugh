@@ -53,11 +53,11 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	listCmd.Flags().BoolVar(&listOpts.All, "all", false, "include completed tasks")
-	listCmd.Flags().BoolVar(&listOpts.DoneOnly, "done", false, "only completed tasks")
-	listCmd.Flags().BoolVar(&listOpts.TodoOnly, "todo", false, "only pending tasks")
-	listCmd.Flags().StringVar(&listOpts.Project, "project", "", "filter by project")
-	listCmd.Flags().StringVar(&listOpts.Context, "context", "", "filter by context")
-	listCmd.Flags().StringVar(&listOpts.Priority, "priority", "", "filter by priority")
-	listCmd.Flags().StringVar(&listOpts.Search, "search", "", "search text")
+	listCmd.Flags().BoolVarP(&listOpts.All, "all", "a", false, "include completed tasks")
+	listCmd.Flags().BoolVarP(&listOpts.DoneOnly, "done", "x", false, "only completed tasks")
+	listCmd.Flags().BoolVarP(&listOpts.TodoOnly, "todo", "t", false, "only pending tasks")
+	listCmd.Flags().StringVarP(&listOpts.Project, "project", "P", "", "filter by project")
+	listCmd.Flags().StringVarP(&listOpts.Context, "context", "c", "", "filter by context")
+	listCmd.Flags().StringVarP(&listOpts.Priority, "priority", "p", "", "filter by priority")
+	listCmd.Flags().StringVarP(&listOpts.Search, "search", "s", "", "search text")
 }

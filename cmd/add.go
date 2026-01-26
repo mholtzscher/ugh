@@ -112,10 +112,10 @@ var addCmd = &cobra.Command{
 
 func init() {
 	addCmd.Flags().StringVarP(&addOpts.Priority, "priority", "p", "", "priority letter")
-	addCmd.Flags().StringSliceVar(&addOpts.Projects, "project", nil, "project tag (repeatable)")
-	addCmd.Flags().StringSliceVar(&addOpts.Contexts, "context", nil, "context tag (repeatable)")
-	addCmd.Flags().StringSliceVar(&addOpts.Meta, "meta", nil, "metadata key:value (repeatable)")
-	addCmd.Flags().BoolVar(&addOpts.Done, "done", false, "mark task done")
+	addCmd.Flags().StringSliceVarP(&addOpts.Projects, "project", "P", nil, "project tag (repeatable)")
+	addCmd.Flags().StringSliceVarP(&addOpts.Contexts, "context", "c", nil, "context tag (repeatable)")
+	addCmd.Flags().StringSliceVarP(&addOpts.Meta, "meta", "m", nil, "metadata key:value (repeatable)")
+	addCmd.Flags().BoolVarP(&addOpts.Done, "done", "x", false, "mark task done")
 	addCmd.Flags().StringVar(&addOpts.Created, "created", "", "creation date (YYYY-MM-DD)")
 	addCmd.Flags().StringVar(&addOpts.Completed, "completed", "", "completion date (YYYY-MM-DD)")
 }
