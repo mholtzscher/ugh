@@ -1,0 +1,25 @@
+# Show and edit flows
+exec ugh --db $WORK/db.sqlite add (B) Plan trip +travel @home due:2026-01-02 note:foo ++bad
+
+exec ugh --db $WORK/db.sqlite show 1
+cmp stdout want-show.txt
+
+exec ugh --db $WORK/db.sqlite show 1 --json
+cmp stdout want-show.json
+
+exec ugh --db $WORK/db.sqlite edit 1 --text '(A) Updated task +work @office key:val'
+
+exec ugh --db $WORK/db.sqlite show 1
+cmp stdout want-show-updated.txt
+
+exec ugh --db $WORK/db.sqlite show 1 --json
+cmp stdout want-show-updated.json
+
+-- want-show.txt --
+(B) Plan trip +travel @home due:2026-01-02 note:foo ++bad
+-- want-show.json --
+{"id":1,"done":false,"priority":"B","description":"Plan trip","projects":["travel"],"contexts":["home"],"meta":{"due":"2026-01-02","note":"foo"},"unknown":["++bad"],"todoTxt":"(B) Plan trip +travel @home due:2026-01-02 note:foo ++bad"}
+-- want-show-updated.txt --
+(A) Updated task +work @office key:val
+-- want-show-updated.json --
+{"id":1,"done":false,"priority":"A","description":"Updated task","projects":["work"],"contexts":["office"],"meta":{"key":"val"},"unknown":[],"todoTxt":"(A) Updated task +work @office key:val"}

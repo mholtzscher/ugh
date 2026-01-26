@@ -1,0 +1,21 @@
+# Error handling
+! exec ugh --db $WORK/db.sqlite show
+stderr 'show requires a task id'
+
+! exec ugh --db $WORK/db.sqlite edit
+stderr 'edit requires a task id'
+
+! exec ugh --db $WORK/db.sqlite done
+stderr 'at least one id is required'
+
+! exec ugh --db $WORK/db.sqlite done abc
+stderr 'invalid id "abc"'
+
+! exec ugh --db $WORK/db.sqlite add
+stderr 'todo text required'
+
+! exec ugh --db $WORK/db.sqlite add --created 2026-13-01 Task
+stderr 'invalid date'
+
+! exec ugh --db $WORK/db.sqlite add --meta badmeta Task
+stderr 'invalid meta'

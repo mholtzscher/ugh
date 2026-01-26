@@ -1,0 +1,31 @@
+# Done, undo, and rm flows
+exec ugh --db $WORK/db.sqlite add Task one
+exec ugh --db $WORK/db.sqlite add Task two
+
+exec ugh --db $WORK/db.sqlite done 1
+cmp stdout want-done.txt
+
+exec ugh --db $WORK/db.sqlite list --done
+stdout 'x [0-9]{4}-[0-9]{2}-[0-9]{2} Task one'
+! stdout 'Task two'
+
+exec ugh --db $WORK/db.sqlite undo 1
+cmp stdout want-undo.txt
+
+exec ugh --db $WORK/db.sqlite list --todo
+stdout 'Task one'
+stdout 'Task two'
+
+exec ugh --db $WORK/db.sqlite rm 2
+cmp stdout want-rm.txt
+
+exec ugh --db $WORK/db.sqlite list --all
+stdout 'Task one'
+! stdout 'Task two'
+
+-- want-done.txt --
+done: 1 ids=1
+-- want-undo.txt --
+undo: 1 ids=1
+-- want-rm.txt --
+rm: 1 ids=2
