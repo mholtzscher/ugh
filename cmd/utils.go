@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
-	"time"
+
+	"github.com/mholtzscher/ugh/internal/service"
 )
 
 func parseIDs(args []string) ([]int64, error) {
@@ -23,50 +24,10 @@ func parseIDs(args []string) ([]int64, error) {
 	return ids, nil
 }
 
-func parseDate(value string) (*time.Time, error) {
-	if value == "" {
-		return nil, nil
-	}
-	parsed, err := time.Parse("2006-01-02", value)
+func newTaskService(ctx context.Context) (*service.TaskService, error) {
+	st, err := openStore(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("invalid date %q (expected YYYY-MM-DD)", value)
+		return nil, err
 	}
-	utc := parsed.UTC()
-	return &utc, nil
-}
-
-func parseMetaFlags(values []string) (map[string]string, error) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-	meta := make(map[string]string)
-	for _, item := range values {
-		item = strings.TrimSpace(item)
-		if item == "" {
-			continue
-		}
-		sep := strings.IndexAny(item, ":=")
-		if sep <= 0 || sep >= len(item)-1 {
-			return nil, fmt.Errorf("invalid meta %q (use key:value)", item)
-		}
-		key := item[:sep]
-		value := item[sep+1:]
-		meta[key] = value
-	}
-	return meta, nil
-}
-
-func normalizePriority(value string) string {
-	value = strings.TrimSpace(value)
-	if len(value) == 3 && value[0] == '(' && value[2] == ')' {
-		value = value[1:2]
-	}
-	if value == "" {
-		return ""
-	}
-	value = strings.ToUpper(value)
-	if value[0] < 'A' || value[0] > 'Z' {
-		return ""
-	}
-	return value[:1]
+	return service.NewTaskService(st), nil
 }

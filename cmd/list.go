@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 
-	"github.com/mholtzscher/ugh/internal/store"
+	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +23,13 @@ var listCmd = &cobra.Command{
 	Short:   "List tasks",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		filters := store.Filters{
+		svc, err := newTaskService(ctx)
+		if err != nil {
+			return err
+		}
+		defer svc.Close()
+
+		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			All:      listOpts.All,
 			DoneOnly: listOpts.DoneOnly,
 			TodoOnly: listOpts.TodoOnly,
@@ -31,18 +37,7 @@ var listCmd = &cobra.Command{
 			Context:  listOpts.Context,
 			Priority: listOpts.Priority,
 			Search:   listOpts.Search,
-		}
-		if !filters.All && !filters.DoneOnly && !filters.TodoOnly {
-			filters.TodoOnly = true
-		}
-
-		st, err := openStore(ctx)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = st.Close() }()
-
-		tasks, err := st.ListTasks(ctx, filters)
+		})
 		if err != nil {
 			return err
 		}

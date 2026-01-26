@@ -5,8 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/mholtzscher/ugh/internal/store"
-	"github.com/mholtzscher/ugh/internal/todotxt"
+	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -31,82 +30,28 @@ var addCmd = &cobra.Command{
 			return errors.New("todo text required")
 		}
 
-		parsed := todotxt.ParseLine(line)
-		if addOpts.Priority != "" {
-			parsed.Priority = normalizePriority(addOpts.Priority)
-		}
-		if len(addOpts.Projects) > 0 {
-			parsed.Projects = append(parsed.Projects, addOpts.Projects...)
-		}
-		if len(addOpts.Contexts) > 0 {
-			parsed.Contexts = append(parsed.Contexts, addOpts.Contexts...)
-		}
-		if addOpts.Done {
-			parsed.Done = true
-			if parsed.CompletionDate == nil {
-				parsed.CompletionDate = nowDate()
-			}
-		}
-		if addOpts.Created != "" {
-			date, err := parseDate(addOpts.Created)
-			if err != nil {
-				return err
-			}
-			parsed.CreationDate = date
-		}
-		if addOpts.Completed != "" {
-			date, err := parseDate(addOpts.Completed)
-			if err != nil {
-				return err
-			}
-			parsed.CompletionDate = date
-		}
-		if parsed.CreationDate == nil {
-			if parsed.Done && parsed.CompletionDate != nil {
-				parsed.CreationDate = parsed.CompletionDate
-			} else {
-				parsed.CreationDate = nowDate()
-			}
-		}
-
-		meta, err := parseMetaFlags(addOpts.Meta)
+		svc, err := newTaskService(ctx)
 		if err != nil {
 			return err
 		}
-		if len(meta) > 0 {
-			if parsed.Meta == nil {
-				parsed.Meta = map[string]string{}
-			}
-			for key, value := range meta {
-				parsed.Meta[key] = value
-			}
-		}
+		defer svc.Close()
 
-		storeTask := &store.Task{
-			Done:           parsed.Done,
-			Priority:       parsed.Priority,
-			CompletionDate: parsed.CompletionDate,
-			CreationDate:   parsed.CreationDate,
-			Description:    parsed.Description,
-			Projects:       parsed.Projects,
-			Contexts:       parsed.Contexts,
-			Meta:           parsed.Meta,
-			Unknown:        parsed.Unknown,
-		}
-
-		st, err := openStore(ctx)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = st.Close() }()
-
-		created, err := st.CreateTask(ctx, storeTask)
+		task, err := svc.CreateTask(ctx, service.CreateTaskRequest{
+			Line:      line,
+			Priority:  addOpts.Priority,
+			Projects:  addOpts.Projects,
+			Contexts:  addOpts.Contexts,
+			Meta:      addOpts.Meta,
+			Done:      addOpts.Done,
+			Created:   addOpts.Created,
+			Completed: addOpts.Completed,
+		})
 		if err != nil {
 			return err
 		}
 
 		writer := outputWriter()
-		return writer.WriteTask(created)
+		return writer.WriteTask(task)
 	},
 }
 
