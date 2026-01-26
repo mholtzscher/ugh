@@ -13,6 +13,7 @@
   mkGoEnv ? pkgs.mkGoEnv,
   gomod2nix ? pkgs.gomod2nix,
   golangci-lint ? pkgs.golangci-lint,
+  govulncheck ? pkgs.govulncheck,
 }:
 
 let
@@ -23,5 +24,6 @@ pkgs.mkShell {
     goEnv
     gomod2nix
     golangci-lint
+    govulncheck
   ];
 }

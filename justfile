@@ -45,8 +45,8 @@ vet:
 lint:
     golangci-lint run
 
-# Run all checks (format, vet, lint, test)
-check: fmt vet lint test
+# Run all checks (format, vet, lint, test, tidy, sqlc, govulncheck, gomod2nix)
+check: fmt vet lint test tidy sqlc govulncheck gomod2nix
 
 # Tidy go modules
 tidy:
@@ -59,3 +59,7 @@ gomod2nix:
 # Generate sqlc code
 sqlc:
     go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate
+
+# Run govulncheck security scanner
+govulncheck:
+    govulncheck ./...
