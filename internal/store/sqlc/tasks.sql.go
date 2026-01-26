@@ -225,18 +225,23 @@ const listContextCounts = `-- name: ListContextCounts :many
 SELECT tc.name, COUNT(t.id) AS count
 FROM task_contexts tc
 JOIN tasks t ON tc.task_id = t.id
-WHERE (?1 IS NULL OR t.done = ?1)
+WHERE (? IS NULL OR t.done = ?)
 GROUP BY tc.name
 ORDER BY tc.name ASC
 `
+
+type ListContextCountsParams struct {
+	Column1 interface{} `json:"column_1"`
+	Done    int64       `json:"done"`
+}
 
 type ListContextCountsRow struct {
 	Name  string `json:"name"`
 	Count int64  `json:"count"`
 }
 
-func (q *Queries) ListContextCounts(ctx context.Context, status interface{}) ([]ListContextCountsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listContextCounts, status)
+func (q *Queries) ListContextCounts(ctx context.Context, arg ListContextCountsParams) ([]ListContextCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listContextCounts, arg.Column1, arg.Done)
 	if err != nil {
 		return nil, err
 	}
@@ -336,18 +341,23 @@ const listProjectCounts = `-- name: ListProjectCounts :many
 SELECT tp.name, COUNT(t.id) AS count
 FROM task_projects tp
 JOIN tasks t ON tp.task_id = t.id
-WHERE (?1 IS NULL OR t.done = ?1)
+WHERE (? IS NULL OR t.done = ?)
 GROUP BY tp.name
 ORDER BY tp.name ASC
 `
+
+type ListProjectCountsParams struct {
+	Column1 interface{} `json:"column_1"`
+	Done    int64       `json:"done"`
+}
 
 type ListProjectCountsRow struct {
 	Name  string `json:"name"`
 	Count int64  `json:"count"`
 }
 
-func (q *Queries) ListProjectCounts(ctx context.Context, status interface{}) ([]ListProjectCountsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listProjectCounts, status)
+func (q *Queries) ListProjectCounts(ctx context.Context, arg ListProjectCountsParams) ([]ListProjectCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProjectCounts, arg.Column1, arg.Done)
 	if err != nil {
 		return nil, err
 	}
@@ -409,29 +419,38 @@ func (q *Queries) ListProjects(ctx context.Context, ids []int64) ([]TaskProject,
 const listTasks = `-- name: ListTasks :many
 SELECT t.id, t.done, t.priority, t.completion_date, t.creation_date, CAST(t.description AS TEXT) AS description, t.created_at, t.updated_at
 FROM tasks t
-WHERE (?1 IS NULL OR t.done = ?1)
-  AND (?2 IS NULL OR EXISTS (
-    SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name = ?2
+WHERE (? IS NULL OR t.done = ?)
+  AND (? IS NULL OR EXISTS (
+    SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name = ?
   ))
-  AND (?3 IS NULL OR EXISTS (
-    SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name = ?3
+  AND (? IS NULL OR EXISTS (
+    SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name = ?
   ))
-  AND (?4 IS NULL OR t.priority = ?4)
-  AND (?5 IS NULL OR (
-    t.description LIKE '%' || ?5 || '%'
-    OR EXISTS (SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name LIKE '%' || ?5 || '%')
-    OR EXISTS (SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name LIKE '%' || ?5 || '%')
-    OR EXISTS (SELECT 1 FROM task_meta m WHERE m.task_id = t.id AND (m.key LIKE '%' || ?5 || '%' OR m.value LIKE '%' || ?5 || '%'))
+  AND (? IS NULL OR t.priority = ?)
+  AND (? IS NULL OR (
+    t.description LIKE '%' || ? || '%'
+    OR EXISTS (SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name LIKE '%' || ? || '%')
+    OR EXISTS (SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name LIKE '%' || ? || '%')
+    OR EXISTS (SELECT 1 FROM task_meta m WHERE m.task_id = t.id AND (m.key LIKE '%' || ? || '%' OR m.value LIKE '%' || ? || '%'))
   ))
 ORDER BY CASE WHEN t.done = 1 THEN 1 ELSE 0 END, t.priority IS NULL, t.priority ASC, t.created_at DESC
 `
 
 type ListTasksParams struct {
-	Status   interface{} `json:"status"`
-	Project  interface{} `json:"project"`
-	Context  interface{} `json:"context"`
-	Priority interface{} `json:"priority"`
-	Search   interface{} `json:"search"`
+	Column1  interface{}    `json:"column_1"`
+	Done     int64          `json:"done"`
+	Column3  interface{}    `json:"column_3"`
+	Name     string         `json:"name"`
+	Column5  interface{}    `json:"column_5"`
+	Name_2   string         `json:"name_2"`
+	Column7  interface{}    `json:"column_7"`
+	Priority sql.NullString `json:"priority"`
+	Column9  interface{}    `json:"column_9"`
+	Column10 sql.NullString `json:"column_10"`
+	Column11 sql.NullString `json:"column_11"`
+	Column12 sql.NullString `json:"column_12"`
+	Column13 sql.NullString `json:"column_13"`
+	Column14 sql.NullString `json:"column_14"`
 }
 
 type ListTasksRow struct {
@@ -447,11 +466,20 @@ type ListTasksRow struct {
 
 func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error) {
 	rows, err := q.db.QueryContext(ctx, listTasks,
-		arg.Status,
-		arg.Project,
-		arg.Context,
+		arg.Column1,
+		arg.Done,
+		arg.Column3,
+		arg.Name,
+		arg.Column5,
+		arg.Name_2,
+		arg.Column7,
 		arg.Priority,
-		arg.Search,
+		arg.Column9,
+		arg.Column10,
+		arg.Column11,
+		arg.Column12,
+		arg.Column13,
+		arg.Column14,
 	)
 	if err != nil {
 		return nil, err

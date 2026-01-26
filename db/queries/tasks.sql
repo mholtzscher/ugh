@@ -31,19 +31,19 @@ WHERE id = ?;
 -- name: ListTasks :many
 SELECT t.id, t.done, t.priority, t.completion_date, t.creation_date, CAST(t.description AS TEXT) AS description, t.created_at, t.updated_at
 FROM tasks t
-WHERE (sqlc.narg('status') IS NULL OR t.done = sqlc.narg('status'))
-  AND (sqlc.narg('project') IS NULL OR EXISTS (
-    SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name = sqlc.narg('project')
+WHERE (? IS NULL OR t.done = ?)
+  AND (? IS NULL OR EXISTS (
+    SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name = ?
   ))
-  AND (sqlc.narg('context') IS NULL OR EXISTS (
-    SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name = sqlc.narg('context')
+  AND (? IS NULL OR EXISTS (
+    SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name = ?
   ))
-  AND (sqlc.narg('priority') IS NULL OR t.priority = sqlc.narg('priority'))
-  AND (sqlc.narg('search') IS NULL OR (
-    t.description LIKE '%' || sqlc.narg('search') || '%'
-    OR EXISTS (SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name LIKE '%' || sqlc.narg('search') || '%')
-    OR EXISTS (SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name LIKE '%' || sqlc.narg('search') || '%')
-    OR EXISTS (SELECT 1 FROM task_meta m WHERE m.task_id = t.id AND (m.key LIKE '%' || sqlc.narg('search') || '%' OR m.value LIKE '%' || sqlc.narg('search') || '%'))
+  AND (? IS NULL OR t.priority = ?)
+  AND (? IS NULL OR (
+    t.description LIKE '%' || ? || '%'
+    OR EXISTS (SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name LIKE '%' || ? || '%')
+    OR EXISTS (SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name LIKE '%' || ? || '%')
+    OR EXISTS (SELECT 1 FROM task_meta m WHERE m.task_id = t.id AND (m.key LIKE '%' || ? || '%' OR m.value LIKE '%' || ? || '%'))
   ))
 ORDER BY CASE WHEN t.done = 1 THEN 1 ELSE 0 END, t.priority IS NULL, t.priority ASC, t.created_at DESC;
 
@@ -96,7 +96,7 @@ SELECT task_id, ordinal, token FROM task_unknown WHERE task_id IN (sqlc.slice('i
 SELECT tp.name, COUNT(t.id) AS count
 FROM task_projects tp
 JOIN tasks t ON tp.task_id = t.id
-WHERE (sqlc.narg('status') IS NULL OR t.done = sqlc.narg('status'))
+WHERE (? IS NULL OR t.done = ?)
 GROUP BY tp.name
 ORDER BY tp.name ASC;
 
@@ -104,6 +104,6 @@ ORDER BY tp.name ASC;
 SELECT tc.name, COUNT(t.id) AS count
 FROM task_contexts tc
 JOIN tasks t ON tc.task_id = t.id
-WHERE (sqlc.narg('status') IS NULL OR t.done = sqlc.narg('status'))
+WHERE (? IS NULL OR t.done = ?)
 GROUP BY tc.name
 ORDER BY tc.name ASC;

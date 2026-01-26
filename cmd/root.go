@@ -118,8 +118,13 @@ func openStore(ctx context.Context) (*store.Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dbDir := filepath.Dir(path)
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create db dir: %w", err)
+	}
+	cacheDir := filepath.Join(dbDir, ".cache")
+	if os.Getenv("TURSO_GO_CACHE_DIR") == "" {
+		_ = os.Setenv("TURSO_GO_CACHE_DIR", cacheDir)
 	}
 	return store.Open(ctx, path)
 }

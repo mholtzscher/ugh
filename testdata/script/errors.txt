@@ -15,7 +15,7 @@ stderr 'invalid id "abc"'
 stderr 'todo text required'
 
 ! exec ugh --db $WORK/db.sqlite add --created 2026-13-01 Task
-stderr 'invalid date'
+stderr 'date format'
 
 ! exec ugh --db $WORK/db.sqlite add --meta badmeta Task
 stderr 'invalid meta'

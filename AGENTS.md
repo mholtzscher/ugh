@@ -4,11 +4,11 @@ This document provides essential information for AI coding agents working in thi
 
 ## Project Overview
 
-**ugh** is a todo.txt-inspired task CLI with SQLite storage, written in Go 1.25.
+**ugh** is a todo.txt-inspired task CLI with libSQL storage (Turso), written in Go 1.25.
 
 - **Module**: `github.com/mholtzscher/ugh`
 - **CLI Framework**: spf13/cobra
-- **Database**: SQLite (modernc.org/sqlite - pure Go)
+- **Database**: libSQL (turso.tech/database/tursogo)
 - **SQL Generation**: sqlc
 - **Migrations**: goose (embedded)
 - **Dev Environment**: Nix flake + just task runner

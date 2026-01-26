@@ -14,7 +14,7 @@ import (
 
 	"github.com/mholtzscher/ugh/internal/store/sqlc"
 	"github.com/pressly/goose/v3"
-	_ "modernc.org/sqlite"
+	_ "turso.tech/database/tursogo"
 )
 
 type Store struct {
@@ -32,7 +32,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		return nil, fmt.Errorf("resolve db path: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", abspath)
+	db, err := sql.Open("turso", abspath)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
@@ -155,19 +155,46 @@ func (s *Store) GetTask(ctx context.Context, id int64) (*Task, error) {
 }
 
 func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error) {
-	var status any
+	// Build status filter - nil means no filter
+	var statusAny any
+	var statusInt int64
 	if filters.DoneOnly {
-		status = int64(1)
+		statusAny = int64(1)
+		statusInt = 1
 	} else if filters.TodoOnly {
-		status = int64(0)
+		statusAny = int64(0)
+		statusInt = 0
 	}
 
+	// Build search filter as sql.NullString
+	searchNull := sql.NullString{}
+	if filters.Search != "" {
+		searchNull = sql.NullString{String: filters.Search, Valid: true}
+	}
+
+	// Build priority filter as sql.NullString
+	priorityNull := sql.NullString{}
+	if filters.Priority != "" {
+		priorityNull = sql.NullString{String: filters.Priority, Valid: true}
+	}
+
+	// For (? IS NULL OR field = ?) pattern, pass the same value twice
+	// When first param is nil, second doesn't matter (OR short-circuits)
 	params := sqlc.ListTasksParams{
-		Status:   status,
-		Project:  nullAny(filters.Project),
-		Context:  nullAny(filters.Context),
-		Priority: nullAny(filters.Priority),
-		Search:   nullAny(filters.Search),
+		Column1:  statusAny,                 // status IS NULL check
+		Done:     statusInt,                 // t.done = status
+		Column3:  nullAny(filters.Project),  // project IS NULL check
+		Name:     filters.Project,           // p.name = project
+		Column5:  nullAny(filters.Context),  // context IS NULL check
+		Name_2:   filters.Context,           // c.name = context
+		Column7:  nullAny(filters.Priority), // priority IS NULL check
+		Priority: priorityNull,              // t.priority = priority
+		Column9:  nullAny(filters.Search),   // search IS NULL check
+		Column10: searchNull,                // search LIKE (description)
+		Column11: searchNull,                // search LIKE (projects)
+		Column12: searchNull,                // search LIKE (contexts)
+		Column13: searchNull,                // search LIKE (meta key)
+		Column14: searchNull,                // search LIKE (meta value)
 	}
 	rows, err := s.queries.ListTasks(ctx, params)
 	if err != nil {
@@ -301,7 +328,16 @@ func (s *Store) insertTokens(ctx context.Context, id int64, task *Task) error {
 }
 
 func (s *Store) ListProjectCounts(ctx context.Context, status any) ([]NameCount, error) {
-	rows, err := s.queries.ListProjectCounts(ctx, status)
+	// Convert status to int64 for the equals check (value doesn't matter if status is nil)
+	var statusInt int64
+	if v, ok := status.(int64); ok {
+		statusInt = v
+	}
+	params := sqlc.ListProjectCountsParams{
+		Column1: status,    // status IS NULL check
+		Done:    statusInt, // t.done = status
+	}
+	rows, err := s.queries.ListProjectCounts(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("list project counts: %w", err)
 	}
@@ -313,7 +349,16 @@ func (s *Store) ListProjectCounts(ctx context.Context, status any) ([]NameCount,
 }
 
 func (s *Store) ListContextCounts(ctx context.Context, status any) ([]NameCount, error) {
-	rows, err := s.queries.ListContextCounts(ctx, status)
+	// Convert status to int64 for the equals check (value doesn't matter if status is nil)
+	var statusInt int64
+	if v, ok := status.(int64); ok {
+		statusInt = v
+	}
+	params := sqlc.ListContextCountsParams{
+		Column1: status,    // status IS NULL check
+		Done:    statusInt, // t.done = status
+	}
+	rows, err := s.queries.ListContextCounts(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("list context counts: %w", err)
 	}
