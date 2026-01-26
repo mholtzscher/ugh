@@ -7,7 +7,6 @@ import (
 
 	"github.com/mholtzscher/ugh/internal/store"
 	"github.com/mholtzscher/ugh/internal/todotxt"
-	"github.com/mholtzscher/ugh/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -44,27 +43,6 @@ var editCmd = &cobra.Command{
 		}
 
 		line := strings.TrimSpace(editOpts.Text)
-		if line == "" {
-			if err := mustTTY(); err != nil {
-				return errors.New("todo text required (use --text in non-interactive mode)")
-			}
-			currentLine := todotxt.Format(todotxt.Parsed{
-				Done:           current.Done,
-				Priority:       current.Priority,
-				CompletionDate: current.CompletionDate,
-				CreationDate:   current.CreationDate,
-				Description:    current.Description,
-				Projects:       current.Projects,
-				Contexts:       current.Contexts,
-				Meta:           current.Meta,
-				Unknown:        current.Unknown,
-			})
-			value, err := ui.PromptTodoLine("Edit task", currentLine)
-			if err != nil {
-				return err
-			}
-			line = strings.TrimSpace(value)
-		}
 		if line == "" {
 			return errors.New("todo text required")
 		}

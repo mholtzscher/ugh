@@ -55,7 +55,7 @@ func (w Writer) WriteTasks(tasks []*store.Task) error {
 	}
 
 	if w.TTY {
-		return writeHumanList(w.Out, tasks, w.NoColor)
+		return writeHumanList(w.Out, tasks)
 	}
 	for _, task := range tasks {
 		if _, err := fmt.Fprintln(w.Out, todoLine(task)); err != nil {
@@ -69,7 +69,10 @@ func (w Writer) WriteSummary(summary any) error {
 	if w.JSON {
 		return writeJSON(w.Out, summary)
 	}
-	return writeHumanSummary(w.Out, summary)
+	if w.TTY {
+		return writeHumanSummary(w.Out, summary)
+	}
+	return writePlainSummary(w.Out, summary)
 }
 
 type TaskJSON struct {

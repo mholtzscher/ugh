@@ -3,14 +3,11 @@ package output
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/mholtzscher/ugh/internal/store"
-	"golang.org/x/term"
+	"github.com/olekukonko/tablewriter"
 )
 
 type Summary struct {
@@ -38,73 +35,82 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 	if task.Done {
 		status = "done"
 	}
-	_, err := fmt.Fprintf(out, "ID: %d\nStatus: %s\nPriority: %s\nCreated: %s\nCompleted: %s\nText: %s\n", task.ID, status, emptyDash(task.Priority), createdDateOrDash(task), dateOrDash(task.CompletionDate), todoLine(task))
-	return err
-}
-
-func writeHumanList(out io.Writer, tasks []*store.Task, noColor bool) error {
-	const (
-		idWidth       = 4
-		statusWidth   = 6
-		priorityWidth = 8
-		createdWidth  = 10
-		minTaskWidth  = 30
-		defaultTask   = 60
-	)
-	padding := 2 * 5
-	taskWidth := defaultTask
-	if width, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && width > 0 {
-		reserved := idWidth + statusWidth + priorityWidth + createdWidth + padding
-		if width > reserved+minTaskWidth {
-			taskWidth = width - reserved
+	table := tablewriter.NewWriter(out)
+	table.Header("Field", "Value")
+	rows := [][]string{
+		{"ID", fmt.Sprintf("%d", task.ID)},
+		{"Status", status},
+		{"Priority", emptyDash(task.Priority)},
+		{"Created", createdDateOrDash(task)},
+		{"Completed", dateOrDash(task.CompletionDate)},
+		{"Description", task.Description},
+	}
+	for _, row := range rows {
+		if err := appendRow(table, row); err != nil {
+			return err
 		}
 	}
-	columns := []table.Column{
-		{Title: "ID", Width: idWidth},
-		{Title: "Status", Width: statusWidth},
-		{Title: "Priority", Width: priorityWidth},
-		{Title: "Created", Width: createdWidth},
-		{Title: "Task", Width: taskWidth},
-	}
-	rows := make([]table.Row, 0, len(tasks))
+	return table.Render()
+}
+
+func writeHumanList(out io.Writer, tasks []*store.Task) error {
+	table := tablewriter.NewWriter(out)
+	table.Header("ID", "Status", "Priority", "Created", "Task")
 	for _, task := range tasks {
 		status := "todo"
 		if task.Done {
 			status = "done"
 		}
-		rows = append(rows, table.Row{
+		row := []string{
 			fmt.Sprintf("%d", task.ID),
 			status,
 			emptyDash(task.Priority),
 			createdDateOrDash(task),
 			todoLine(task),
-		})
+		}
+		if err := appendRow(table, row); err != nil {
+			return err
+		}
 	}
-	height := len(rows) + 1
-	if height < 1 {
-		height = 1
-	}
-	model := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithHeight(height),
-		table.WithFocused(false),
-	)
-
-	if noColor {
-		model.SetStyles(table.DefaultStyles())
-	} else {
-		styles := table.DefaultStyles()
-		header := styles.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240")).BorderBottom(true).Bold(true)
-		styles.Header = header
-		styles.Selected = styles.Cell
-		model.SetStyles(styles)
-	}
-	_, err := fmt.Fprintln(out, model.View())
-	return err
+	return table.Render()
 }
 
 func writeHumanSummary(out io.Writer, summary any) error {
+	switch value := summary.(type) {
+	case Summary:
+		table := tablewriter.NewWriter(out)
+		table.Header("Action", "Count", "IDs")
+		ids := "-"
+		if len(value.IDs) > 0 {
+			ids = joinIDs(value.IDs)
+		}
+		if err := table.Append(value.Action, fmt.Sprintf("%d", value.Count), ids); err != nil {
+			return err
+		}
+		return table.Render()
+	case ImportSummary:
+		table := tablewriter.NewWriter(out)
+		table.Header("Action", "Added", "Skipped", "File")
+		file := emptyDash(value.File)
+		if err := table.Append(value.Action, fmt.Sprintf("%d", value.Added), fmt.Sprintf("%d", value.Skipped), file); err != nil {
+			return err
+		}
+		return table.Render()
+	case ExportSummary:
+		table := tablewriter.NewWriter(out)
+		table.Header("Action", "Count", "File")
+		file := emptyDash(value.File)
+		if err := table.Append(value.Action, fmt.Sprintf("%d", value.Count), file); err != nil {
+			return err
+		}
+		return table.Render()
+	default:
+		_, err := fmt.Fprintf(out, "%v\n", value)
+		return err
+	}
+}
+
+func writePlainSummary(out io.Writer, summary any) error {
 	switch value := summary.(type) {
 	case Summary:
 		line := fmt.Sprintf("%s: %d", value.Action, value.Count)
@@ -169,4 +175,12 @@ func joinIDs(ids []int64) string {
 		parts = append(parts, fmt.Sprintf("%d", id))
 	}
 	return strings.Join(parts, ",")
+}
+
+func appendRow(table *tablewriter.Table, row []string) error {
+	values := make([]any, len(row))
+	for i, val := range row {
+		values[i] = val
+	}
+	return table.Append(values...)
 }

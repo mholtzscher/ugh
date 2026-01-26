@@ -7,7 +7,6 @@ import (
 
 	"github.com/mholtzscher/ugh/internal/store"
 	"github.com/mholtzscher/ugh/internal/todotxt"
-	"github.com/mholtzscher/ugh/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -28,16 +27,6 @@ var addCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		line := strings.TrimSpace(strings.Join(args, " "))
-		if line == "" {
-			if err := mustTTY(); err != nil {
-				return errors.New("todo text required (use args in non-interactive mode)")
-			}
-			value, err := ui.PromptTodoLine("New task", "")
-			if err != nil {
-				return err
-			}
-			line = strings.TrimSpace(value)
-		}
 		if line == "" {
 			return errors.New("todo text required")
 		}

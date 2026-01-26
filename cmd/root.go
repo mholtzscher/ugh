@@ -2,12 +2,10 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/store"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 	"os"
 	"path/filepath"
 	"time"
@@ -75,13 +73,6 @@ func defaultDBPath() (string, error) {
 
 func outputWriter() output.Writer {
 	return output.NewWriter(rootOpts.JSON, rootOpts.NoColor)
-}
-
-func mustTTY() error {
-	if !term.IsTerminal(int(os.Stdout.Fd())) || !term.IsTerminal(int(os.Stdin.Fd())) {
-		return errors.New("interactive mode requires a TTY")
-	}
-	return nil
 }
 
 func nowDate() *time.Time {
