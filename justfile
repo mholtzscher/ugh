@@ -64,7 +64,7 @@ gomod2nix:
 
 # Generate sqlc code
 sqlc:
-    go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate
+    sqlc generate
 
 # Run govulncheck security scanner
 govulncheck:

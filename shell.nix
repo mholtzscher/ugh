@@ -14,6 +14,7 @@
   gomod2nix ? pkgs.gomod2nix,
   golangci-lint ? pkgs.golangci-lint,
   govulncheck ? pkgs.govulncheck,
+  sqlc ? pkgs.sqlc,
 }:
 
 let
@@ -25,5 +26,6 @@ pkgs.mkShell {
     gomod2nix
     golangci-lint
     govulncheck
+    sqlc
   ];
 }
