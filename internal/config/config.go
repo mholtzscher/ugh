@@ -15,7 +15,9 @@ const (
 )
 
 type DB struct {
-	Path string `toml:"path"`
+	Path      string `toml:"path"`
+	SyncURL   string `toml:"sync_url"`
+	AuthToken string `toml:"auth_token"`
 }
 
 type Config struct {
@@ -114,6 +116,10 @@ func Load(path string, allowMissing bool) (*LoadResult, error) {
 
 	if cfg.Version == 0 {
 		cfg.Version = DefaultVersion
+	}
+
+	if cfg.DB.AuthToken != "" {
+		fmt.Fprintln(os.Stderr, "warning: auth_token is stored in config file. Consider using LIBSQL_AUTH_TOKEN environment variable for better security.")
 	}
 
 	return &LoadResult{

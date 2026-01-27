@@ -9,32 +9,74 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"path/filepath"
 	"time"
 
+	tursogo "turso.tech/database/tursogo"
+
 	"github.com/mholtzscher/ugh/internal/store/sqlc"
 	"github.com/pressly/goose/v3"
-	_ "turso.tech/database/tursogo"
 )
 
 type Store struct {
 	db      *sql.DB
+	syncDb  *tursogo.TursoSyncDb
 	queries *sqlc.Queries
 }
 
-func Open(ctx context.Context, path string) (*Store, error) {
-	if path == "" {
+type Options struct {
+	Path      string
+	SyncURL   string
+	AuthToken string
+}
+
+func Open(ctx context.Context, opts Options) (*Store, error) {
+	if opts.Path == "" {
 		return nil, errors.New("db path is required")
 	}
 
-	abspath, err := filepath.Abs(path)
+	abspath, err := filepath.Abs(opts.Path)
 	if err != nil {
 		return nil, fmt.Errorf("resolve db path: %w", err)
 	}
 
-	db, err := sql.Open("turso", abspath)
-	if err != nil {
-		return nil, fmt.Errorf("open db: %w", err)
+	var db *sql.DB
+	var syncDb *tursogo.TursoSyncDb
+
+	if opts.SyncURL != "" {
+		authToken := opts.AuthToken
+		if authToken == "" {
+			if envToken := os.Getenv("LIBSQL_AUTH_TOKEN"); envToken != "" {
+				authToken = envToken
+			}
+		}
+		if authToken == "" {
+			return nil, errors.New("auth token required when sync_url is set (use db.auth_token in config or LIBSQL_AUTH_TOKEN env var)")
+		}
+
+		trueVal := true
+		cfg := tursogo.TursoSyncDbConfig{
+			Path:             abspath,
+			RemoteUrl:        opts.SyncURL,
+			AuthToken:        authToken,
+			BootstrapIfEmpty: &trueVal,
+		}
+		sdb, err := tursogo.NewTursoSyncDb(ctx, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("create sync db: %w", err)
+		}
+		db, err = sdb.Connect(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("connect sync db: %w", err)
+		}
+		syncDb = sdb
+	} else {
+		var err error
+		db, err = sql.Open("turso", abspath)
+		if err != nil {
+			return nil, fmt.Errorf("open db: %w", err)
+		}
 	}
 
 	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode=WAL;"); err != nil {
@@ -61,8 +103,34 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 
-	store := &Store{db: db, queries: sqlc.New(db)}
+	store := &Store{db: db, syncDb: syncDb, queries: sqlc.New(db)}
 	return store, nil
+}
+
+func (s *Store) Sync(ctx context.Context) error {
+	if s.syncDb == nil {
+		return errors.New("sync is not configured")
+	}
+	_, err := s.syncDb.Pull(ctx)
+	return err
+}
+
+func (s *Store) Push(ctx context.Context) error {
+	if s.syncDb == nil {
+		return errors.New("sync is not configured")
+	}
+	return s.syncDb.Push(ctx)
+}
+
+func (s *Store) SyncStats(ctx context.Context) (*tursogo.TursoSyncDbStats, error) {
+	if s.syncDb == nil {
+		return nil, errors.New("sync is not configured")
+	}
+	stats, err := s.syncDb.Stats(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &stats, nil
 }
 
 func (s *Store) Close() error {

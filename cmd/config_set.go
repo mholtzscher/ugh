@@ -56,6 +56,12 @@ func configSetValue(cfg *config.Config, key string, value string) error {
 	case "db.path":
 		cfg.DB.Path = value
 		return nil
+	case "db.sync_url":
+		cfg.DB.SyncURL = value
+		return nil
+	case "db.auth_token":
+		cfg.DB.AuthToken = value
+		return nil
 	default:
 		return fmt.Errorf("unknown config key: %s", key)
 	}

@@ -123,6 +123,7 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(projectsCmd)
 	rootCmd.AddCommand(contextsCmd)
+	rootCmd.AddCommand(syncCmd)
 }
 
 func openStore(ctx context.Context) (*store.Store, error) {
@@ -138,7 +139,30 @@ func openStore(ctx context.Context) (*store.Store, error) {
 	if os.Getenv("TURSO_GO_CACHE_DIR") == "" {
 		_ = os.Setenv("TURSO_GO_CACHE_DIR", cacheDir)
 	}
-	return store.Open(ctx, path)
+
+	syncURL := ""
+	authToken := ""
+	if loadedConfig != nil {
+		syncURL = loadedConfig.DB.SyncURL
+		authToken = loadedConfig.DB.AuthToken
+	}
+
+	opts := store.Options{
+		Path:      path,
+		SyncURL:   syncURL,
+		AuthToken: authToken,
+	}
+	st, err := store.Open(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if syncURL != "" && authToken != "" {
+		if err := st.Sync(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: sync failed: %v (continuing with local database)\n", err)
+		}
+	}
+	return st, nil
 }
 
 func defaultDBPath() (string, error) {

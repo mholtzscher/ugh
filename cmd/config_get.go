@@ -47,6 +47,16 @@ func configGetValue(cfg *config.Config, key string) (string, error) {
 			return "", errors.New("config key not set: db.path")
 		}
 		return cfg.DB.Path, nil
+	case "db.sync_url":
+		if cfg.DB.SyncURL == "" {
+			return "", errors.New("config key not set: db.sync_url")
+		}
+		return cfg.DB.SyncURL, nil
+	case "db.auth_token":
+		if cfg.DB.AuthToken == "" {
+			return "", errors.New("config key not set: db.auth_token")
+		}
+		return cfg.DB.AuthToken, nil
 	default:
 		return "", fmt.Errorf("unknown config key: %s", key)
 	}
