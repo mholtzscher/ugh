@@ -172,13 +172,26 @@ func TestResolveDBPath_RelativeNoConfig(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	_ = os.Chdir(tmpDir)
+	if err := os.WriteFile("ugh.sqlite", []byte{}, 0o644); err != nil {
+		t.Fatalf("create sqlite file: %v", err)
+	}
 
 	path, err := ResolveDBPath("", "ugh.sqlite")
 	if err != nil {
 		t.Fatalf("ResolveDBPath() error = %v", err)
 	}
-	if path != filepath.Join(tmpDir, "ugh.sqlite") {
-		t.Fatalf("ResolveDBPath() = %s, want %s", path, filepath.Join(tmpDir, "ugh.sqlite"))
+
+	expected := filepath.Join(tmpDir, "ugh.sqlite")
+	expectedInfo, err := os.Stat(expected)
+	if err != nil {
+		t.Fatalf("stat expected sqlite file: %v", err)
+	}
+	gotInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat resolved sqlite file: %v", err)
+	}
+	if !os.SameFile(expectedInfo, gotInfo) {
+		t.Fatalf("ResolveDBPath() = %s, want same file as %s", path, expected)
 	}
 }
 
