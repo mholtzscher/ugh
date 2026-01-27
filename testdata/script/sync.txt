@@ -1,22 +1,10 @@
-exec env PATH=$PATH:$HOME/go/bin
-env CONFIG_FILE=$WORK/config.toml
+exec ugh --config $WORK/config.toml config init
 
-# Initialize config with sync settings
-exec ugh --config $CONFIG_FILE config init
-
-# Test setting sync configuration
-exec ugh --config $CONFIG_FILE config set db.path $WORK/db.sqlite
-exec ugh --config $CONFIG_FILE config set db.sync_url libsql://test.turso.io
-
-# Test warning when auth_token is set
-exec ugh --config $CONFIG_FILE config set db.auth_token test-token
-! stderr .
-
-# Test that config keys can be set and retrieved
-exec ugh --config $CONFIG_FILE config get db.sync_url
+exec ugh --config $WORK/config.toml config set db.path $WORK/db.sqlite
+exec ugh --config $WORK/config.toml config set db.sync_url libsql://test.turso.io
+exec ugh --config $WORK/config.toml config get db.sync_url
 stdout 'libsql://test.turso.io'
 
--- init --
--- config/set --
--- config/get --
--- config/show --
+exec ugh --config $WORK/config.toml config set db.auth_token test-token
+exec ugh --config $WORK/config.toml config get db.auth_token
+stdout 'test-token'

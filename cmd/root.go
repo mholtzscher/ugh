@@ -140,27 +140,14 @@ func openStore(ctx context.Context) (*store.Store, error) {
 		_ = os.Setenv("TURSO_GO_CACHE_DIR", cacheDir)
 	}
 
-	syncURL := ""
-	authToken := ""
+	opts := store.Options{Path: path}
 	if loadedConfig != nil {
-		syncURL = loadedConfig.DB.SyncURL
-		authToken = loadedConfig.DB.AuthToken
-	}
-
-	opts := store.Options{
-		Path:      path,
-		SyncURL:   syncURL,
-		AuthToken: authToken,
+		opts.SyncURL = loadedConfig.DB.SyncURL
+		opts.AuthToken = loadedConfig.DB.AuthToken
 	}
 	st, err := store.Open(ctx, opts)
 	if err != nil {
 		return nil, err
-	}
-
-	if syncURL != "" && authToken != "" {
-		if err := st.Sync(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: sync failed: %v (continuing with local database)\n", err)
-		}
 	}
 	return st, nil
 }

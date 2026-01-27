@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"text/tabwriter"
@@ -34,17 +35,6 @@ var (
 	}
 )
 
-type syncPullResult struct {
-	Action     string `json:"action"`
-	NewChanges bool   `json:"newChanges"`
-	Message    string `json:"message"`
-}
-
-type syncPushResult struct {
-	Action  string `json:"action"`
-	Message string `json:"message"`
-}
-
 type syncStatusResult struct {
 	Action          string `json:"action"`
 	LastPullTime    int64  `json:"lastPullTime"`
@@ -61,7 +51,7 @@ type syncResult struct {
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := context.Background()
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -85,7 +75,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 }
 
 func runSyncPull(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := context.Background()
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -100,14 +90,14 @@ func runSyncPull(cmd *cobra.Command, args []string) error {
 	writer := outputWriter()
 	if writer.JSON {
 		enc := json.NewEncoder(writer.Out)
-		return enc.Encode(syncPullResult{Action: "pull", Message: "pulled changes from remote"})
+		return enc.Encode(syncResult{Action: "pull", Message: "pulled changes from remote"})
 	}
 	_, err = fmt.Fprintln(writer.Out, "pulled changes from remote")
 	return err
 }
 
 func runSyncPush(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := context.Background()
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -121,14 +111,14 @@ func runSyncPush(cmd *cobra.Command, args []string) error {
 	writer := outputWriter()
 	if writer.JSON {
 		enc := json.NewEncoder(writer.Out)
-		return enc.Encode(syncPushResult{Action: "push", Message: "pushed changes to remote"})
+		return enc.Encode(syncResult{Action: "push", Message: "pushed changes to remote"})
 	}
 	_, err = fmt.Fprintln(writer.Out, "pushed changes to remote")
 	return err
 }
 
 func runSyncStatus(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := context.Background()
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -155,38 +145,49 @@ func runSyncStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	tw := tabwriter.NewWriter(writer.Out, 0, 2, 2, ' ', 0)
+	write := func(format string, a ...any) error {
+		_, err := fmt.Fprintf(tw, format, a...)
+		return err
+	}
 
 	if stats.LastPullUnixTime > 0 {
-		fmt.Fprintf(tw, "last_pull:\t%s\n", formatUnixTime(stats.LastPullUnixTime))
+		if err := write("last_pull:\t%d\n", stats.LastPullUnixTime); err != nil {
+			return err
+		}
 	} else {
-		fmt.Fprintf(tw, "last_pull:\tnever\n")
+		if err := write("last_pull:\tnever\n"); err != nil {
+			return err
+		}
 	}
 
 	if stats.LastPushUnixTime > 0 {
-		fmt.Fprintf(tw, "last_push:\t%s\n", formatUnixTime(stats.LastPushUnixTime))
+		if err := write("last_push:\t%d\n", stats.LastPushUnixTime); err != nil {
+			return err
+		}
 	} else {
-		fmt.Fprintf(tw, "last_push:\tnever\n")
+		if err := write("last_push:\tnever\n"); err != nil {
+			return err
+		}
 	}
 
-	fmt.Fprintf(tw, "pending_changes:\t%d\n", stats.CdcOperations)
-	fmt.Fprintf(tw, "network_sent:\t%d bytes\n", stats.NetworkSentBytes)
-	fmt.Fprintf(tw, "network_received:\t%d bytes\n", stats.NetworkReceivedBytes)
-	fmt.Fprintf(tw, "revision:\t%s\n", stats.Revision)
+	if err := write("pending_changes:\t%d\n", stats.CdcOperations); err != nil {
+		return err
+	}
+	if err := write("network_sent:\t%d bytes\n", stats.NetworkSentBytes); err != nil {
+		return err
+	}
+	if err := write("network_received:\t%d bytes\n", stats.NetworkReceivedBytes); err != nil {
+		return err
+	}
+	if err := write("revision:\t%s\n", stats.Revision); err != nil {
+		return err
+	}
 
 	return tw.Flush()
-}
-
-func formatUnixTime(ts int64) string {
-	if ts == 0 {
-		return "never"
-	}
-	return fmt.Sprintf("%d", ts)
 }
 
 func init() {
 	syncCmd.AddCommand(syncPullCmd)
 	syncCmd.AddCommand(syncPushCmd)
 	syncCmd.AddCommand(syncStatusCmd)
-
-	syncCmd.Flags().SortFlags = false
 }
