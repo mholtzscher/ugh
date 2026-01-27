@@ -1,4 +1,4 @@
-package cmd
+package config
 
 import (
 	"encoding/json"
@@ -6,29 +6,30 @@ import (
 	"strconv"
 
 	"github.com/mholtzscher/ugh/internal/config"
+
 	"github.com/spf13/cobra"
 )
 
-type configSetResult struct {
+type setResult struct {
 	Action string `json:"action"`
 	Key    string `json:"key"`
 	Value  string `json:"value"`
 	File   string `json:"file"`
 }
 
-var configSetCmd = &cobra.Command{
+var setCmd = &cobra.Command{
 	Use:   "set <key> <value>",
 	Short: "Set a configuration value",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := loadedConfig
+		cfg := deps.Config()
 		if cfg == nil {
 			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
 		key := args[0]
 		value := args[1]
-		if err := configSetValue(cfg, key, value); err != nil {
+		if err := setValue(cfg, key, value); err != nil {
 			return err
 		}
 
@@ -39,20 +40,20 @@ var configSetCmd = &cobra.Command{
 		if err := config.Save(cfgPath, *cfg); err != nil {
 			return err
 		}
-		loadedConfig = cfg
-		loadedConfigWas = true
+		deps.SetConfig(cfg)
+		deps.SetConfigWasLoaded(true)
 
-		writer := outputWriter()
+		writer := deps.OutputWriter()
 		if writer.JSON {
 			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(configSetResult{Action: "set", Key: key, Value: value, File: cfgPath})
+			return enc.Encode(setResult{Action: "set", Key: key, Value: value, File: cfgPath})
 		}
 		_, err = fmt.Fprintf(writer.Out, "set %s\n", key)
 		return err
 	},
 }
 
-func configSetValue(cfg *config.Config, key string, value string) error {
+func setValue(cfg *config.Config, key string, value string) error {
 	switch key {
 	case "db.path":
 		cfg.DB.Path = value
@@ -73,11 +74,4 @@ func configSetValue(cfg *config.Config, key string, value string) error {
 	default:
 		return fmt.Errorf("unknown config key: %s", key)
 	}
-}
-
-func configPathForWrite() (string, error) {
-	if rootOpts.ConfigPath != "" {
-		return rootOpts.ConfigPath, nil
-	}
-	return config.DefaultPath()
 }

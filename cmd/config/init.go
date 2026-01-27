@@ -1,4 +1,4 @@
-package cmd
+package config
 
 import (
 	"encoding/json"
@@ -7,16 +7,17 @@ import (
 	"os"
 
 	"github.com/mholtzscher/ugh/internal/config"
+
 	"github.com/spf13/cobra"
 )
 
-type configInitResult struct {
+type initResult struct {
 	Action string `json:"action"`
 	File   string `json:"file"`
 	DBPath string `json:"dbPath"`
 }
 
-var configInitCmd = &cobra.Command{
+var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize configuration file",
 	Args:  cobra.NoArgs,
@@ -31,7 +32,7 @@ var configInitCmd = &cobra.Command{
 			return fmt.Errorf("stat config: %w", err)
 		}
 
-		dbPath, err := defaultDBPath()
+		dbPath, err := deps.DefaultDBPath()
 		if err != nil {
 			return err
 		}
@@ -39,13 +40,13 @@ var configInitCmd = &cobra.Command{
 		if err := config.Save(cfgPath, cfg); err != nil {
 			return err
 		}
-		loadedConfig = &cfg
-		loadedConfigWas = true
+		deps.SetConfig(&cfg)
+		deps.SetConfigWasLoaded(true)
 
-		writer := outputWriter()
+		writer := deps.OutputWriter()
 		if writer.JSON {
 			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(configInitResult{Action: "init", File: cfgPath, DBPath: dbPath})
+			return enc.Encode(initResult{Action: "init", File: cfgPath, DBPath: dbPath})
 		}
 		_, err = fmt.Fprintf(writer.Out, "initialized %s\n", cfgPath)
 		return err

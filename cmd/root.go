@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	configcmd "github.com/mholtzscher/ugh/cmd/config"
+	daemoncmd "github.com/mholtzscher/ugh/cmd/daemon"
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/store"
@@ -120,10 +122,25 @@ func init() {
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(importCmd)
 	rootCmd.AddCommand(exportCmd)
-	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(projectsCmd)
 	rootCmd.AddCommand(contextsCmd)
 	rootCmd.AddCommand(syncCmd)
+
+	// Register subcommand packages
+	configcmd.Register(rootCmd, configcmd.Deps{
+		Config:             func() *config.Config { return loadedConfig },
+		SetConfig:          func(c *config.Config) { loadedConfig = c },
+		ConfigWasLoaded:    func() bool { return loadedConfigWas },
+		SetConfigWasLoaded: func(b bool) { loadedConfigWas = b },
+		OutputWriter:       outputWriter,
+		ConfigPath:         func() string { return rootOpts.ConfigPath },
+		DefaultDBPath:      defaultDBPath,
+	})
+
+	daemoncmd.Register(rootCmd, daemoncmd.Deps{
+		Config:       func() *config.Config { return loadedConfig },
+		OutputWriter: outputWriter,
+	})
 }
 
 func openStore(ctx context.Context) (*store.Store, error) {
