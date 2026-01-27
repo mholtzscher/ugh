@@ -7,15 +7,103 @@ cmp stdout want-show.txt
 exec ugh --db $WORK/db.sqlite show 1 --json
 stdout '\{"id":1,"done":false,"priority":"B","creationDate":"2026-01-02","description":"Plan trip","projects":\["travel"\],"contexts":\["home"\],"meta":\{"due":"2026-01-02","note":"foo"\},"unknown":\["\+\+bad"\],"todoTxt":"\(B\) 2026-01-02 Plan trip \+travel @home due:2026-01-02 note:foo \+\+bad","createdAt":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z","updatedAt":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"\}'
 
-exec ugh --db $WORK/db.sqlite edit 1 --text '(A) Updated task +work @office key:val'
-
-exec ugh --db $WORK/db.sqlite show 1
-cmp stdout want-show-updated.txt
-
+# Edit priority only
+exec ugh --db $WORK/db.sqlite edit 1 -p A
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '\{"id":1,"done":false,"priority":"A","creationDate":"2026-01-02","description":"Updated task","projects":\["work"\],"contexts":\["office"\],"meta":\{"key":"val"\},"unknown":\[\],"todoTxt":"\(A\) 2026-01-02 Updated task \+work @office key:val","createdAt":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z","updatedAt":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"\}'
+stdout '"priority":"A"'
+stdout '"description":"Plan trip"'
+stdout '"projects":\["travel"\]'
+
+# Edit description only
+exec ugh --db $WORK/db.sqlite edit 1 --description Updated
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"description":"Updated"'
+stdout '"priority":"A"'
+
+# Add project (additive)
+exec ugh --db $WORK/db.sqlite edit 1 -P work
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"projects":\["travel","work"\]'
+
+# Add context (additive)
+exec ugh --db $WORK/db.sqlite edit 1 -c office
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"contexts":\["home","office"\]'
+
+# Add/update metadata
+exec ugh --db $WORK/db.sqlite edit 1 -m key:val
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"key":"val"'
+stdout '"due":"2026-01-02"'
+
+# Remove project
+exec ugh --db $WORK/db.sqlite edit 1 --remove-project travel
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"projects":\["work"\]'
+
+# Remove context
+exec ugh --db $WORK/db.sqlite edit 1 --remove-context home
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"contexts":\["office"\]'
+
+# Remove metadata key
+exec ugh --db $WORK/db.sqlite edit 1 --remove-meta note
+exec ugh --db $WORK/db.sqlite show 1 --json
+! stdout '"note"'
+stdout '"due":"2026-01-02"'
+
+# Remove priority
+exec ugh --db $WORK/db.sqlite edit 1 --no-priority
+exec ugh --db $WORK/db.sqlite show 1 --json
+! stdout '"priority"'
+
+# Mark done via edit
+exec ugh --db $WORK/db.sqlite edit 1 -x
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"done":true'
+
+# Mark undone via edit
+exec ugh --db $WORK/db.sqlite edit 1 --undone
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"done":false'
+
+# Note: 'ugh edit 1' without flags now opens the editor by default
+# This can't be tested in non-interactive mode
+
+# Error: conflicting done/undone
+! exec ugh --db $WORK/db.sqlite edit 1 -x --undone
+stderr 'cannot use both'
+
+# Error: invalid priority
+! exec ugh --db $WORK/db.sqlite edit 1 -p invalid
+stderr 'invalid priority'
+
+# Error: invalid meta format
+! exec ugh --db $WORK/db.sqlite edit 1 -m badmeta
+stderr 'invalid meta format'
+
+# Error: editor flag with field flags
+! exec ugh --db $WORK/db.sqlite edit 1 -e -p A
+stderr 'cannot combine field flags with --editor'
+
+# Error: non-existent task
+! exec ugh --db $WORK/db.sqlite edit 999 -p A
+stderr 'no rows'
+
+# Priority normalization (lowercase to uppercase)
+exec ugh --db $WORK/db.sqlite edit 1 -p b
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"priority":"B"'
+
+# Multiple flags at once
+exec ugh --db $WORK/db.sqlite add Test multi-edit
+exec ugh --db $WORK/db.sqlite edit 2 -p A -P proj1 -P proj2 -c ctx1 -m key1:val1 -m key2:val2
+exec ugh --db $WORK/db.sqlite show 2 --json
+stdout '"priority":"A"'
+stdout '"projects":\["proj1","proj2"\]'
+stdout '"contexts":\["ctx1"\]'
+stdout '"key1":"val1"'
+stdout '"key2":"val2"'
 
 -- want-show.txt --
 (B) 2026-01-02 Plan trip +travel @home due:2026-01-02 note:foo ++bad
--- want-show-updated.txt --
-(A) 2026-01-02 Updated task +work @office key:val

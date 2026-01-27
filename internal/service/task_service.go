@@ -188,41 +188,158 @@ func (s *TaskService) ListContexts(ctx context.Context, req ListTagsRequest) ([]
 }
 
 type UpdateTaskRequest struct {
-	ID   int64
-	Text string
+	ID             int64
+	Description    *string
+	Priority       *string
+	Done           *bool
+	AddProjects    []string
+	AddContexts    []string
+	SetMeta        map[string]string
+	RemoveProjects []string
+	RemoveContexts []string
+	RemoveMetaKeys []string
+	RemovePriority bool
 }
 
-func (s *TaskService) UpdateTaskText(ctx context.Context, req UpdateTaskRequest) (*store.Task, error) {
+func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*store.Task, error) {
 	current, err := s.store.GetTask(ctx, req.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	parsed := todotxt.ParseLine(req.Text)
-	if parsed.CreationDate == nil {
-		if current.CreationDate != nil {
-			parsed.CreationDate = current.CreationDate
-		} else if parsed.Done && parsed.CompletionDate != nil {
-			parsed.CreationDate = parsed.CompletionDate
-		} else {
-			parsed.CreationDate = nowDate()
+	updated := &store.Task{
+		ID:             current.ID,
+		Done:           current.Done,
+		Priority:       current.Priority,
+		CompletionDate: current.CompletionDate,
+		CreationDate:   current.CreationDate,
+		Description:    current.Description,
+		Projects:       append([]string(nil), current.Projects...),
+		Contexts:       append([]string(nil), current.Contexts...),
+		Meta:           copyMeta(current.Meta),
+		Unknown:        append([]string(nil), current.Unknown...),
+	}
+
+	if req.Description != nil {
+		updated.Description = *req.Description
+	}
+	if req.RemovePriority {
+		updated.Priority = ""
+	} else if req.Priority != nil {
+		updated.Priority = normalizePriority(*req.Priority)
+	}
+	if req.Done != nil {
+		updated.Done = *req.Done
+		if *req.Done && updated.CompletionDate == nil {
+			updated.CompletionDate = nowDate()
+		} else if !*req.Done {
+			updated.CompletionDate = nil
 		}
 	}
 
-	updated := &store.Task{
-		ID:             current.ID,
-		Done:           parsed.Done,
-		Priority:       parsed.Priority,
-		CompletionDate: parsed.CompletionDate,
-		CreationDate:   parsed.CreationDate,
-		Description:    parsed.Description,
-		Projects:       parsed.Projects,
-		Contexts:       parsed.Contexts,
-		Meta:           parsed.Meta,
-		Unknown:        parsed.Unknown,
+	for _, p := range req.AddProjects {
+		if !containsString(updated.Projects, p) {
+			updated.Projects = append(updated.Projects, p)
+		}
+	}
+	updated.Projects = removeStrings(updated.Projects, req.RemoveProjects)
+
+	for _, c := range req.AddContexts {
+		if !containsString(updated.Contexts, c) {
+			updated.Contexts = append(updated.Contexts, c)
+		}
+	}
+	updated.Contexts = removeStrings(updated.Contexts, req.RemoveContexts)
+
+	if len(req.SetMeta) > 0 {
+		if updated.Meta == nil {
+			updated.Meta = map[string]string{}
+		}
+		for k, v := range req.SetMeta {
+			updated.Meta[k] = v
+		}
+	}
+	for _, k := range req.RemoveMetaKeys {
+		delete(updated.Meta, k)
 	}
 
 	return s.store.UpdateTask(ctx, updated)
+}
+
+type FullUpdateTaskRequest struct {
+	ID          int64
+	Description string
+	Priority    string
+	Done        bool
+	Projects    []string
+	Contexts    []string
+	Meta        map[string]string
+}
+
+func (s *TaskService) FullUpdateTask(ctx context.Context, req FullUpdateTaskRequest) (*store.Task, error) {
+	current, err := s.store.GetTask(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	updated := &store.Task{
+		ID:           current.ID,
+		Done:         req.Done,
+		Priority:     normalizePriority(req.Priority),
+		CreationDate: current.CreationDate,
+		Description:  req.Description,
+		Projects:     req.Projects,
+		Contexts:     req.Contexts,
+		Meta:         req.Meta,
+		Unknown:      current.Unknown,
+	}
+
+	if req.Done && !current.Done {
+		updated.CompletionDate = nowDate()
+	} else if req.Done && current.Done {
+		updated.CompletionDate = current.CompletionDate
+	} else {
+		updated.CompletionDate = nil
+	}
+
+	return s.store.UpdateTask(ctx, updated)
+}
+
+func copyMeta(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	result := make(map[string]string, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
+}
+
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeStrings(slice []string, toRemove []string) []string {
+	if len(toRemove) == 0 {
+		return slice
+	}
+	removeSet := make(map[string]bool, len(toRemove))
+	for _, s := range toRemove {
+		removeSet[s] = true
+	}
+	result := make([]string, 0, len(slice))
+	for _, s := range slice {
+		if !removeSet[s] {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 func normalizePriority(p string) string {
