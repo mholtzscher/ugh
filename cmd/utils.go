@@ -31,3 +31,21 @@ func newTaskService(ctx context.Context) (*service.TaskService, error) {
 	}
 	return service.NewTaskService(st), nil
 }
+
+func autoSyncEnabled() bool {
+	return loadedConfig.DB.SyncOnWrite && loadedConfig.DB.SyncURL != ""
+}
+
+func maybeSyncBeforeWrite(ctx context.Context, svc *service.TaskService) error {
+	if !autoSyncEnabled() {
+		return nil
+	}
+	return svc.Sync(ctx)
+}
+
+func maybeSyncAfterWrite(ctx context.Context, svc *service.TaskService) error {
+	if !autoSyncEnabled() {
+		return nil
+	}
+	return svc.Push(ctx)
+}

@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/spf13/cobra"
@@ -61,6 +62,13 @@ func configSetValue(cfg *config.Config, key string, value string) error {
 		return nil
 	case "db.auth_token":
 		cfg.DB.AuthToken = value
+		return nil
+	case "db.sync_on_write":
+		parsed, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("invalid boolean for db.sync_on_write: %w", err)
+		}
+		cfg.DB.SyncOnWrite = parsed
 		return nil
 	default:
 		return fmt.Errorf("unknown config key: %s", key)

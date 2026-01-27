@@ -57,6 +57,8 @@ func configGetValue(cfg *config.Config, key string) (string, error) {
 			return "", errors.New("config key not set: db.auth_token")
 		}
 		return cfg.DB.AuthToken, nil
+	case "db.sync_on_write":
+		return fmt.Sprintf("%t", cfg.DB.SyncOnWrite), nil
 	default:
 		return "", fmt.Errorf("unknown config key: %s", key)
 	}

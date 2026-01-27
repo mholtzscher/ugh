@@ -143,6 +143,14 @@ func (s *TaskService) Close() error {
 	return s.store.Close()
 }
 
+func (s *TaskService) Sync(ctx context.Context) error {
+	return s.store.Sync(ctx)
+}
+
+func (s *TaskService) Push(ctx context.Context) error {
+	return s.store.Push(ctx)
+}
+
 type ListTagsRequest struct {
 	All      bool
 	DoneOnly bool

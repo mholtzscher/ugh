@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/mholtzscher/ugh/internal/service"
@@ -36,6 +37,10 @@ var addCmd = &cobra.Command{
 		}
 		defer func() { _ = svc.Close() }()
 
+		if err := maybeSyncBeforeWrite(ctx, svc); err != nil {
+			return fmt.Errorf("sync pull: %w", err)
+		}
+
 		task, err := svc.CreateTask(ctx, service.CreateTaskRequest{
 			Line:      line,
 			Priority:  addOpts.Priority,
@@ -48,6 +53,9 @@ var addCmd = &cobra.Command{
 		})
 		if err != nil {
 			return err
+		}
+		if err := maybeSyncAfterWrite(ctx, svc); err != nil {
+			return fmt.Errorf("sync push: %w", err)
 		}
 
 		writer := outputWriter()

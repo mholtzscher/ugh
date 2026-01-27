@@ -90,6 +90,17 @@ Paths support:
 - Home directory expansion (`~/`)
 - Relative paths (when set via config file, resolved relative to config file location)
 
+### Sync Settings
+
+When `db.sync_url` is set, you can enable automatic sync after writes:
+
+```toml
+[db]
+sync_url = "libsql://example.turso.io"
+auth_token = "..."
+sync_on_write = true
+```
+
 ## Global Flags
 
 ```

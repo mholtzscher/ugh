@@ -15,9 +15,10 @@ const (
 )
 
 type DB struct {
-	Path      string `toml:"path"`
-	SyncURL   string `toml:"sync_url"`
-	AuthToken string `toml:"auth_token"`
+	Path        string `toml:"path"`
+	SyncURL     string `toml:"sync_url"`
+	AuthToken   string `toml:"auth_token"`
+	SyncOnWrite bool   `toml:"sync_on_write"`
 }
 
 type Config struct {

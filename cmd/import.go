@@ -45,6 +45,10 @@ var importCmd = &cobra.Command{
 		}
 		defer func() { _ = svc.Close() }()
 
+		if err := maybeSyncBeforeWrite(ctx, svc); err != nil {
+			return fmt.Errorf("sync pull: %w", err)
+		}
+
 		scanner := bufio.NewScanner(reader)
 		buf := make([]byte, 0, 64*1024)
 		scanner.Buffer(buf, 1024*1024)
@@ -66,6 +70,9 @@ var importCmd = &cobra.Command{
 		}
 		if err := scanner.Err(); err != nil {
 			return fmt.Errorf("read import: %w", err)
+		}
+		if err := maybeSyncAfterWrite(ctx, svc); err != nil {
+			return fmt.Errorf("sync push: %w", err)
 		}
 
 		writer := outputWriter()
