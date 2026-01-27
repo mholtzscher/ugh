@@ -1,7 +1,11 @@
 package daemon
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/mholtzscher/ugh/internal/config"
+	"github.com/mholtzscher/ugh/internal/daemon/service"
 	"github.com/mholtzscher/ugh/internal/output"
 
 	"github.com/spf13/cobra"
@@ -17,6 +21,48 @@ type Deps struct {
 }
 
 var deps Deps
+
+// getServiceManager returns the appropriate service manager for the current platform.
+func getServiceManager() (service.Manager, error) {
+	return service.Detect()
+}
+
+// getBinaryPath returns the absolute path to the current executable.
+func getBinaryPath() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(exe)
+}
+
+// getConfigPath returns the config path to use for the daemon.
+// Returns the path if config was explicitly set or loaded from default location.
+func getConfigPath() string {
+	// Check if config was loaded
+	cfg := deps.Config()
+	if cfg == nil {
+		return ""
+	}
+
+	// Return the default config path
+	defaultPath, err := config.DefaultPath()
+	if err != nil {
+		return ""
+	}
+
+	// Check if the file exists
+	if _, err := os.Stat(defaultPath); err != nil {
+		return ""
+	}
+
+	return defaultPath
+}
+
+// getConfig returns the loaded config, or nil if not loaded.
+func getConfig() *config.Config {
+	return deps.Config()
+}
 
 // Cmd is the parent command for all daemon subcommands.
 var Cmd = &cobra.Command{

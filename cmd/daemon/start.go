@@ -2,6 +2,9 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
+
+	"github.com/mholtzscher/ugh/internal/daemon/service"
 
 	"github.com/spf13/cobra"
 )
@@ -14,7 +17,20 @@ var startCmd = &cobra.Command{
 The service must be installed first with 'ugh daemon install'.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: Implement in Phase 1
-		return errors.New("daemon start: not implemented yet")
+		mgr, err := getServiceManager()
+		if err != nil {
+			return fmt.Errorf("detect service manager: %w", err)
+		}
+
+		if err := mgr.Start(); err != nil {
+			if errors.Is(err, service.ErrNotInstalled) {
+				return errors.New("service not installed - run 'ugh daemon install' first")
+			}
+			return fmt.Errorf("start service: %w", err)
+		}
+
+		w := deps.OutputWriter()
+		_, _ = fmt.Fprintln(w.Out, "Daemon started")
+		return nil
 	},
 }

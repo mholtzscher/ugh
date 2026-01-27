@@ -26,9 +26,10 @@ type Store struct {
 }
 
 type Options struct {
-	Path      string
-	SyncURL   string
-	AuthToken string
+	Path        string
+	SyncURL     string
+	AuthToken   string
+	BusyTimeout int // Milliseconds to wait for locks (default: 5000)
 }
 
 func Open(ctx context.Context, opts Options) (*Store, error) {
@@ -79,11 +80,16 @@ func Open(ctx context.Context, opts Options) (*Store, error) {
 		}
 	}
 
-	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode=WAL;"); err != nil {
+	// Set busy_timeout FIRST so subsequent pragmas wait if database is locked
+	busyTimeout := opts.BusyTimeout
+	if busyTimeout <= 0 {
+		busyTimeout = 5000 // Default 5 seconds
+	}
+	if _, err := db.ExecContext(ctx, fmt.Sprintf("PRAGMA busy_timeout=%d;", busyTimeout)); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("apply pragma: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, "PRAGMA busy_timeout=5000;"); err != nil {
+	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode=WAL;"); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("apply pragma: %w", err)
 	}

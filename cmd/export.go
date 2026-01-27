@@ -40,7 +40,7 @@ var exportCmd = &cobra.Command{
 			return errors.New("--json cannot be used when exporting to stdout")
 		}
 
-		svc, err := newTaskService(ctx)
+		svc, err := newService(ctx)
 		if err != nil {
 			return err
 		}

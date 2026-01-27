@@ -39,7 +39,7 @@ var importCmd = &cobra.Command{
 			reader = file
 		}
 
-		svc, err := newTaskService(ctx)
+		svc, err := newService(ctx)
 		if err != nil {
 			return err
 		}

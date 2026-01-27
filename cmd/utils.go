@@ -24,7 +24,8 @@ func parseIDs(args []string) ([]int64, error) {
 	return ids, nil
 }
 
-func newTaskService(ctx context.Context) (*service.TaskService, error) {
+// newService returns a Service implementation using direct database access.
+func newService(ctx context.Context) (service.Service, error) {
 	st, err := openStore(ctx)
 	if err != nil {
 		return nil, err
@@ -33,17 +34,17 @@ func newTaskService(ctx context.Context) (*service.TaskService, error) {
 }
 
 func autoSyncEnabled() bool {
-	return loadedConfig.DB.SyncOnWrite && loadedConfig.DB.SyncURL != ""
+	return loadedConfig != nil && loadedConfig.DB.SyncOnWrite && loadedConfig.DB.SyncURL != ""
 }
 
-func maybeSyncBeforeWrite(ctx context.Context, svc *service.TaskService) error {
+func maybeSyncBeforeWrite(ctx context.Context, svc service.Service) error {
 	if !autoSyncEnabled() {
 		return nil
 	}
 	return svc.Sync(ctx)
 }
 
-func maybeSyncAfterWrite(ctx context.Context, svc *service.TaskService) error {
+func maybeSyncAfterWrite(ctx context.Context, svc service.Service) error {
 	if !autoSyncEnabled() {
 		return nil
 	}

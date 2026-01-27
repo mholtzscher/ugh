@@ -58,7 +58,7 @@ Examples:
 		}
 		id := ids[0]
 
-		svc, err := newTaskService(ctx)
+		svc, err := newService(ctx)
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ func hasFieldFlags() bool {
 		len(editOpts.RemoveMeta) > 0
 }
 
-func runEditorMode(ctx context.Context, svc *service.TaskService, id int64) (*store.Task, error) {
+func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.Task, error) {
 	task, err := svc.GetTask(ctx, id)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func runEditorMode(ctx context.Context, svc *service.TaskService, id int64) (*st
 	})
 }
 
-func runFlagsMode(ctx context.Context, svc *service.TaskService, id int64) (*store.Task, error) {
+func runFlagsMode(ctx context.Context, svc service.Service, id int64) (*store.Task, error) {
 	if editOpts.Done && editOpts.Undone {
 		return nil, errors.New("cannot use both --done and --undone")
 	}

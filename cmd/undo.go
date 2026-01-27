@@ -18,7 +18,7 @@ var undoCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		svc, err := newTaskService(ctx)
+		svc, err := newService(ctx)
 		if err != nil {
 			return err
 		}

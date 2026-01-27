@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
 	configcmd "github.com/mholtzscher/ugh/cmd/config"
 	daemoncmd "github.com/mholtzscher/ugh/cmd/daemon"
@@ -162,11 +164,35 @@ func openStore(ctx context.Context) (*store.Store, error) {
 		opts.SyncURL = loadedConfig.DB.SyncURL
 		opts.AuthToken = loadedConfig.DB.AuthToken
 	}
-	st, err := store.Open(ctx, opts)
-	if err != nil {
-		return nil, err
+
+	// Retry with backoff if database is locked (e.g., daemon is running)
+	var st *store.Store
+	maxRetries := 5
+	backoff := 100 * time.Millisecond
+	for i := 0; i < maxRetries; i++ {
+		st, err = store.Open(ctx, opts)
+		if err == nil {
+			return st, nil
+		}
+		// Check if it's a locking error
+		if !isLockingError(err) {
+			return nil, err
+		}
+		if i < maxRetries-1 {
+			time.Sleep(backoff)
+			backoff *= 2 // Exponential backoff
+		}
 	}
-	return st, nil
+	return nil, fmt.Errorf("%w (is the daemon running? try 'ugh daemon stop' or use the HTTP API)", err)
+}
+
+// isLockingError checks if the error is a database locking error.
+func isLockingError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "locked") || strings.Contains(errStr, "Locking")
 }
 
 func defaultDBPath() (string, error) {

@@ -20,7 +20,7 @@ var projectsCmd = &cobra.Command{
 	Short:   "List available project tags",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		svc, err := newTaskService(ctx)
+		svc, err := newService(ctx)
 		if err != nil {
 			return err
 		}

@@ -36,7 +36,16 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		cfg := config.Config{Version: config.DefaultVersion, DB: config.DB{Path: dbPath}}
+		cfg := config.Config{
+			Version: config.DefaultVersion,
+			DB:      config.DB{Path: dbPath},
+			Daemon: config.Daemon{
+				PeriodicSync:     "5m",
+				LogLevel:         "info",
+				SyncRetryMax:     3,
+				SyncRetryBackoff: "1s",
+			},
+		}
 		if err := config.Save(cfgPath, cfg); err != nil {
 			return err
 		}

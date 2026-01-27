@@ -21,9 +21,19 @@ type DB struct {
 	SyncOnWrite bool   `toml:"sync_on_write"`
 }
 
+// Daemon holds daemon-specific configuration.
+type Daemon struct {
+	PeriodicSync     string `toml:"periodic_sync"`      // Background sync interval (default: "5m")
+	LogFile          string `toml:"log_file"`           // Log file path (empty = stderr)
+	LogLevel         string `toml:"log_level"`          // Log level: debug, info, warn, error (default: "info")
+	SyncRetryMax     int    `toml:"sync_retry_max"`     // Max sync retry attempts (default: 3)
+	SyncRetryBackoff string `toml:"sync_retry_backoff"` // Initial retry backoff (default: "1s")
+}
+
 type Config struct {
-	Version int `toml:"version"`
-	DB      DB  `toml:"db"`
+	Version int    `toml:"version"`
+	DB      DB     `toml:"db"`
+	Daemon  Daemon `toml:"daemon"`
 }
 
 type LoadResult struct {
@@ -142,7 +152,7 @@ func ResolveDBPath(cfgPath, dbPath string) (string, error) {
 
 	if path == "~" {
 		path = homeDir
-	} else if path[:2] == "~/" {
+	} else if len(path) >= 2 && path[:2] == "~/" {
 		path = filepath.Join(homeDir, path[2:])
 	}
 

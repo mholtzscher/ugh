@@ -31,7 +31,7 @@ var addCmd = &cobra.Command{
 			return errors.New("todo text required")
 		}
 
-		svc, err := newTaskService(ctx)
+		svc, err := newService(ctx)
 		if err != nil {
 			return err
 		}

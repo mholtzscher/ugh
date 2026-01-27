@@ -1,7 +1,10 @@
 package daemon
 
 import (
-	"errors"
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
 
 	"github.com/spf13/cobra"
 )
@@ -20,8 +23,36 @@ On Linux: Uses journalctl to show systemd service logs.
 On macOS: Tails the log file specified in config.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: Implement in Phase 1
-		return errors.New("daemon logs: not implemented yet")
+		mgr, err := getServiceManager()
+		if err != nil {
+			return fmt.Errorf("detect service manager: %w", err)
+		}
+
+		w := deps.OutputWriter()
+
+		// Create a context that can be cancelled
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Handle Ctrl+C gracefully
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt)
+		defer signal.Stop(sigCh)
+		go func() {
+			<-sigCh
+			cancel()
+		}()
+
+		follow := !logsOpts.NoFollow
+		if err := mgr.TailLogs(ctx, follow, logsOpts.Lines, w.Out); err != nil {
+			// Ignore context cancelled errors (user pressed Ctrl+C)
+			if ctx.Err() != nil {
+				return nil
+			}
+			return fmt.Errorf("tail logs: %w", err)
+		}
+
+		return nil
 	},
 }
 
