@@ -82,13 +82,34 @@ Suggested app skeleton (note: `-c` for config conflicts with `-c` for context on
 
 ```go
 app := &cli.App{
-    Name:  "ugh",
-    Usage: "todo.txt-inspired task CLI",
+    Name:                 "ugh",
+    Usage:                "todo.txt-inspired task CLI",
+    Description:          "A CLI task manager using todo.txt format with libSQL storage",
+    Version:              version, // set this from build info
+    EnableBashCompletion: true,
     Flags: []cli.Flag{
-        &cli.StringFlag{Name: "config", EnvVars: []string{"UGH_CONFIG"}},
-        &cli.StringFlag{Name: "db", Aliases: []string{"d"}, EnvVars: []string{"UGH_DB"}},
-        &cli.BoolFlag{Name: "json", Aliases: []string{"j"}, EnvVars: []string{"UGH_JSON"}},
-        &cli.BoolFlag{Name: "no-color", EnvVars: []string{"UGH_NO_COLOR"}},
+        &cli.StringFlag{
+            Name:     "config",
+            EnvVars:  []string{"UGH_CONFIG"},
+            Category: "Global",
+        },
+        &cli.StringFlag{
+            Name:     "db",
+            Aliases:  []string{"d"},
+            EnvVars:  []string{"UGH_DB"},
+            Category: "Global",
+        },
+        &cli.BoolFlag{
+            Name:     "json",
+            Aliases:  []string{"j"},
+            EnvVars:  []string{"UGH_JSON"},
+            Category: "Global",
+        },
+        &cli.BoolFlag{
+            Name:     "no-color",
+            EnvVars:  []string{"UGH_NO_COLOR"},
+            Category: "Global",
+        },
     },
     Before: func(c *cli.Context) error {
         if skip, ok := c.Command.Metadata["skipConfig"].(bool); ok && skip {
@@ -105,6 +126,13 @@ app := &cli.App{
     },
 }
 ```
+
+**Notes on App fields:**
+- `Usage`: Short description shown in help (like Cobra's `Short`)
+- `Description`: Detailed help text shown with `--help` (like Cobra's `Long`)
+- `Version`: Enables `--version` flag automatically
+- `EnableBashCompletion`: Enables bash completion support
+- `Category`: Groups flags in help output for better organization
 
 ### 3) Implement config load + shared helpers
 
@@ -149,8 +177,10 @@ Implementation guidance (simple + reliable):
 - Parse TOML (file only)
 - Apply defaults in code
 - Apply env vars either:
-  - via urfave/cli flags (preferred: env handled by CLI), or
+  - via urfave/cli flags (preferred: env handled by CLI automatically), or
   - via explicit `os.Getenv` mapping (only if you have config values not represented by flags)
+
+**Note:** urfave/cli automatically binds `EnvVars` to flags. When a flag is accessed via `c.String("flag")`, it will already contain the env var value if no flag was explicitly set. This means you typically don't need explicit `os.Getenv` calls for values that have corresponding flags.
 
 ### 5) Convert each Cobra command to a cli.Command builder
 
@@ -163,11 +193,18 @@ General mapping:
 
 - Cobra `Use`: urfave/cli `Name` + `ArgsUsage` (optional)
 - Cobra `Short`: urfave/cli `Usage`
+- Cobra `Long`: urfave/cli `Description`
 - Cobra `Aliases`: urfave/cli `Aliases`
 - Cobra `RunE`: urfave/cli `Action`
 - Cobra per-command flags: urfave/cli `Flags: []cli.Flag{...}`
 
-Note: use `Destination: &opts.Field` for simple binding; use `c.String("flag")` / `c.Bool("flag")` when you need to distinguish "unset" vs default.
+**Flag binding:**
+- Use `Destination: &opts.Field` for simple binding
+- Use `c.String("flag")` / `c.Bool("flag")` when you need to distinguish "unset" vs default
+
+**Action return values:**
+- Return `nil` for success
+- Return `error` to print to stderr and exit with non-zero status (automatic)}
 
 Accessing global flags in commands: App-level flags are inherited by all commands, so `c.String("db")` works in any command Action.
 
@@ -187,6 +224,24 @@ Commands to migrate:
 - `cmd/sync.go` (plus subcommands)
 - `cmd/config/config.go` (plus init/show/get/set)
 - `cmd/daemon/daemon.go` (plus install/uninstall/start/stop/restart/status/logs/run)
+
+**Subcommand pattern** (for daemon, config, sync):
+
+```go
+func DaemonCommand() *cli.Command {
+    return &cli.Command{
+        Name:        "daemon",
+        Usage:       "Manage the background daemon",
+        Description: "Install, start, stop, and manage the ugh daemon",
+        Subcommands: []*cli.Command{
+            DaemonInstallCommand(),
+            DaemonStartCommand(),
+            DaemonStopCommand(),
+            // ...
+        },
+    }
+}
+```
 
 ### 6) Apply skipConfig metadata to config init/set
 
@@ -215,6 +270,19 @@ Suggested keep (high value, low conflict):
 Suggested review carefully:
 
 - `--config/-c` may conflict with `--context/-c` on some commands (currently `add` uses `-c` for context)
+
+**Flag display options:**
+
+Use `HideDefault: true` on flags for cleaner help output when defaults are empty or not meaningful:
+
+```go
+&cli.StringFlag{
+    Name:        "config",
+    Usage:       "Path to config file",
+    EnvVars:     []string{"UGH_CONFIG"},
+    HideDefault: true,
+}
+```
 
 If you drop `-c` for config, ensure docs/test scripts are updated.
 
