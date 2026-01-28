@@ -8,7 +8,7 @@ import (
 	"github.com/mholtzscher/ugh/internal/daemon/service"
 	"github.com/mholtzscher/ugh/internal/output"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v2"
 )
 
 // Deps holds dependencies injected from the parent cmd package.
@@ -16,10 +16,10 @@ import (
 type Deps struct {
 	// Config returns the currently loaded config (may be nil).
 	Config func() *config.Config
-	// ConfigResult returns the full LoadResult including Viper instance (for watching).
-	ConfigResult func() *config.LoadResult
+	// ConfigPath returns the resolved config path.
+	ConfigPath func() string
 	// OutputWriter returns the configured output writer.
-	OutputWriter func() output.Writer
+	OutputWriter func(*cli.Context) output.Writer
 }
 
 var deps Deps
@@ -41,24 +41,21 @@ func getBinaryPath() (string, error) {
 // getConfigPath returns the config path to use for the daemon.
 // Returns the path if config was explicitly set or loaded from default location.
 func getConfigPath() string {
-	// Check if config was loaded
-	cfg := deps.Config()
-	if cfg == nil {
+	path := ""
+	if deps.ConfigPath != nil {
+		path = deps.ConfigPath()
+	}
+	if path == "" {
+		defaultPath, err := config.DefaultPath()
+		if err != nil {
+			return ""
+		}
+		path = defaultPath
+	}
+	if _, err := os.Stat(path); err != nil {
 		return ""
 	}
-
-	// Return the default config path
-	defaultPath, err := config.DefaultPath()
-	if err != nil {
-		return ""
-	}
-
-	// Check if the file exists
-	if _, err := os.Stat(defaultPath); err != nil {
-		return ""
-	}
-
-	return defaultPath
+	return path
 }
 
 // getConfig returns the loaded config, or nil if not loaded.
@@ -66,31 +63,27 @@ func getConfig() *config.Config {
 	return deps.Config()
 }
 
-// Cmd is the parent command for all daemon subcommands.
-var Cmd = &cobra.Command{
-	Use:   "daemon",
-	Short: "Manage the background daemon",
-	Long: `Manage the ugh background daemon for HTTP API and Turso sync.
-
-The daemon provides:
-  - HTTP API for external integrations (Raycast, scripts, etc.)
-  - Background sync to Turso cloud (debounced, periodic)
-
-Use 'ugh daemon install' to set up the system service, then
-'ugh daemon start' to start it.`,
-}
-
-// Register adds the daemon command and its subcommands to the parent command.
-// Must be called with valid Deps before the command tree is executed.
-func Register(parent *cobra.Command, d Deps) {
+// Command is the parent command for all daemon subcommands.
+func Command(d Deps) *cli.Command {
 	deps = d
-	Cmd.AddCommand(installCmd)
-	Cmd.AddCommand(uninstallCmd)
-	Cmd.AddCommand(startCmd)
-	Cmd.AddCommand(stopCmd)
-	Cmd.AddCommand(restartCmd)
-	Cmd.AddCommand(statusCmd)
-	Cmd.AddCommand(logsCmd)
-	Cmd.AddCommand(runCmd)
-	parent.AddCommand(Cmd)
+	return &cli.Command{
+		Name:  "daemon",
+		Usage: "Manage the background daemon",
+		Description: "Manage the ugh background daemon for HTTP API and Turso sync.\n\n" +
+			"The daemon provides:\n" +
+			"  - HTTP API for external integrations (Raycast, scripts, etc.)\n" +
+			"  - Background sync to Turso cloud (debounced, periodic)\n\n" +
+			"Use 'ugh daemon install' to set up the system service, then\n" +
+			"'ugh daemon start' to start it.",
+		Subcommands: []*cli.Command{
+			installCommand(),
+			uninstallCommand(),
+			startCommand(),
+			stopCommand(),
+			restartCommand(),
+			statusCommand(),
+			logsCommand(),
+			runCommand(),
+		},
+	}
 }

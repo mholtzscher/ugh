@@ -6,57 +6,56 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v2"
 )
 
-var logsOpts struct {
-	Lines    int
-	NoFollow bool
-}
-
-var logsCmd = &cobra.Command{
-	Use:   "logs",
-	Short: "Show daemon logs",
-	Long: `Show logs from the daemon service.
-
-On Linux: Uses journalctl to show systemd service logs.
-On macOS: Tails the log file specified in config.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		mgr, err := getServiceManager()
-		if err != nil {
-			return fmt.Errorf("detect service manager: %w", err)
-		}
-
-		w := deps.OutputWriter()
-
-		// Create a context that can be cancelled
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		// Handle Ctrl+C gracefully
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt)
-		defer signal.Stop(sigCh)
-		go func() {
-			<-sigCh
-			cancel()
-		}()
-
-		follow := !logsOpts.NoFollow
-		if err := mgr.TailLogs(ctx, follow, logsOpts.Lines, w.Out); err != nil {
-			// Ignore context cancelled errors (user pressed Ctrl+C)
-			if ctx.Err() != nil {
-				return nil
+func logsCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "logs",
+		Usage: "Show daemon logs",
+		Description: "Show logs from the daemon service.\n\n" +
+			"On Linux: Uses journalctl to show systemd service logs.\n" +
+			"On macOS: Tails the log file specified in config.",
+		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:    "lines",
+				Aliases: []string{"n"},
+				Value:   50,
+				Usage:   "Number of lines to show",
+			},
+			&cli.BoolFlag{
+				Name:  "no-follow",
+				Usage: "Don't follow log output",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			mgr, err := getServiceManager()
+			if err != nil {
+				return fmt.Errorf("detect service manager: %w", err)
 			}
-			return fmt.Errorf("tail logs: %w", err)
-		}
 
-		return nil
-	},
-}
+			w := deps.OutputWriter(c)
 
-func init() {
-	logsCmd.Flags().IntVarP(&logsOpts.Lines, "lines", "n", 50, "number of lines to show")
-	logsCmd.Flags().BoolVar(&logsOpts.NoFollow, "no-follow", false, "don't follow log output")
+			ctx, cancel := context.WithCancel(c.Context)
+			defer cancel()
+
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt)
+			defer signal.Stop(sigCh)
+			go func() {
+				<-sigCh
+				cancel()
+			}()
+
+			follow := !c.Bool("no-follow")
+			if err := mgr.TailLogs(ctx, follow, c.Int("lines"), w.Out); err != nil {
+				if ctx.Err() != nil {
+					return nil
+				}
+				return fmt.Errorf("tail logs: %w", err)
+			}
+
+			return nil
+		},
+	}
 }

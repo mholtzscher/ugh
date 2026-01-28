@@ -4,7 +4,7 @@ import (
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/output"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v2"
 )
 
 // Deps holds dependencies injected from the parent cmd package.
@@ -19,36 +19,34 @@ type Deps struct {
 	// SetConfigWasLoaded updates the loaded-from-file flag.
 	SetConfigWasLoaded func(bool)
 	// OutputWriter returns the configured output writer.
-	OutputWriter func() output.Writer
+	OutputWriter func(*cli.Context) output.Writer
 	// ConfigPath returns the user-specified config path (may be empty).
-	ConfigPath func() string
+	ConfigPath func(*cli.Context) string
 	// DefaultDBPath returns the default database path.
 	DefaultDBPath func() (string, error)
 }
 
 var deps Deps
 
-// Cmd is the parent command for all config subcommands.
-var Cmd = &cobra.Command{
-	Use:   "config",
-	Short: "Manage configuration",
-}
-
-// Register adds the config command and its subcommands to the parent command.
-// Must be called with valid Deps before the command tree is executed.
-func Register(parent *cobra.Command, d Deps) {
+// Command is the parent command for all config subcommands.
+func Command(d Deps) *cli.Command {
 	deps = d
-	Cmd.AddCommand(initCmd)
-	Cmd.AddCommand(showCmd)
-	Cmd.AddCommand(getCmd)
-	Cmd.AddCommand(setCmd)
-	parent.AddCommand(Cmd)
+	return &cli.Command{
+		Name:  "config",
+		Usage: "Manage configuration",
+		Subcommands: []*cli.Command{
+			initCommand(),
+			showCommand(),
+			getCommand(),
+			setCommand(),
+		},
+	}
 }
 
 // configPathForWrite returns the path to write config to.
 // Uses the user-specified path if set, otherwise the default.
-func configPathForWrite() (string, error) {
-	if path := deps.ConfigPath(); path != "" {
+func configPathForWrite(c *cli.Context) (string, error) {
+	if path := deps.ConfigPath(c); path != "" {
 		return path, nil
 	}
 	return config.DefaultPath()

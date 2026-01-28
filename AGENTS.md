@@ -7,7 +7,7 @@ This document provides essential information for AI coding agents working in thi
 **ugh** is a todo.txt-inspired task CLI with libSQL storage (Turso), written in Go 1.25.
 
 - **Module**: `github.com/mholtzscher/ugh`
-- **CLI Framework**: spf13/cobra
+- **CLI Framework**: urfave/cli/v2
 - **Database**: libSQL (turso.tech/database/tursogo)
 - **SQL Generation**: sqlc
 - **Migrations**: goose (embedded)
@@ -62,12 +62,44 @@ nix develop              # Enter development shell
 
 ```
 ugh/
-├── main.go                    # Entry point (calls cmd.Execute())
+├── main.go                    # Entry point (calls cmd.Run())
 ├── main_test.go               # Integration tests using testscript
-├── cmd/                       # CLI commands (Cobra)
+├── cmd/                       # CLI commands (urfave/cli)
 │   ├── root.go                # Root command, global flags, store init
-│   ├── add.go, list.go, ...   # Subcommands (one file per command)
-│   └── utils.go               # Utility functions
+│   ├── args.go                # Argument parsing utilities
+│   ├── flags.go               # Common CLI flags
+│   ├── utils.go               # Utility functions
+│   ├── tasks/                 # Task subcommands
+│   │   ├── tasks.go            # Task command group
+│   │   ├── add.go              # Add new tasks
+│   │   ├── list.go             # List tasks
+│   │   ├── show.go             # Show task details
+│   │   ├── edit.go             # Edit tasks
+│   │   ├── rm.go               # Remove tasks
+│   │   ├── done.go             # Mark tasks as done
+│   │   ├── undo.go             # Mark tasks as not done
+│   │   ├── import.go           # Import from todo.txt
+│   │   ├── export.go           # Export to todo.txt
+│   │   ├── sync.go             # Sync with remote database
+│   │   ├── contexts.go         # List contexts
+│   │   └── projects.go         # List projects
+│   ├── config/                # Config subcommands
+│   │   ├── config.go          # Config command group
+│   │   ├── init.go            # Initialize config
+│   │   ├── get.go             # Get config values
+│   │   ├── set.go             # Set config values
+│   │   └── show.go            # Show config
+│   ├── daemon/                # Daemon subcommands
+│   │   ├── daemon.go          # Daemon command group
+│   │   ├── run.go             # Run daemon (foreground)
+│   │   ├── start.go           # Start daemon service
+│   │   ├── stop.go            # Stop daemon service
+│   │   ├── restart.go         # Restart daemon service
+│   │   ├── status.go          # Check daemon status
+│   │   ├── install.go         # Install daemon service
+│   │   ├── uninstall.go       # Uninstall daemon service
+│   │   └── logs.go            # View daemon logs
+│   └── devtools/              # Development tools
 ├── internal/
 │   ├── store/                 # Database layer
 │   │   ├── store.go           # Store struct, Open, CRUD operations
@@ -77,8 +109,26 @@ ugh/
 │   │   └── sqlc/              # Generated sqlc code (DO NOT EDIT)
 │   ├── todotxt/               # todo.txt format parsing/formatting
 │   │   ├── parse.go, format.go, types.go
-│   └── output/                # Output formatting (JSON, human, plain)
-├── db/queries/tasks.sql       # SQL queries for sqlc
+│   ├── output/                # Output formatting
+│   │   ├── output.go          # Output interface
+│   │   └── human.go           # Human-readable output
+│   ├── config/                # Configuration management
+│   │   └── config.go          # Config file operations
+│   ├── daemon/                # Daemon functionality
+│   │   ├── daemon.go          # Daemon implementation
+│   │   ├── config.go          # Daemon configuration
+│   │   └── service/           # Service managers
+│   │       ├── manager.go     # Service manager interface
+│   │       ├── systemd.go     # systemd support
+│   │       └── launchd.go     # launchd support (macOS)
+│   ├── service/               # Business logic layer
+│   │   ├── interface.go       # Service interfaces
+│   │   └── task_service.go    # Task service implementation
+│   ├── editor/                # Editor utilities
+│   │   └── editor.go          # External editor integration
+│   └── ui/                    # UI components (future use)
+├── db/
+│   └── queries/tasks.sql      # SQL queries for sqlc
 └── testdata/script/           # testscript integration tests
 ```
 
@@ -99,7 +149,7 @@ import (
     "github.com/mholtzscher/ugh/internal/store"
     "github.com/mholtzscher/ugh/internal/todotxt"
 
-    "github.com/spf13/cobra"
+    "github.com/urfave/cli/v2"
 )
 ```
 
@@ -126,33 +176,35 @@ if err := doSomething(); err != nil {
 }
 ```
 
-### Cobra Command Pattern
+### urfave/cli Command Pattern
 
 Each command follows this structure:
 
 ```go
-var cmdOpts struct {
-    // Command-specific options
-}
-
-var cmdCmd = &cobra.Command{
-    Use:     "cmd [args]",
-    Aliases: []string{"c"},
-    Short:   "Brief description",
-    RunE: func(cmd *cobra.Command, args []string) error {
-        ctx := context.Background()
-        // Implementation
-    },
-}
-
-func init() {
-    cmdCmd.Flags().StringVarP(&cmdOpts.Field, "field", "f", "", "description")
+func CmdCommand() *cli.Command {
+    return &cli.Command{
+        Name:      "cmd",
+        Aliases:   []string{"c"},
+        Usage:     "Brief description",
+        ArgsUsage: "[args]",
+        Flags: []cli.Flag{
+            &cli.StringFlag{
+                Name:  "field",
+                Usage: "description",
+            },
+        },
+        Action: func(c *cli.Context) error {
+            ctx := context.Background()
+            // Implementation
+            return nil
+        },
+    }
 }
 ```
 
 ### Database Pattern
 
-- Use `openStore(ctx)` to get a store instance
+- Use `openStore(ctx, c)` to get a store instance
 - Always `defer st.Close()` after opening
 - All times stored as Unix timestamps (int64)
 - Dates stored as strings in "2006-01-02" format
@@ -192,7 +244,7 @@ The CLI supports three output modes:
 2. **Human/TTY**: Formatted tables for interactive use
 3. **Plain/Pipe**: todo.txt format for scripting
 
-Always use `outputWriter()` and its methods for consistent output.
+Always use `outputWriter(c)` and its methods for consistent output.
 
 ### Code Generation
 

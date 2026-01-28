@@ -71,6 +71,8 @@ Create an `*cli.App` with:
 - `Before` hook that loads config (unless `skipConfig` metadata is set)
 - `Commands` listing all command builders
 
+**Note on flag ordering:** Cobra allowed global flags anywhere in the argv. `urfave/cli` expects global flags before the command by default. If you want to preserve the existing behavior (tests currently do), normalize argv before `app.Run` by moving global flags ahead of the command and reordering command flags before positionals. This is especially important for commands like `show`/`edit` where value flags appear after the ID (e.g., `ugh show 1 --json`, `ugh edit 1 -p A`).
+
 Global flags to preserve:
 
 - `--config` (alias currently exists; decide whether to keep `-c`)

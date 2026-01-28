@@ -2,12 +2,13 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/mholtzscher/ugh/internal/config"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v2"
 )
 
 type setResult struct {
@@ -17,40 +18,45 @@ type setResult struct {
 	File   string `json:"file"`
 }
 
-var setCmd = &cobra.Command{
-	Use:   "set <key> <value>",
-	Short: "Set a configuration value",
-	Args:  cobra.ExactArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := deps.Config()
-		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion}
-		}
+func setCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "set",
+		Usage:     "Set a configuration value",
+		ArgsUsage: "<key> <value>",
+		Action: func(c *cli.Context) error {
+			if c.Args().Len() != 2 {
+				return errors.New("set requires a key and value")
+			}
+			cfg := deps.Config()
+			if cfg == nil {
+				cfg = &config.Config{Version: config.DefaultVersion}
+			}
 
-		key := args[0]
-		value := args[1]
-		if err := setValue(cfg, key, value); err != nil {
-			return err
-		}
+			key := c.Args().Get(0)
+			value := c.Args().Get(1)
+			if err := setValue(cfg, key, value); err != nil {
+				return err
+			}
 
-		cfgPath, err := configPathForWrite()
-		if err != nil {
-			return err
-		}
-		if err := config.Save(cfgPath, *cfg); err != nil {
-			return err
-		}
-		deps.SetConfig(cfg)
-		deps.SetConfigWasLoaded(true)
+			cfgPath, err := configPathForWrite(c)
+			if err != nil {
+				return err
+			}
+			if err := config.Save(cfgPath, *cfg); err != nil {
+				return err
+			}
+			deps.SetConfig(cfg)
+			deps.SetConfigWasLoaded(true)
 
-		writer := deps.OutputWriter()
-		if writer.JSON {
-			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(setResult{Action: "set", Key: key, Value: value, File: cfgPath})
-		}
-		_, err = fmt.Fprintf(writer.Out, "set %s\n", key)
-		return err
-	},
+			writer := deps.OutputWriter(c)
+			if writer.JSON {
+				enc := json.NewEncoder(writer.Out)
+				return enc.Encode(setResult{Action: "set", Key: key, Value: value, File: cfgPath})
+			}
+			_, err = fmt.Fprintf(writer.Out, "set %s\n", key)
+			return err
+		},
+	}
 }
 
 func setValue(cfg *config.Config, key string, value string) error {

@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,92 +11,72 @@ import (
 	"github.com/mholtzscher/ugh/internal/daemon"
 	"github.com/mholtzscher/ugh/internal/store"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v2"
 )
 
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run the daemon in foreground",
-	Long: `Run the daemon server in the foreground.
+func runCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "run",
+		Usage: "Run the daemon in foreground",
+		Description: "Run the daemon server in the foreground.\n\n" +
+			"This is primarily used by the system service manager (systemd/launchd).\n" +
+			"For debugging, you can run it directly to see logs in the terminal.\n\n" +
+			"The daemon provides background sync to Turso cloud on a periodic interval.\n" +
+			"It only opens the database when syncing, avoiding lock contention with the CLI.",
+		Action: func(c *cli.Context) error {
+			ctx := c.Context
 
-This is primarily used by the system service manager (systemd/launchd).
-For debugging, you can run it directly to see logs in the terminal.
+			cfg := getConfig()
+			if cfg == nil {
+				return fmt.Errorf("config not loaded")
+			}
 
-The daemon provides background sync to Turso cloud on a periodic interval.
-It only opens the database when syncing, avoiding lock contention with the CLI.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+			daemonCfg := daemon.ParseConfig(cfg.Daemon)
 
-		// Get config
-		cfg := getConfig()
-		if cfg == nil {
-			return fmt.Errorf("config not loaded")
-		}
+			logger, logCloser, err := setupLogging(daemonCfg.LogFile, daemonCfg.LogLevel)
+			if err != nil {
+				return fmt.Errorf("setup logging: %w", err)
+			}
+			if logCloser != nil {
+				defer func() { _ = logCloser.Close() }()
+			}
 
-		// Parse daemon config
-		daemonCfg := daemon.ParseConfig(cfg.Daemon)
+			cfgPath := getConfigPath()
+			dbPath, err := config.EffectiveDBPath(cfg, cfgPath)
+			if err != nil {
+				return fmt.Errorf("get db path: %w", err)
+			}
 
-		// Set up logging
-		logger, logCloser, err := setupLogging(daemonCfg.LogFile, daemonCfg.LogLevel)
-		if err != nil {
-			return fmt.Errorf("setup logging: %w", err)
-		}
-		if logCloser != nil {
-			defer func() { _ = logCloser.Close() }()
-		}
+			dbDir := filepath.Dir(dbPath)
+			if err := os.MkdirAll(dbDir, 0o755); err != nil {
+				return fmt.Errorf("create db dir: %w", err)
+			}
 
-		// Get database path
-		dbPath, err := config.EffectiveDBPath(cfg, "")
-		if err != nil {
-			return fmt.Errorf("get db path: %w", err)
-		}
+			cacheDir := filepath.Join(dbDir, ".cache")
+			if os.Getenv("TURSO_GO_CACHE_DIR") == "" {
+				_ = os.Setenv("TURSO_GO_CACHE_DIR", cacheDir)
+			}
 
-		// Ensure DB directory exists
-		dbDir := filepath.Dir(dbPath)
-		if err := os.MkdirAll(dbDir, 0o755); err != nil {
-			return fmt.Errorf("create db dir: %w", err)
-		}
+			storeOpts := store.Options{
+				Path:        dbPath,
+				SyncURL:     cfg.DB.SyncURL,
+				AuthToken:   cfg.DB.AuthToken,
+				BusyTimeout: 5000,
+			}
 
-		// Set cache dir for Turso
-		cacheDir := filepath.Join(dbDir, ".cache")
-		if os.Getenv("TURSO_GO_CACHE_DIR") == "" {
-			_ = os.Setenv("TURSO_GO_CACHE_DIR", cacheDir)
-		}
+			d := daemon.New(storeOpts, daemonCfg, logger)
 
-		// Build store options (daemon will open/close as needed)
-		storeOpts := store.Options{
-			Path:        dbPath,
-			SyncURL:     cfg.DB.SyncURL,
-			AuthToken:   cfg.DB.AuthToken,
-			BusyTimeout: 5000, // 5 seconds - short since we open/close quickly
-		}
-
-		// Create daemon
-		d := daemon.New(storeOpts, daemonCfg, logger)
-
-		// Set up config watching for hot-reload
-		if result := deps.ConfigResult(); result != nil && result.Viper != nil {
-			stopWatching := config.Watch(result.Viper, func(newCfg config.Config) {
-				logger.Info("config file changed, reloading daemon config")
-				newDaemonCfg := daemon.ParseConfig(newCfg.Daemon)
-				d.UpdateConfig(newDaemonCfg)
-			})
-			defer stopWatching()
-		}
-
-		return d.Run(ctx)
-	},
+			return d.Run(ctx)
+		},
+	}
 }
 
 // setupLogging sets up the logger based on config.
 func setupLogging(logFile, logLevel string) (*slog.Logger, io.Closer, error) {
-	// Determine output
 	var out io.Writer = os.Stderr
 	var closer io.Closer
 
 	if logFile != "" {
-		// Expand ~ to home dir
 		path := logFile
 		if len(path) >= 2 && path[:2] == "~/" {
 			home, err := os.UserHomeDir()
@@ -107,7 +86,6 @@ func setupLogging(logFile, logLevel string) (*slog.Logger, io.Closer, error) {
 			path = filepath.Join(home, path[2:])
 		}
 
-		// Create log directory if needed
 		dir := filepath.Dir(path)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, nil, fmt.Errorf("create log dir: %w", err)
@@ -121,7 +99,6 @@ func setupLogging(logFile, logLevel string) (*slog.Logger, io.Closer, error) {
 		closer = f
 	}
 
-	// Determine log level
 	var level slog.Level
 	switch logLevel {
 	case "debug":
@@ -134,13 +111,10 @@ func setupLogging(logFile, logLevel string) (*slog.Logger, io.Closer, error) {
 		level = slog.LevelInfo
 	}
 
-	// Create handler
 	var handler slog.Handler
 	if logFile != "" {
-		// Use JSON for file logging
 		handler = slog.NewJSONHandler(out, &slog.HandlerOptions{Level: level})
 	} else {
-		// Use text for stderr
 		handler = slog.NewTextHandler(out, &slog.HandlerOptions{Level: level})
 	}
 

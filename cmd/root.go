@@ -11,40 +11,88 @@ import (
 
 	configcmd "github.com/mholtzscher/ugh/cmd/config"
 	daemoncmd "github.com/mholtzscher/ugh/cmd/daemon"
+	taskscmd "github.com/mholtzscher/ugh/cmd/tasks"
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/output"
+	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/mholtzscher/ugh/internal/store"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v2"
 )
-
-type rootOptions struct {
-	ConfigPath string
-	DBPath     string
-	JSON       bool
-	NoColor    bool
-}
 
 var (
-	rootOpts           rootOptions
-	loadedConfig       *config.Config
-	loadedConfigWas    bool
-	loadedConfigResult *config.LoadResult // Includes Viper instance for flag binding/watching
+	loadedConfig     *config.Config
+	loadedConfigWas  bool
+	loadedConfigPath string
 )
 
-var rootCmd = &cobra.Command{
-	Use:          "ugh",
-	Short:        "ugh is a todo.txt-inspired task CLI",
-	Long:         "ugh is a todo.txt-inspired task CLI with SQLite storage.",
-	SilenceUsage: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return loadConfig(cmd)
-	},
+const defaultTimeout = 30 * time.Second
+
+func Run() error {
+	app := &cli.App{
+		Name:                 "ugh",
+		Usage:                "todo.txt-inspired task CLI",
+		Description:          "A CLI task manager using todo.txt format with libSQL storage",
+		EnableBashCompletion: true,
+		Flags:                globalFlags(false),
+		Before: func(c *cli.Context) error {
+			return loadConfig(c)
+		},
+		Action: func(c *cli.Context) error {
+			return cli.ShowAppHelp(c)
+		},
+		Commands: append(taskCommands(),
+			withGlobalFlags(setCategory(configcmd.Command(configcmd.Deps{
+				Config:             func() *config.Config { return loadedConfig },
+				SetConfig:          func(c *config.Config) { loadedConfig = c },
+				ConfigWasLoaded:    func() bool { return loadedConfigWas },
+				SetConfigWasLoaded: func(b bool) { loadedConfigWas = b },
+				OutputWriter:       outputWriter,
+				ConfigPath:         func(c *cli.Context) string { return flagString(c, "config") },
+				DefaultDBPath:      config.DefaultDBPath,
+			}), "Admin")),
+			withGlobalFlags(setCategory(daemoncmd.Command(daemoncmd.Deps{
+				Config:       func() *config.Config { return loadedConfig },
+				ConfigPath:   func() string { return loadedConfigPath },
+				OutputWriter: outputWriter,
+			}), "Admin")),
+		),
+	}
+
+	return app.Run(normalizeArgs(app, os.Args))
 }
 
-func loadConfig(cmd *cobra.Command) error {
-	configPath := rootOpts.ConfigPath
-	allowMissing := configPath == "" || allowMissingConfig(cmd)
+func taskCommands() []*cli.Command {
+	deps := taskscmd.Deps{
+		WithTimeout:          withTimeout,
+		NewService:           func(c *cli.Context) (service.Service, error) { return newService(c.Context, c) },
+		ParseIDs:             parseIDs,
+		OutputWriter:         outputWriter,
+		MaybeSyncBeforeWrite: maybeSyncBeforeWrite,
+		MaybeSyncAfterWrite:  maybeSyncAfterWrite,
+		FlagString:           flagString,
+		FlagBool:             flagBool,
+		OpenStore:            openStore,
+	}
+	taskscmd.Init(deps)
+	commands := taskscmd.Commands()
+	for i, cmd := range commands {
+		commands[i] = withGlobalFlags(cmd)
+	}
+	return commands
+}
+
+func setCategory(cmd *cli.Command, category string) *cli.Command {
+	if cmd == nil {
+		return cmd
+	}
+	cmd.Category = category
+	return cmd
+}
+
+func loadConfig(c *cli.Context) error {
+	configPath := flagString(c, "config")
+	allowMissing := configPath == "" || allowMissingConfig(c)
 
 	result, err := config.Load(configPath, allowMissing)
 	if err != nil {
@@ -61,30 +109,27 @@ func loadConfig(cmd *cobra.Command) error {
 
 	loadedConfig = &result.Config
 	loadedConfigWas = result.WasLoaded
-	loadedConfigResult = result
+	loadedConfigPath = result.UsedPath
 
 	return nil
 }
 
-func allowMissingConfig(cmd *cobra.Command) bool {
-	if cmd == nil {
+func allowMissingConfig(c *cli.Context) bool {
+	if c == nil {
 		return false
 	}
-	if cmd.Name() == "set" || cmd.Name() == "init" {
-		parent := cmd.Parent()
-		return parent != nil && parent.Name() == "config"
-	}
-	return false
+	args := c.Args().Slice()
+	return len(args) >= 2 && args[0] == "config" && (args[1] == "init" || args[1] == "set")
 }
 
-func effectiveDBPath() (string, error) {
-	if rootOpts.DBPath != "" {
-		return rootOpts.DBPath, nil
+func effectiveDBPath(c *cli.Context) (string, error) {
+	if dbPath := flagString(c, "db"); dbPath != "" {
+		return dbPath, nil
 	}
 
 	var cfgPath string
-	if rootOpts.ConfigPath != "" {
-		cfgPath = rootOpts.ConfigPath
+	if configPath := flagString(c, "config"); configPath != "" {
+		cfgPath = configPath
 	} else if loadedConfigWas {
 		defaultPath, err := config.DefaultPath()
 		if err != nil {
@@ -96,55 +141,8 @@ func effectiveDBPath() (string, error) {
 	return config.EffectiveDBPath(loadedConfig, cfgPath)
 }
 
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
-	}
-}
-
-func init() {
-	rootCmd.PersistentFlags().StringVar(&rootOpts.ConfigPath, "config", "", "path to config file")
-
-	rootCmd.PersistentFlags().StringVarP(&rootOpts.DBPath, "db", "d", "", "path to sqlite database (overrides config)")
-	rootCmd.PersistentFlags().BoolVarP(&rootOpts.JSON, "json", "j", false, "output json")
-	rootCmd.PersistentFlags().BoolVar(&rootOpts.NoColor, "no-color", false, "disable color output")
-
-	rootCmd.PersistentFlags().SortFlags = false
-
-	rootCmd.AddCommand(addCmd)
-	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(showCmd)
-	rootCmd.AddCommand(editCmd)
-	rootCmd.AddCommand(doneCmd)
-	rootCmd.AddCommand(undoCmd)
-	rootCmd.AddCommand(rmCmd)
-	rootCmd.AddCommand(importCmd)
-	rootCmd.AddCommand(exportCmd)
-	rootCmd.AddCommand(projectsCmd)
-	rootCmd.AddCommand(contextsCmd)
-	rootCmd.AddCommand(syncCmd)
-
-	// Register subcommand packages
-	configcmd.Register(rootCmd, configcmd.Deps{
-		Config:             func() *config.Config { return loadedConfig },
-		SetConfig:          func(c *config.Config) { loadedConfig = c },
-		ConfigWasLoaded:    func() bool { return loadedConfigWas },
-		SetConfigWasLoaded: func(b bool) { loadedConfigWas = b },
-		OutputWriter:       outputWriter,
-		ConfigPath:         func() string { return rootOpts.ConfigPath },
-		DefaultDBPath:      defaultDBPath,
-	})
-
-	daemoncmd.Register(rootCmd, daemoncmd.Deps{
-		Config:       func() *config.Config { return loadedConfig },
-		ConfigResult: func() *config.LoadResult { return loadedConfigResult },
-		OutputWriter: outputWriter,
-	})
-}
-
-func openStore(ctx context.Context) (*store.Store, error) {
-	path, err := effectiveDBPath()
+func openStore(ctx context.Context, c *cli.Context) (*store.Store, error) {
+	path, err := effectiveDBPath(c)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +161,6 @@ func openStore(ctx context.Context) (*store.Store, error) {
 		opts.AuthToken = loadedConfig.DB.AuthToken
 	}
 
-	// Retry with backoff if database is locked (e.g., daemon is running)
 	var st *store.Store
 	maxRetries := 5
 	backoff := 100 * time.Millisecond
@@ -172,19 +169,17 @@ func openStore(ctx context.Context) (*store.Store, error) {
 		if err == nil {
 			return st, nil
 		}
-		// Check if it's a locking error
 		if !isLockingError(err) {
 			return nil, err
 		}
 		if i < maxRetries-1 {
 			time.Sleep(backoff)
-			backoff *= 2 // Exponential backoff
+			backoff *= 2
 		}
 	}
 	return nil, fmt.Errorf("%w (is the daemon running? try 'ugh daemon stop' or use the HTTP API)", err)
 }
 
-// isLockingError checks if the error is a database locking error.
 func isLockingError(err error) bool {
 	if err == nil {
 		return false
@@ -193,10 +188,10 @@ func isLockingError(err error) bool {
 	return strings.Contains(errStr, "locked") || strings.Contains(errStr, "Locking")
 }
 
-func defaultDBPath() (string, error) {
-	return config.DefaultDBPath()
+func outputWriter(c *cli.Context) output.Writer {
+	return output.NewWriter(flagBool(c, "json"), flagBool(c, "no-color"))
 }
 
-func outputWriter() output.Writer {
-	return output.NewWriter(rootOpts.JSON, rootOpts.NoColor)
+func withTimeout(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(parent, defaultTimeout)
 }

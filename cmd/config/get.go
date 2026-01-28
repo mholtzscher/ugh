@@ -7,7 +7,7 @@ import (
 
 	"github.com/mholtzscher/ugh/internal/config"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v2"
 )
 
 type getResult struct {
@@ -15,30 +15,35 @@ type getResult struct {
 	Value string `json:"value"`
 }
 
-var getCmd = &cobra.Command{
-	Use:   "get <key>",
-	Short: "Get a configuration value",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := deps.Config()
-		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion}
-		}
+func getCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "get",
+		Usage:     "Get a configuration value",
+		ArgsUsage: "<key>",
+		Action: func(c *cli.Context) error {
+			if c.Args().Len() != 1 {
+				return errors.New("get requires a key")
+			}
+			cfg := deps.Config()
+			if cfg == nil {
+				cfg = &config.Config{Version: config.DefaultVersion}
+			}
 
-		key := args[0]
-		value, err := getValue(cfg, key)
-		if err != nil {
+			key := c.Args().First()
+			value, err := getValue(cfg, key)
+			if err != nil {
+				return err
+			}
+
+			writer := deps.OutputWriter(c)
+			if writer.JSON {
+				enc := json.NewEncoder(writer.Out)
+				return enc.Encode(getResult{Key: key, Value: value})
+			}
+			_, err = fmt.Fprintln(writer.Out, value)
 			return err
-		}
-
-		writer := deps.OutputWriter()
-		if writer.JSON {
-			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(getResult{Key: key, Value: value})
-		}
-		_, err = fmt.Fprintln(writer.Out, value)
-		return err
-	},
+		},
+	}
 }
 
 func getValue(cfg *config.Config, key string) (string, error) {

@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	"github.com/mholtzscher/ugh/internal/service"
+
+	"github.com/urfave/cli/v2"
 )
 
 func parseIDs(args []string) ([]int64, error) {
@@ -25,8 +27,8 @@ func parseIDs(args []string) ([]int64, error) {
 }
 
 // newService returns a Service implementation using direct database access.
-func newService(ctx context.Context) (service.Service, error) {
-	st, err := openStore(ctx)
+func newService(ctx context.Context, c *cli.Context) (service.Service, error) {
+	st, err := openStore(ctx, c)
 	if err != nil {
 		return nil, err
 	}

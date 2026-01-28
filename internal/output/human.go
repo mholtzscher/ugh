@@ -31,6 +31,21 @@ type ExportSummary struct {
 	File   string `json:"file,omitempty"`
 }
 
+type SyncSummary struct {
+	Action  string `json:"action"`
+	Message string `json:"message"`
+}
+
+type SyncStatusSummary struct {
+	Action          string `json:"action"`
+	LastPullTime    int64  `json:"lastPullTime"`
+	LastPushTime    int64  `json:"lastPushTime"`
+	PendingChanges  int64  `json:"pendingChanges"`
+	NetworkSent     int64  `json:"networkSentBytes"`
+	NetworkReceived int64  `json:"networkReceivedBytes"`
+	Revision        string `json:"revision"`
+}
+
 func writeHumanTask(out io.Writer, task *store.Task) error {
 	status := "todo"
 	if task.Done {
@@ -105,6 +120,35 @@ func writeHumanSummary(out io.Writer, summary any) error {
 			return err
 		}
 		return table.Render()
+	case SyncSummary:
+		table := tablewriter.NewWriter(out)
+		table.Header("Action", "Message")
+		if err := table.Append(value.Action, value.Message); err != nil {
+			return err
+		}
+		return table.Render()
+	case SyncStatusSummary:
+		table := tablewriter.NewWriter(out)
+		table.Header("Field", "Value")
+		if err := table.Append("last_pull", formatSyncTime(value.LastPullTime)); err != nil {
+			return err
+		}
+		if err := table.Append("last_push", formatSyncTime(value.LastPushTime)); err != nil {
+			return err
+		}
+		if err := table.Append("pending_changes", fmt.Sprintf("%d", value.PendingChanges)); err != nil {
+			return err
+		}
+		if err := table.Append("network_sent", fmt.Sprintf("%d bytes", value.NetworkSent)); err != nil {
+			return err
+		}
+		if err := table.Append("network_received", fmt.Sprintf("%d bytes", value.NetworkReceived)); err != nil {
+			return err
+		}
+		if err := table.Append("revision", value.Revision); err != nil {
+			return err
+		}
+		return table.Render()
 	default:
 		_, err := fmt.Fprintf(out, "%v\n", value)
 		return err
@@ -136,6 +180,27 @@ func writePlainSummary(out io.Writer, summary any) error {
 			line += " (" + value.File + ")"
 		}
 		_, err := fmt.Fprintln(out, line)
+		return err
+	case SyncSummary:
+		_, err := fmt.Fprintf(out, "%s: %s\n", value.Action, value.Message)
+		return err
+	case SyncStatusSummary:
+		if _, err := fmt.Fprintf(out, "last_pull:\t%s\n", formatSyncTime(value.LastPullTime)); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, "last_push:\t%s\n", formatSyncTime(value.LastPushTime)); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, "pending_changes:\t%d\n", value.PendingChanges); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, "network_sent:\t%d bytes\n", value.NetworkSent); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, "network_received:\t%d bytes\n", value.NetworkReceived); err != nil {
+			return err
+		}
+		_, err := fmt.Fprintf(out, "revision:\t%s\n", value.Revision)
 		return err
 	default:
 		_, err := fmt.Fprintf(out, "%v\n", value)
@@ -184,6 +249,13 @@ func appendRow(table *tablewriter.Table, row []string) error {
 		values[i] = val
 	}
 	return table.Append(values...)
+}
+
+func formatSyncTime(value int64) string {
+	if value == 0 {
+		return "never"
+	}
+	return fmt.Sprintf("%d", value)
 }
 
 func humanTaskText(task *store.Task) string {

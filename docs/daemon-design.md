@@ -131,7 +131,7 @@ cmd/
 │   ├── get.go          # ugh config get
 │   └── set.go          # ugh config set
 └── daemon/             # Daemon subcommand group
-    ├── daemon.go       # Parent command + Register()
+    ├── daemon.go       # Parent command + Command()
     ├── install.go      # ugh daemon install
     ├── uninstall.go    # ugh daemon uninstall
     ├── start.go        # ugh daemon start
@@ -142,7 +142,7 @@ cmd/
     └── run.go          # ugh daemon run (foreground, called by service)
 ```
 
-Subcommand packages expose a `Register(parent *cobra.Command)` function that the root
+Subcommand packages expose a `Command(deps Deps) *cli.Command` function that the root
 command calls to wire up the command tree.
 
 The `api` package is independent of the daemon - it only depends on `store` and `service`.

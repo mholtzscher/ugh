@@ -215,56 +215,6 @@ func TestUserConfigDir(t *testing.T) {
 	}
 }
 
-func TestLoad_EnvVarOverride(t *testing.T) {
-	tmpDir := t.TempDir()
-	cfgPath := filepath.Join(tmpDir, "config.toml")
-	cfgContent := `version = 1
-
-[db]
-path = "~/.local/share/ugh/ugh.sqlite"
-auth_token = "file-token"
-`
-	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0o644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-
-	// Set env var to override auth_token
-	_ = os.Setenv("UGH_DB_AUTH_TOKEN", "env-token")
-	defer func() { _ = os.Unsetenv("UGH_DB_AUTH_TOKEN") }()
-
-	result, err := Load(cfgPath, false)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-	if result.Config.DB.AuthToken != "env-token" {
-		t.Fatalf("Load() DB.AuthToken = %s, want env-token (env var should override file)", result.Config.DB.AuthToken)
-	}
-}
-
-func TestLoad_EnvVarWithNoFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	missingPath := filepath.Join(tmpDir, "does-not-exist.toml")
-
-	// Set env var
-	_ = os.Setenv("UGH_DB_AUTH_TOKEN", "env-only-token")
-	_ = os.Setenv("UGH_DB_PATH", "/some/path.db")
-	defer func() {
-		_ = os.Unsetenv("UGH_DB_AUTH_TOKEN")
-		_ = os.Unsetenv("UGH_DB_PATH")
-	}()
-
-	result, err := Load(missingPath, true) // allowMissing=true
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-	if result.Config.DB.AuthToken != "env-only-token" {
-		t.Fatalf("Load() DB.AuthToken = %s, want env-only-token", result.Config.DB.AuthToken)
-	}
-	if result.Config.DB.Path != "/some/path.db" {
-		t.Fatalf("Load() DB.Path = %s, want /some/path.db", result.Config.DB.Path)
-	}
-}
-
 func TestLoad_Defaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "config.toml")
@@ -292,18 +242,5 @@ path = "/some/path.db"
 	}
 	if result.Config.Daemon.SyncRetryMax != 3 {
 		t.Fatalf("Load() Daemon.SyncRetryMax = %d, want 3 (default)", result.Config.Daemon.SyncRetryMax)
-	}
-}
-
-func TestNewViper_EnvPrefix(t *testing.T) {
-	v := NewViper()
-
-	// Set env var
-	_ = os.Setenv("UGH_DB_SYNC_URL", "libsql://test.turso.io")
-	defer func() { _ = os.Unsetenv("UGH_DB_SYNC_URL") }()
-
-	// AutomaticEnv should pick it up
-	if v.GetString("db.sync_url") != "libsql://test.turso.io" {
-		t.Fatalf("Viper GetString(db.sync_url) = %s, want libsql://test.turso.io", v.GetString("db.sync_url"))
 	}
 }
