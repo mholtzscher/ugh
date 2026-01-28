@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -27,9 +26,10 @@ type rootOptions struct {
 }
 
 var (
-	rootOpts        rootOptions
-	loadedConfig    *config.Config
-	loadedConfigWas bool
+	rootOpts           rootOptions
+	loadedConfig       *config.Config
+	loadedConfigWas    bool
+	loadedConfigResult *config.LoadResult // Includes Viper instance for flag binding/watching
 )
 
 var rootCmd = &cobra.Command{
@@ -61,6 +61,8 @@ func loadConfig(cmd *cobra.Command) error {
 
 	loadedConfig = &result.Config
 	loadedConfigWas = result.WasLoaded
+	loadedConfigResult = result
+
 	return nil
 }
 
@@ -79,24 +81,19 @@ func effectiveDBPath() (string, error) {
 	if rootOpts.DBPath != "" {
 		return rootOpts.DBPath, nil
 	}
-	if loadedConfig != nil && loadedConfig.DB.Path != "" {
-		var cfgPath string
-		if rootOpts.ConfigPath != "" {
-			cfgPath = rootOpts.ConfigPath
-		} else if loadedConfigWas {
-			defaultPath, err := config.DefaultPath()
-			if err != nil {
-				return "", fmt.Errorf("get default config path: %w", err)
-			}
-			cfgPath = defaultPath
-		}
-		dbPath, err := config.ResolveDBPath(cfgPath, loadedConfig.DB.Path)
+
+	var cfgPath string
+	if rootOpts.ConfigPath != "" {
+		cfgPath = rootOpts.ConfigPath
+	} else if loadedConfigWas {
+		defaultPath, err := config.DefaultPath()
 		if err != nil {
-			return "", fmt.Errorf("resolve db path from config: %w", err)
+			return "", fmt.Errorf("get default config path: %w", err)
 		}
-		return dbPath, nil
+		cfgPath = defaultPath
 	}
-	return defaultDBPath()
+
+	return config.EffectiveDBPath(loadedConfig, cfgPath)
 }
 
 func Execute() {
@@ -141,6 +138,7 @@ func init() {
 
 	daemoncmd.Register(rootCmd, daemoncmd.Deps{
 		Config:       func() *config.Config { return loadedConfig },
+		ConfigResult: func() *config.LoadResult { return loadedConfigResult },
 		OutputWriter: outputWriter,
 	})
 }
@@ -196,41 +194,7 @@ func isLockingError(err error) bool {
 }
 
 func defaultDBPath() (string, error) {
-	dataDir, err := userDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "ugh", "ugh.sqlite"), nil
-}
-
-func userDataDir() (string, error) {
-	switch runtime.GOOS {
-	case "darwin":
-		// macOS's "config" dir is ~/Library/Application Support.
-		configDir, err := os.UserConfigDir()
-		if err != nil {
-			return "", fmt.Errorf("user config dir: %w", err)
-		}
-		return configDir, nil
-	case "windows":
-		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			return localAppData, nil
-		}
-		configDir, err := os.UserConfigDir()
-		if err != nil {
-			return "", fmt.Errorf("user config dir: %w", err)
-		}
-		return configDir, nil
-	default:
-		if xdgDataHome := os.Getenv("XDG_DATA_HOME"); xdgDataHome != "" {
-			return xdgDataHome, nil
-		}
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("home dir: %w", err)
-		}
-		return filepath.Join(homeDir, ".local", "share"), nil
-	}
+	return config.DefaultDBPath()
 }
 
 func outputWriter() output.Writer {

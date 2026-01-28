@@ -16,6 +16,8 @@ import (
 type Deps struct {
 	// Config returns the currently loaded config (may be nil).
 	Config func() *config.Config
+	// ConfigResult returns the full LoadResult including Viper instance (for watching).
+	ConfigResult func() *config.LoadResult
 	// OutputWriter returns the configured output writer.
 	OutputWriter func() output.Writer
 }

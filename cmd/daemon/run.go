@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/daemon"
@@ -49,7 +48,7 @@ It only opens the database when syncing, avoiding lock contention with the CLI.`
 		}
 
 		// Get database path
-		dbPath, err := effectiveDBPath(cfg)
+		dbPath, err := config.EffectiveDBPath(cfg, "")
 		if err != nil {
 			return fmt.Errorf("get db path: %w", err)
 		}
@@ -74,79 +73,21 @@ It only opens the database when syncing, avoiding lock contention with the CLI.`
 			BusyTimeout: 5000, // 5 seconds - short since we open/close quickly
 		}
 
-		// Create and run daemon
+		// Create daemon
 		d := daemon.New(storeOpts, daemonCfg, logger)
+
+		// Set up config watching for hot-reload
+		if result := deps.ConfigResult(); result != nil && result.Viper != nil {
+			stopWatching := config.Watch(result.Viper, func(newCfg config.Config) {
+				logger.Info("config file changed, reloading daemon config")
+				newDaemonCfg := daemon.ParseConfig(newCfg.Daemon)
+				d.UpdateConfig(newDaemonCfg)
+			})
+			defer stopWatching()
+		}
+
 		return d.Run(ctx)
 	},
-}
-
-// effectiveDBPath returns the database path from config or default.
-func effectiveDBPath(cfg *config.Config) (string, error) {
-	if cfg != nil && cfg.DB.Path != "" {
-		path := cfg.DB.Path
-		path = os.ExpandEnv(path)
-
-		// Expand ~ to home dir
-		if len(path) >= 2 && path[:2] == "~/" {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return "", err
-			}
-			path = filepath.Join(home, path[2:])
-		}
-
-		if !filepath.IsAbs(path) {
-			abs, err := filepath.Abs(path)
-			if err != nil {
-				return "", err
-			}
-			path = abs
-		}
-
-		return path, nil
-	}
-
-	// Use default path
-	return defaultDBPath()
-}
-
-// defaultDBPath returns the default database path.
-func defaultDBPath() (string, error) {
-	dataDir, err := userDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "ugh", "ugh.sqlite"), nil
-}
-
-// userDataDir returns the user data directory based on OS.
-func userDataDir() (string, error) {
-	switch runtime.GOOS {
-	case "darwin":
-		configDir, err := os.UserConfigDir()
-		if err != nil {
-			return "", fmt.Errorf("user config dir: %w", err)
-		}
-		return configDir, nil
-	case "windows":
-		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			return localAppData, nil
-		}
-		configDir, err := os.UserConfigDir()
-		if err != nil {
-			return "", fmt.Errorf("user config dir: %w", err)
-		}
-		return configDir, nil
-	default:
-		if xdgDataHome := os.Getenv("XDG_DATA_HOME"); xdgDataHome != "" {
-			return xdgDataHome, nil
-		}
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("home dir: %w", err)
-		}
-		return filepath.Join(homeDir, ".local", "share"), nil
-	}
 }
 
 // setupLogging sets up the logger based on config.
