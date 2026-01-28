@@ -65,8 +65,8 @@ schema = 3
     version = "v2.27.7"
     hash = "sha256-N/vepKHJbUuu1830F8u8VmLS3DohSupSMgKhDXtQ5ek="
   [mod."github.com/xrash/smetrics"]
-    version = "v0.0.0-20240521201337-686a1a2994c1"
-    hash = "sha256-CsyN59w6sKERDI5kkdpq0YKmqdixyCHuN4FYE/56/BQ="
+    version = "v0.0.0-20250705151800-55b8f293f342"
+    hash = "sha256-fRL08pg49sJTxTDsJcYRXHmNO4tz2AuXfA5W+ZHW+Gc="
   [mod."go.uber.org/multierr"]
     version = "v1.11.0"
     hash = "sha256-Lb6rHHfR62Ozg2j2JZy3MKOMKdsfzd1IYTR57r3Mhp0="

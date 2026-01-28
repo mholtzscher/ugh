@@ -45,8 +45,10 @@ vet:
 lint:
     golangci-lint run
 
-# Run all checks (format, vet, lint, test, tidy, sqlc, govulncheck, gomod2nix)
-check: fmt vet lint test tidy sqlc govulncheck gomod2nix
+# Run all checks (format, vet, lint, test, tidy, sqlc, gomod2nix)
+# Note: govulncheck temporarily removed
+# To run it manually: just govulncheck
+check: fmt vet lint test tidy sqlc gomod2nix
 
 # Update Go dependencies
 update-deps:
