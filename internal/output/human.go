@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/mholtzscher/ugh/internal/store"
-	"github.com/mholtzscher/ugh/internal/todotxt"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -60,6 +59,8 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 		{"Created", createdDateOrDash(task)},
 		{"Completed", dateOrDash(task.CompletionDate)},
 		{"Description", task.Description},
+		{"Projects", formatProjects(task.Projects)},
+		{"Contexts", formatContexts(task.Contexts)},
 	}
 	for _, row := range rows {
 		if err := appendRow(table, row); err != nil {
@@ -71,7 +72,7 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 
 func writeHumanList(out io.Writer, tasks []*store.Task) error {
 	table := tablewriter.NewWriter(out)
-	table.Header("ID", "Status", "Priority", "Created", "Task")
+	table.Header("ID", "Status", "Priority", "Created", "Description", "Projects", "Contexts")
 	for _, task := range tasks {
 		status := "todo"
 		if task.Done {
@@ -82,7 +83,9 @@ func writeHumanList(out io.Writer, tasks []*store.Task) error {
 			status,
 			emptyDash(task.Priority),
 			createdDateOrDash(task),
-			humanTaskText(task),
+			task.Description,
+			formatProjects(task.Projects),
+			formatContexts(task.Contexts),
 		}
 		if err := appendRow(table, row); err != nil {
 			return err
@@ -258,18 +261,26 @@ func formatSyncTime(value int64) string {
 	return fmt.Sprintf("%d", value)
 }
 
-func humanTaskText(task *store.Task) string {
-	if task == nil {
-		return ""
+func formatProjects(projects []string) string {
+	if len(projects) == 0 {
+		return "-"
 	}
-	parsed := todotxt.Parsed{
-		Description: task.Description,
-		Projects:    task.Projects,
-		Contexts:    task.Contexts,
-		Meta:        task.Meta,
-		Unknown:     task.Unknown,
+	parts := make([]string, 0, len(projects))
+	for _, p := range projects {
+		parts = append(parts, "+"+p)
 	}
-	return todotxt.Format(parsed)
+	return strings.Join(parts, " ")
+}
+
+func formatContexts(contexts []string) string {
+	if len(contexts) == 0 {
+		return "-"
+	}
+	parts := make([]string, 0, len(contexts))
+	for _, c := range contexts {
+		parts = append(parts, "@"+c)
+	}
+	return strings.Join(parts, " ")
 }
 
 func writeHumanTags(out io.Writer, tags []store.NameCount) error {
