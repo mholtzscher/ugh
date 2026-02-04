@@ -20,7 +20,7 @@ import (
 )
 
 // Version is set at build time.
-var Version = "0.1.0" // x-release-please-version
+var Version = "0.1.1" // x-release-please-version
 
 type rootOptions struct {
 	ConfigPath string
