@@ -30,8 +30,9 @@ var deps Deps
 
 // Cmd is the parent command for all config subcommands.
 var Cmd = &cli.Command{
-	Name:  "config",
-	Usage: "Manage configuration",
+	Name:     "config",
+	Usage:    "Manage configuration",
+	Category: "System",
 }
 
 // Register adds the config command and its subcommands to the parent command.

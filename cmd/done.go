@@ -12,6 +12,7 @@ var doneCmd = &cli.Command{
 	Name:      "done",
 	Aliases:   []string{"d"},
 	Usage:     "Mark tasks as done",
+	Category:  "Tasks",
 	ArgsUsage: "<id...>",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		ids, err := parseIDs(commandArgs(cmd))

@@ -3,11 +3,11 @@ package output
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/mholtzscher/ugh/internal/store"
-	"github.com/mholtzscher/ugh/internal/todotxt"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -32,19 +32,24 @@ type ExportSummary struct {
 }
 
 func writeHumanTask(out io.Writer, task *store.Task) error {
-	status := "todo"
-	if task.Done {
-		status = "done"
-	}
 	table := tablewriter.NewWriter(out)
 	table.Header("Field", "Value")
 	rows := [][]string{
 		{"ID", fmt.Sprintf("%d", task.ID)},
-		{"Status", status},
+		{"Status", string(task.Status)},
+		{"Done", fmt.Sprintf("%t", task.Done)},
 		{"Priority", emptyDash(task.Priority)},
-		{"Created", createdDateOrDash(task)},
-		{"Completed", dateOrDash(task.CompletionDate)},
-		{"Description", task.Description},
+		{"Created", dayFromTimeOrDash(task.CreatedAt)},
+		{"Updated", dayFromTimeOrDash(task.UpdatedAt)},
+		{"Completed", dateTimeOrDash(task.CompletedAt)},
+		{"Due", dateOrDash(task.DueOn)},
+		{"Defer Until", dateOrDash(task.DeferUntil)},
+		{"Waiting For", emptyDash(task.WaitingFor)},
+		{"Title", task.Title},
+		{"Notes", emptyDash(task.Notes)},
+		{"Projects", joinListOrDash(task.Projects)},
+		{"Contexts", joinListOrDash(task.Contexts)},
+		{"Meta", metaOrDash(task.Meta)},
 	}
 	for _, row := range rows {
 		if err := appendRow(table, row); err != nil {
@@ -56,18 +61,14 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 
 func writeHumanList(out io.Writer, tasks []*store.Task) error {
 	table := tablewriter.NewWriter(out)
-	table.Header("ID", "Status", "Priority", "Created", "Task")
+	table.Header("ID", "Status", "Due", "Defer", "Task")
 	for _, task := range tasks {
-		status := "todo"
-		if task.Done {
-			status = "done"
-		}
 		row := []string{
 			fmt.Sprintf("%d", task.ID),
-			status,
-			emptyDash(task.Priority),
-			createdDateOrDash(task),
-			humanTaskText(task),
+			string(task.Status),
+			dateOrDash(task.DueOn),
+			dateOrDash(task.DeferUntil),
+			task.Title,
 		}
 		if err := appendRow(table, row); err != nil {
 			return err
@@ -157,17 +158,18 @@ func dateOrDash(value *time.Time) string {
 	return value.Format("2006-01-02")
 }
 
-func createdDateOrDash(task *store.Task) string {
-	if task == nil {
+func dateTimeOrDash(value *time.Time) string {
+	if value == nil {
 		return "-"
 	}
-	if task.CreationDate != nil {
-		return task.CreationDate.Format("2006-01-02")
+	return value.UTC().Format(time.RFC3339)
+}
+
+func dayFromTimeOrDash(value time.Time) string {
+	if value.IsZero() {
+		return "-"
 	}
-	if !task.CreatedAt.IsZero() {
-		return task.CreatedAt.UTC().Format("2006-01-02")
-	}
-	return "-"
+	return value.UTC().Format("2006-01-02")
 }
 
 func joinIDs(ids []int64) string {
@@ -186,18 +188,27 @@ func appendRow(table *tablewriter.Table, row []string) error {
 	return table.Append(values...)
 }
 
-func humanTaskText(task *store.Task) string {
-	if task == nil {
-		return ""
+func joinListOrDash(values []string) string {
+	if len(values) == 0 {
+		return "-"
 	}
-	parsed := todotxt.Parsed{
-		Description: task.Description,
-		Projects:    task.Projects,
-		Contexts:    task.Contexts,
-		Meta:        task.Meta,
-		Unknown:     task.Unknown,
+	return strings.Join(values, ", ")
+}
+
+func metaOrDash(meta map[string]string) string {
+	if len(meta) == 0 {
+		return "-"
 	}
-	return todotxt.Format(parsed)
+	keys := make([]string, 0, len(meta))
+	for k := range meta {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, k+"="+meta[k])
+	}
+	return strings.Join(parts, ", ")
 }
 
 func writeHumanTags(out io.Writer, tags []store.NameCount) error {

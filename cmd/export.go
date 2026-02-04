@@ -3,23 +3,32 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/mholtzscher/ugh/internal/todotxt"
+	"github.com/mholtzscher/ugh/internal/store"
 	"github.com/urfave/cli/v3"
 )
 
 var exportCmd = &cli.Command{
 	Name:      "export",
 	Aliases:   []string{"ex"},
-	Usage:     "Export tasks to todo.txt",
+	Usage:     "Export tasks to a backup file",
+	Category:  "Backup",
 	ArgsUsage: "<path|->",
 	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  flags.FlagFormat,
+			Usage: "output format (jsonl|json)",
+			Value: "jsonl",
+		},
 		&cli.BoolFlag{
 			Name:    flags.FlagAll,
 			Aliases: []string{"a"},
@@ -34,6 +43,10 @@ var exportCmd = &cli.Command{
 			Name:    flags.FlagTodo,
 			Aliases: []string{"t"},
 			Usage:   "only pending tasks",
+		},
+		&cli.StringFlag{
+			Name:  flags.FlagStatus,
+			Usage: "filter by status (inbox|next|waiting|someday)",
 		},
 		&cli.StringFlag{
 			Name:    flags.FlagProject,
@@ -61,8 +74,15 @@ var exportCmd = &cli.Command{
 			return errors.New("export requires a file path or -")
 		}
 		path := cmd.Args().Get(0)
-		if cmd.Bool(flags.FlagJSON) && path == "-" {
-			return errors.New("--json cannot be used when exporting to stdout")
+		format := strings.ToLower(strings.TrimSpace(cmd.String(flags.FlagFormat)))
+		if format == "" {
+			format = "jsonl"
+		}
+		switch format {
+		case "jsonl", "json":
+			// ok
+		default:
+			return fmt.Errorf("invalid format %q (expected jsonl|json)", format)
 		}
 
 		svc, err := newService(ctx)
@@ -75,6 +95,7 @@ var exportCmd = &cli.Command{
 			All:      cmd.Bool(flags.FlagAll),
 			DoneOnly: cmd.Bool(flags.FlagDone),
 			TodoOnly: cmd.Bool(flags.FlagTodo),
+			Status:   cmd.String(flags.FlagStatus),
 			Project:  cmd.String(flags.FlagProject),
 			Context:  cmd.String(flags.FlagContext),
 			Priority: cmd.String(flags.FlagPriority),
@@ -96,28 +117,82 @@ var exportCmd = &cli.Command{
 			file = created
 		}
 
-		writer := bufio.NewWriter(file)
-		for _, task := range tasks {
-			line := todotxt.Format(todotxt.Parsed{
-				Done:           task.Done,
-				Priority:       task.Priority,
-				CompletionDate: task.CompletionDate,
-				CreationDate:   task.CreationDate,
-				Description:    task.Description,
-				Projects:       task.Projects,
-				Contexts:       task.Contexts,
-				Meta:           task.Meta,
-				Unknown:        task.Unknown,
-			})
-			if _, err := fmt.Fprintln(writer, line); err != nil {
+		if format == "json" {
+			enc := json.NewEncoder(file)
+			payload := make([]any, 0, len(tasks))
+			for _, task := range tasks {
+				payload = append(payload, outputTask(task))
+			}
+			if err := enc.Encode(payload); err != nil {
+				return err
+			}
+		} else {
+			writer := bufio.NewWriter(file)
+			enc := json.NewEncoder(writer)
+			for _, task := range tasks {
+				if err := enc.Encode(outputTask(task)); err != nil {
+					return err
+				}
+			}
+			if err := writer.Flush(); err != nil {
 				return err
 			}
 		}
-		if err := writer.Flush(); err != nil {
-			return err
-		}
 
+		// Avoid mixing data with a summary when writing to stdout.
+		if path == "-" {
+			return nil
+		}
 		out := outputWriter()
 		return out.WriteSummary(output.ExportSummary{Action: "export", Count: int64(len(tasks)), File: path})
 	},
+}
+
+func outputTask(task *store.Task) any {
+	if task == nil {
+		return nil
+	}
+	meta := task.Meta
+	if meta == nil {
+		meta = map[string]string{}
+	}
+	projects := task.Projects
+	if projects == nil {
+		projects = []string{}
+	}
+	contexts := task.Contexts
+	if contexts == nil {
+		contexts = []string{}
+	}
+	return map[string]any{
+		"id":          task.ID,
+		"done":        task.Done,
+		"status":      string(task.Status),
+		"priority":    task.Priority,
+		"title":       task.Title,
+		"notes":       task.Notes,
+		"dueOn":       formatDay(task.DueOn),
+		"deferUntil":  formatDay(task.DeferUntil),
+		"waitingFor":  task.WaitingFor,
+		"projects":    projects,
+		"contexts":    contexts,
+		"meta":        meta,
+		"createdAt":   task.CreatedAt.UTC().Format(time.RFC3339),
+		"updatedAt":   task.UpdatedAt.UTC().Format(time.RFC3339),
+		"completedAt": formatTime(task.CompletedAt),
+	}
+}
+
+func formatDay(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.UTC().Format("2006-01-02")
+}
+
+func formatTime(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339)
 }

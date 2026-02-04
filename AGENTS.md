@@ -1,6 +1,6 @@
 # AGENTS.md - AI Agent Guidelines for ugh
 
-A todo.txt-inspired task CLI with SQLite storage.
+A GTD-first task CLI with SQLite storage.
 
 **Stack**: Go 1.25+, urfave/cli/v3
 

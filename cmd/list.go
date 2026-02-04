@@ -9,9 +9,10 @@ import (
 )
 
 var listCmd = &cli.Command{
-	Name:    "list",
-	Aliases: []string{"ls", "l"},
-	Usage:   "List tasks",
+	Name:     "list",
+	Aliases:  []string{"ls", "l"},
+	Usage:    "List tasks",
+	Category: "Tasks",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:    flags.FlagAll,
@@ -27,6 +28,10 @@ var listCmd = &cli.Command{
 			Name:    flags.FlagTodo,
 			Aliases: []string{"t"},
 			Usage:   "only pending tasks",
+		},
+		&cli.StringFlag{
+			Name:  flags.FlagStatus,
+			Usage: "filter by status (inbox|next|waiting|someday)",
 		},
 		&cli.StringFlag{
 			Name:    flags.FlagProject,
@@ -60,6 +65,7 @@ var listCmd = &cli.Command{
 			All:      cmd.Bool(flags.FlagAll),
 			DoneOnly: cmd.Bool(flags.FlagDone),
 			TodoOnly: cmd.Bool(flags.FlagTodo),
+			Status:   cmd.String(flags.FlagStatus),
 			Project:  cmd.String(flags.FlagProject),
 			Context:  cmd.String(flags.FlagContext),
 			Priority: cmd.String(flags.FlagPriority),

@@ -12,10 +12,10 @@ stderr 'at least one id is required'
 stderr 'invalid id "abc"'
 
 ! exec ugh --db $WORK/db.sqlite add
-stderr 'todo text required'
+stderr 'title required'
 
-! exec ugh --db $WORK/db.sqlite add --created 2026-13-01 Task
-stderr 'date format'
+! exec ugh --db $WORK/db.sqlite add --due 2026-13-01 Task
+stderr 'invalid date format'
 
 ! exec ugh --db $WORK/db.sqlite add --meta badmeta Task
 stderr 'invalid meta'

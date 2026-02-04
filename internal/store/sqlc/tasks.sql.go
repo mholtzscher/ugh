@@ -11,21 +11,30 @@ import (
 	"strings"
 )
 
-const deleteContexts = `-- name: DeleteContexts :exec
-DELETE FROM task_contexts WHERE task_id = ?
-`
-
-func (q *Queries) DeleteContexts(ctx context.Context, taskID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteContexts, taskID)
-	return err
-}
-
 const deleteMeta = `-- name: DeleteMeta :exec
 DELETE FROM task_meta WHERE task_id = ?
 `
 
 func (q *Queries) DeleteMeta(ctx context.Context, taskID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteMeta, taskID)
+	return err
+}
+
+const deleteTaskContextLinks = `-- name: DeleteTaskContextLinks :exec
+DELETE FROM task_context_links WHERE task_id = ?
+`
+
+func (q *Queries) DeleteTaskContextLinks(ctx context.Context, taskID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteTaskContextLinks, taskID)
+	return err
+}
+
+const deleteTaskProjectLinks = `-- name: DeleteTaskProjectLinks :exec
+DELETE FROM task_project_links WHERE task_id = ?
+`
+
+func (q *Queries) DeleteTaskProjectLinks(ctx context.Context, taskID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteTaskProjectLinks, taskID)
 	return err
 }
 
@@ -52,39 +61,90 @@ func (q *Queries) DeleteTasks(ctx context.Context, ids []int64) (int64, error) {
 	return result.RowsAffected()
 }
 
-const deleteTokens = `-- name: DeleteTokens :exec
-DELETE FROM task_projects WHERE task_id = ?
+const ensureContext = `-- name: EnsureContext :one
+INSERT INTO contexts (
+  name,
+  created_at,
+  updated_at
+) VALUES (
+  ?, ?, ?
+)
+ON CONFLICT(name) DO UPDATE SET
+  updated_at = excluded.updated_at
+RETURNING id
 `
 
-func (q *Queries) DeleteTokens(ctx context.Context, taskID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteTokens, taskID)
-	return err
+type EnsureContextParams struct {
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
 }
 
-const deleteUnknown = `-- name: DeleteUnknown :exec
-DELETE FROM task_unknown WHERE task_id = ?
+func (q *Queries) EnsureContext(ctx context.Context, arg EnsureContextParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, ensureContext, arg.Name, arg.CreatedAt, arg.UpdatedAt)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const ensureProject = `-- name: EnsureProject :one
+INSERT INTO projects (
+  name,
+  notes,
+  created_at,
+  updated_at
+) VALUES (
+  ?, '', ?, ?
+)
+ON CONFLICT(name) DO UPDATE SET
+  updated_at = excluded.updated_at
+RETURNING id
 `
 
-func (q *Queries) DeleteUnknown(ctx context.Context, taskID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteUnknown, taskID)
-	return err
+type EnsureProjectParams struct {
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+func (q *Queries) EnsureProject(ctx context.Context, arg EnsureProjectParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, ensureProject, arg.Name, arg.CreatedAt, arg.UpdatedAt)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getTask = `-- name: GetTask :one
-SELECT id, done, priority, completion_date, creation_date, CAST(description AS TEXT) AS description, created_at, updated_at
+SELECT
+  id,
+  done,
+  status,
+  priority,
+  CAST(title AS TEXT) AS title,
+  CAST(notes AS TEXT) AS notes,
+  due_on,
+  defer_until,
+  waiting_for,
+  completed_at,
+  created_at,
+  updated_at
 FROM tasks
 WHERE id = ?
 `
 
 type GetTaskRow struct {
-	ID             int64          `json:"id"`
-	Done           int64          `json:"done"`
-	Priority       sql.NullString `json:"priority"`
-	CompletionDate sql.NullString `json:"completion_date"`
-	CreationDate   sql.NullString `json:"creation_date"`
-	Description    string         `json:"description"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
+	ID          int64          `json:"id"`
+	Done        int64          `json:"done"`
+	Status      string         `json:"status"`
+	Priority    sql.NullString `json:"priority"`
+	Title       string         `json:"title"`
+	Notes       string         `json:"notes"`
+	DueOn       sql.NullString `json:"due_on"`
+	DeferUntil  sql.NullString `json:"defer_until"`
+	WaitingFor  sql.NullString `json:"waiting_for"`
+	CompletedAt sql.NullInt64  `json:"completed_at"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
 }
 
 func (q *Queries) GetTask(ctx context.Context, id int64) (GetTaskRow, error) {
@@ -93,28 +153,18 @@ func (q *Queries) GetTask(ctx context.Context, id int64) (GetTaskRow, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Done,
+		&i.Status,
 		&i.Priority,
-		&i.CompletionDate,
-		&i.CreationDate,
-		&i.Description,
+		&i.Title,
+		&i.Notes,
+		&i.DueOn,
+		&i.DeferUntil,
+		&i.WaitingFor,
+		&i.CompletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const insertContext = `-- name: InsertContext :exec
-INSERT INTO task_contexts (task_id, name) VALUES (?, ?)
-`
-
-type InsertContextParams struct {
-	TaskID int64  `json:"task_id"`
-	Name   string `json:"name"`
-}
-
-func (q *Queries) InsertContext(ctx context.Context, arg InsertContextParams) error {
-	_, err := q.db.ExecContext(ctx, insertContext, arg.TaskID, arg.Name)
-	return err
 }
 
 const insertMeta = `-- name: InsertMeta :exec
@@ -132,63 +182,77 @@ func (q *Queries) InsertMeta(ctx context.Context, arg InsertMetaParams) error {
 	return err
 }
 
-const insertProject = `-- name: InsertProject :exec
-INSERT INTO task_projects (task_id, name) VALUES (?, ?)
-`
-
-type InsertProjectParams struct {
-	TaskID int64  `json:"task_id"`
-	Name   string `json:"name"`
-}
-
-func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) error {
-	_, err := q.db.ExecContext(ctx, insertProject, arg.TaskID, arg.Name)
-	return err
-}
-
 const insertTask = `-- name: InsertTask :one
 INSERT INTO tasks (
   done,
+  status,
   priority,
-  completion_date,
-  creation_date,
-  description,
+  title,
+  notes,
+  due_on,
+  defer_until,
+  waiting_for,
+  completed_at,
   created_at,
   updated_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, done, priority, completion_date, creation_date, CAST(description AS TEXT) AS description, created_at, updated_at
+RETURNING
+  id,
+  done,
+  status,
+  priority,
+  CAST(title AS TEXT) AS title,
+  CAST(notes AS TEXT) AS notes,
+  due_on,
+  defer_until,
+  waiting_for,
+  completed_at,
+  created_at,
+  updated_at
 `
 
 type InsertTaskParams struct {
-	Done           int64          `json:"done"`
-	Priority       sql.NullString `json:"priority"`
-	CompletionDate sql.NullString `json:"completion_date"`
-	CreationDate   sql.NullString `json:"creation_date"`
-	Description    interface{}    `json:"description"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
+	Done        int64          `json:"done"`
+	Status      string         `json:"status"`
+	Priority    sql.NullString `json:"priority"`
+	Title       string         `json:"title"`
+	Notes       string         `json:"notes"`
+	DueOn       sql.NullString `json:"due_on"`
+	DeferUntil  sql.NullString `json:"defer_until"`
+	WaitingFor  sql.NullString `json:"waiting_for"`
+	CompletedAt sql.NullInt64  `json:"completed_at"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
 }
 
 type InsertTaskRow struct {
-	ID             int64          `json:"id"`
-	Done           int64          `json:"done"`
-	Priority       sql.NullString `json:"priority"`
-	CompletionDate sql.NullString `json:"completion_date"`
-	CreationDate   sql.NullString `json:"creation_date"`
-	Description    string         `json:"description"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
+	ID          int64          `json:"id"`
+	Done        int64          `json:"done"`
+	Status      string         `json:"status"`
+	Priority    sql.NullString `json:"priority"`
+	Title       string         `json:"title"`
+	Notes       string         `json:"notes"`
+	DueOn       sql.NullString `json:"due_on"`
+	DeferUntil  sql.NullString `json:"defer_until"`
+	WaitingFor  sql.NullString `json:"waiting_for"`
+	CompletedAt sql.NullInt64  `json:"completed_at"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
 }
 
 func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) (InsertTaskRow, error) {
 	row := q.db.QueryRowContext(ctx, insertTask,
 		arg.Done,
+		arg.Status,
 		arg.Priority,
-		arg.CompletionDate,
-		arg.CreationDate,
-		arg.Description,
+		arg.Title,
+		arg.Notes,
+		arg.DueOn,
+		arg.DeferUntil,
+		arg.WaitingFor,
+		arg.CompletedAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -196,38 +260,56 @@ func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) (InsertT
 	err := row.Scan(
 		&i.ID,
 		&i.Done,
+		&i.Status,
 		&i.Priority,
-		&i.CompletionDate,
-		&i.CreationDate,
-		&i.Description,
+		&i.Title,
+		&i.Notes,
+		&i.DueOn,
+		&i.DeferUntil,
+		&i.WaitingFor,
+		&i.CompletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const insertUnknown = `-- name: InsertUnknown :exec
-INSERT INTO task_unknown (task_id, ordinal, token) VALUES (?, ?, ?)
+const insertTaskContextLink = `-- name: InsertTaskContextLink :exec
+INSERT INTO task_context_links (task_id, context_id) VALUES (?, ?)
 `
 
-type InsertUnknownParams struct {
-	TaskID  int64  `json:"task_id"`
-	Ordinal int64  `json:"ordinal"`
-	Token   string `json:"token"`
+type InsertTaskContextLinkParams struct {
+	TaskID    int64 `json:"task_id"`
+	ContextID int64 `json:"context_id"`
 }
 
-func (q *Queries) InsertUnknown(ctx context.Context, arg InsertUnknownParams) error {
-	_, err := q.db.ExecContext(ctx, insertUnknown, arg.TaskID, arg.Ordinal, arg.Token)
+func (q *Queries) InsertTaskContextLink(ctx context.Context, arg InsertTaskContextLinkParams) error {
+	_, err := q.db.ExecContext(ctx, insertTaskContextLink, arg.TaskID, arg.ContextID)
+	return err
+}
+
+const insertTaskProjectLink = `-- name: InsertTaskProjectLink :exec
+INSERT INTO task_project_links (task_id, project_id) VALUES (?, ?)
+`
+
+type InsertTaskProjectLinkParams struct {
+	TaskID    int64 `json:"task_id"`
+	ProjectID int64 `json:"project_id"`
+}
+
+func (q *Queries) InsertTaskProjectLink(ctx context.Context, arg InsertTaskProjectLinkParams) error {
+	_, err := q.db.ExecContext(ctx, insertTaskProjectLink, arg.TaskID, arg.ProjectID)
 	return err
 }
 
 const listContextCounts = `-- name: ListContextCounts :many
-SELECT tc.name, COUNT(t.id) AS count
-FROM task_contexts tc
-JOIN tasks t ON tc.task_id = t.id
+SELECT c.name, COUNT(t.id) AS count
+FROM contexts c
+JOIN task_context_links tcl ON tcl.context_id = c.id
+JOIN tasks t ON t.id = tcl.task_id
 WHERE (? IS NULL OR t.done = ?)
-GROUP BY tc.name
-ORDER BY tc.name ASC
+GROUP BY c.name
+ORDER BY c.name ASC
 `
 
 type ListContextCountsParams struct {
@@ -263,12 +345,21 @@ func (q *Queries) ListContextCounts(ctx context.Context, arg ListContextCountsPa
 	return items, nil
 }
 
-const listContexts = `-- name: ListContexts :many
-SELECT task_id, name FROM task_contexts WHERE task_id IN (/*SLICE:ids*/?) ORDER BY task_id
+const listContextsForTasks = `-- name: ListContextsForTasks :many
+SELECT tcl.task_id, c.name
+FROM task_context_links tcl
+JOIN contexts c ON c.id = tcl.context_id
+WHERE tcl.task_id IN (/*SLICE:ids*/?)
+ORDER BY tcl.task_id, c.name
 `
 
-func (q *Queries) ListContexts(ctx context.Context, ids []int64) ([]TaskContext, error) {
-	query := listContexts
+type ListContextsForTasksRow struct {
+	TaskID int64  `json:"task_id"`
+	Name   string `json:"name"`
+}
+
+func (q *Queries) ListContextsForTasks(ctx context.Context, ids []int64) ([]ListContextsForTasksRow, error) {
+	query := listContextsForTasks
 	var queryParams []interface{}
 	if len(ids) > 0 {
 		for _, v := range ids {
@@ -283,9 +374,9 @@ func (q *Queries) ListContexts(ctx context.Context, ids []int64) ([]TaskContext,
 		return nil, err
 	}
 	defer rows.Close()
-	var items []TaskContext
+	var items []ListContextsForTasksRow
 	for rows.Next() {
-		var i TaskContext
+		var i ListContextsForTasksRow
 		if err := rows.Scan(&i.TaskID, &i.Name); err != nil {
 			return nil, err
 		}
@@ -301,7 +392,10 @@ func (q *Queries) ListContexts(ctx context.Context, ids []int64) ([]TaskContext,
 }
 
 const listMeta = `-- name: ListMeta :many
-SELECT task_id, key, value FROM task_meta WHERE task_id IN (/*SLICE:ids*/?) ORDER BY task_id
+SELECT task_id, key, value
+FROM task_meta
+WHERE task_id IN (/*SLICE:ids*/?)
+ORDER BY task_id
 `
 
 func (q *Queries) ListMeta(ctx context.Context, ids []int64) ([]TaskMetum, error) {
@@ -338,12 +432,13 @@ func (q *Queries) ListMeta(ctx context.Context, ids []int64) ([]TaskMetum, error
 }
 
 const listProjectCounts = `-- name: ListProjectCounts :many
-SELECT tp.name, COUNT(t.id) AS count
-FROM task_projects tp
-JOIN tasks t ON tp.task_id = t.id
+SELECT p.name, COUNT(t.id) AS count
+FROM projects p
+JOIN task_project_links tpl ON tpl.project_id = p.id
+JOIN tasks t ON t.id = tpl.task_id
 WHERE (? IS NULL OR t.done = ?)
-GROUP BY tp.name
-ORDER BY tp.name ASC
+GROUP BY p.name
+ORDER BY p.name ASC
 `
 
 type ListProjectCountsParams struct {
@@ -379,12 +474,21 @@ func (q *Queries) ListProjectCounts(ctx context.Context, arg ListProjectCountsPa
 	return items, nil
 }
 
-const listProjects = `-- name: ListProjects :many
-SELECT task_id, name FROM task_projects WHERE task_id IN (/*SLICE:ids*/?) ORDER BY task_id
+const listProjectsForTasks = `-- name: ListProjectsForTasks :many
+SELECT tpl.task_id, p.name
+FROM task_project_links tpl
+JOIN projects p ON p.id = tpl.project_id
+WHERE tpl.task_id IN (/*SLICE:ids*/?)
+ORDER BY tpl.task_id, p.name
 `
 
-func (q *Queries) ListProjects(ctx context.Context, ids []int64) ([]TaskProject, error) {
-	query := listProjects
+type ListProjectsForTasksRow struct {
+	TaskID int64  `json:"task_id"`
+	Name   string `json:"name"`
+}
+
+func (q *Queries) ListProjectsForTasks(ctx context.Context, ids []int64) ([]ListProjectsForTasksRow, error) {
+	query := listProjectsForTasks
 	var queryParams []interface{}
 	if len(ids) > 0 {
 		for _, v := range ids {
@@ -399,9 +503,9 @@ func (q *Queries) ListProjects(ctx context.Context, ids []int64) ([]TaskProject,
 		return nil, err
 	}
 	defer rows.Close()
-	var items []TaskProject
+	var items []ListProjectsForTasksRow
 	for rows.Next() {
-		var i TaskProject
+		var i ListProjectsForTasksRow
 		if err := rows.Scan(&i.TaskID, &i.Name); err != nil {
 			return nil, err
 		}
@@ -417,51 +521,107 @@ func (q *Queries) ListProjects(ctx context.Context, ids []int64) ([]TaskProject,
 }
 
 const listTasks = `-- name: ListTasks :many
-SELECT t.id, t.done, t.priority, t.completion_date, t.creation_date, CAST(t.description AS TEXT) AS description, t.created_at, t.updated_at
+SELECT
+  t.id,
+  t.done,
+  t.status,
+  t.priority,
+  CAST(t.title AS TEXT) AS title,
+  CAST(t.notes AS TEXT) AS notes,
+  t.due_on,
+  t.defer_until,
+  t.waiting_for,
+  t.completed_at,
+  t.created_at,
+  t.updated_at
 FROM tasks t
 WHERE (? IS NULL OR t.done = ?)
+  AND (? IS NULL OR t.status = ?)
   AND (? IS NULL OR EXISTS (
-    SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name = ?
+    SELECT 1
+    FROM task_project_links tpl
+    JOIN projects p ON p.id = tpl.project_id
+    WHERE tpl.task_id = t.id AND p.name = ?
   ))
   AND (? IS NULL OR EXISTS (
-    SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name = ?
+    SELECT 1
+    FROM task_context_links tcl
+    JOIN contexts c ON c.id = tcl.context_id
+    WHERE tcl.task_id = t.id AND c.name = ?
   ))
   AND (? IS NULL OR t.priority = ?)
   AND (? IS NULL OR (
-    t.description LIKE '%' || ? || '%'
-    OR EXISTS (SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name LIKE '%' || ? || '%')
-    OR EXISTS (SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name LIKE '%' || ? || '%')
-    OR EXISTS (SELECT 1 FROM task_meta m WHERE m.task_id = t.id AND (m.key LIKE '%' || ? || '%' OR m.value LIKE '%' || ? || '%'))
+    t.title LIKE '%' || ? || '%'
+    OR t.notes LIKE '%' || ? || '%'
+    OR EXISTS (
+      SELECT 1
+      FROM task_project_links tpl
+      JOIN projects p ON p.id = tpl.project_id
+      WHERE tpl.task_id = t.id AND p.name LIKE '%' || ? || '%'
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM task_context_links tcl
+      JOIN contexts c ON c.id = tcl.context_id
+      WHERE tcl.task_id = t.id AND c.name LIKE '%' || ? || '%'
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM task_meta m
+      WHERE m.task_id = t.id AND (
+        m.key LIKE '%' || ? || '%'
+        OR m.value LIKE '%' || ? || '%'
+      )
+    )
   ))
-ORDER BY CASE WHEN t.done = 1 THEN 1 ELSE 0 END, t.priority IS NULL, t.priority ASC, t.created_at DESC
+  AND (? = 0 OR (t.due_on IS NOT NULL AND t.due_on != ''))
+  AND (? IS NULL OR (t.defer_until IS NOT NULL AND t.defer_until != '' AND t.defer_until > ?))
+  AND (? IS NULL OR (t.defer_until IS NULL OR t.defer_until = '' OR t.defer_until <= ?))
+ORDER BY
+  CASE WHEN t.done = 1 THEN 1 ELSE 0 END,
+  CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END,
+  t.due_on ASC,
+  t.updated_at DESC
 `
 
 type ListTasksParams struct {
-	Column1  interface{}    `json:"column_1"`
-	Done     int64          `json:"done"`
-	Column3  interface{}    `json:"column_3"`
-	Name     string         `json:"name"`
-	Column5  interface{}    `json:"column_5"`
-	Name_2   string         `json:"name_2"`
-	Column7  interface{}    `json:"column_7"`
-	Priority sql.NullString `json:"priority"`
-	Column9  interface{}    `json:"column_9"`
-	Column10 sql.NullString `json:"column_10"`
-	Column11 sql.NullString `json:"column_11"`
-	Column12 sql.NullString `json:"column_12"`
-	Column13 sql.NullString `json:"column_13"`
-	Column14 sql.NullString `json:"column_14"`
+	Column1      interface{}    `json:"column_1"`
+	Done         int64          `json:"done"`
+	Column3      interface{}    `json:"column_3"`
+	Status       string         `json:"status"`
+	Column5      interface{}    `json:"column_5"`
+	Name         string         `json:"name"`
+	Column7      interface{}    `json:"column_7"`
+	Name_2       string         `json:"name_2"`
+	Column9      interface{}    `json:"column_9"`
+	Priority     sql.NullString `json:"priority"`
+	Column11     interface{}    `json:"column_11"`
+	Column12     sql.NullString `json:"column_12"`
+	Column13     sql.NullString `json:"column_13"`
+	Column14     sql.NullString `json:"column_14"`
+	Column15     sql.NullString `json:"column_15"`
+	Column16     sql.NullString `json:"column_16"`
+	Column17     sql.NullString `json:"column_17"`
+	Column18     interface{}    `json:"column_18"`
+	Column19     interface{}    `json:"column_19"`
+	DeferUntil   sql.NullString `json:"defer_until"`
+	Column21     interface{}    `json:"column_21"`
+	DeferUntil_2 sql.NullString `json:"defer_until_2"`
 }
 
 type ListTasksRow struct {
-	ID             int64          `json:"id"`
-	Done           int64          `json:"done"`
-	Priority       sql.NullString `json:"priority"`
-	CompletionDate sql.NullString `json:"completion_date"`
-	CreationDate   sql.NullString `json:"creation_date"`
-	Description    string         `json:"description"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
+	ID          int64          `json:"id"`
+	Done        int64          `json:"done"`
+	Status      string         `json:"status"`
+	Priority    sql.NullString `json:"priority"`
+	Title       string         `json:"title"`
+	Notes       string         `json:"notes"`
+	DueOn       sql.NullString `json:"due_on"`
+	DeferUntil  sql.NullString `json:"defer_until"`
+	WaitingFor  sql.NullString `json:"waiting_for"`
+	CompletedAt sql.NullInt64  `json:"completed_at"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
 }
 
 func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error) {
@@ -469,17 +629,25 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 		arg.Column1,
 		arg.Done,
 		arg.Column3,
-		arg.Name,
+		arg.Status,
 		arg.Column5,
-		arg.Name_2,
+		arg.Name,
 		arg.Column7,
-		arg.Priority,
+		arg.Name_2,
 		arg.Column9,
-		arg.Column10,
+		arg.Priority,
 		arg.Column11,
 		arg.Column12,
 		arg.Column13,
 		arg.Column14,
+		arg.Column15,
+		arg.Column16,
+		arg.Column17,
+		arg.Column18,
+		arg.Column19,
+		arg.DeferUntil,
+		arg.Column21,
+		arg.DeferUntil_2,
 	)
 	if err != nil {
 		return nil, err
@@ -491,10 +659,14 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 		if err := rows.Scan(
 			&i.ID,
 			&i.Done,
+			&i.Status,
 			&i.Priority,
-			&i.CompletionDate,
-			&i.CreationDate,
-			&i.Description,
+			&i.Title,
+			&i.Notes,
+			&i.DueOn,
+			&i.DeferUntil,
+			&i.WaitingFor,
+			&i.CompletedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -511,61 +683,24 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 	return items, nil
 }
 
-const listUnknown = `-- name: ListUnknown :many
-SELECT task_id, ordinal, token FROM task_unknown WHERE task_id IN (/*SLICE:ids*/?) ORDER BY task_id, ordinal
-`
-
-func (q *Queries) ListUnknown(ctx context.Context, ids []int64) ([]TaskUnknown, error) {
-	query := listUnknown
-	var queryParams []interface{}
-	if len(ids) > 0 {
-		for _, v := range ids {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
-	}
-	rows, err := q.db.QueryContext(ctx, query, queryParams...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []TaskUnknown
-	for rows.Next() {
-		var i TaskUnknown
-		if err := rows.Scan(&i.TaskID, &i.Ordinal, &i.Token); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const setDone = `-- name: SetDone :execrows
 UPDATE tasks
-SET done = ?, completion_date = ?, updated_at = ?
+SET done = ?, completed_at = ?, updated_at = ?
 WHERE id IN (/*SLICE:ids*/?)
 `
 
 type SetDoneParams struct {
-	Done           int64          `json:"done"`
-	CompletionDate sql.NullString `json:"completion_date"`
-	UpdatedAt      int64          `json:"updated_at"`
-	Ids            []int64        `json:"ids"`
+	Done        int64         `json:"done"`
+	CompletedAt sql.NullInt64 `json:"completed_at"`
+	UpdatedAt   int64         `json:"updated_at"`
+	Ids         []int64       `json:"ids"`
 }
 
 func (q *Queries) SetDone(ctx context.Context, arg SetDoneParams) (int64, error) {
 	query := setDone
 	var queryParams []interface{}
 	queryParams = append(queryParams, arg.Done)
-	queryParams = append(queryParams, arg.CompletionDate)
+	queryParams = append(queryParams, arg.CompletedAt)
 	queryParams = append(queryParams, arg.UpdatedAt)
 	if len(arg.Ids) > 0 {
 		for _, v := range arg.Ids {
@@ -585,43 +720,71 @@ func (q *Queries) SetDone(ctx context.Context, arg SetDoneParams) (int64, error)
 const updateTask = `-- name: UpdateTask :one
 UPDATE tasks
 SET done = ?,
+  status = ?,
   priority = ?,
-  completion_date = ?,
-  creation_date = ?,
-  description = ?,
+  title = ?,
+  notes = ?,
+  due_on = ?,
+  defer_until = ?,
+  waiting_for = ?,
+  completed_at = ?,
   updated_at = ?
 WHERE id = ?
-RETURNING id, done, priority, completion_date, creation_date, CAST(description AS TEXT) AS description, created_at, updated_at
+RETURNING
+  id,
+  done,
+  status,
+  priority,
+  CAST(title AS TEXT) AS title,
+  CAST(notes AS TEXT) AS notes,
+  due_on,
+  defer_until,
+  waiting_for,
+  completed_at,
+  created_at,
+  updated_at
 `
 
 type UpdateTaskParams struct {
-	Done           int64          `json:"done"`
-	Priority       sql.NullString `json:"priority"`
-	CompletionDate sql.NullString `json:"completion_date"`
-	CreationDate   sql.NullString `json:"creation_date"`
-	Description    interface{}    `json:"description"`
-	UpdatedAt      int64          `json:"updated_at"`
-	ID             int64          `json:"id"`
+	Done        int64          `json:"done"`
+	Status      string         `json:"status"`
+	Priority    sql.NullString `json:"priority"`
+	Title       string         `json:"title"`
+	Notes       string         `json:"notes"`
+	DueOn       sql.NullString `json:"due_on"`
+	DeferUntil  sql.NullString `json:"defer_until"`
+	WaitingFor  sql.NullString `json:"waiting_for"`
+	CompletedAt sql.NullInt64  `json:"completed_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+	ID          int64          `json:"id"`
 }
 
 type UpdateTaskRow struct {
-	ID             int64          `json:"id"`
-	Done           int64          `json:"done"`
-	Priority       sql.NullString `json:"priority"`
-	CompletionDate sql.NullString `json:"completion_date"`
-	CreationDate   sql.NullString `json:"creation_date"`
-	Description    string         `json:"description"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
+	ID          int64          `json:"id"`
+	Done        int64          `json:"done"`
+	Status      string         `json:"status"`
+	Priority    sql.NullString `json:"priority"`
+	Title       string         `json:"title"`
+	Notes       string         `json:"notes"`
+	DueOn       sql.NullString `json:"due_on"`
+	DeferUntil  sql.NullString `json:"defer_until"`
+	WaitingFor  sql.NullString `json:"waiting_for"`
+	CompletedAt sql.NullInt64  `json:"completed_at"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
 }
 
 func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (UpdateTaskRow, error) {
 	row := q.db.QueryRowContext(ctx, updateTask,
 		arg.Done,
+		arg.Status,
 		arg.Priority,
-		arg.CompletionDate,
-		arg.CreationDate,
-		arg.Description,
+		arg.Title,
+		arg.Notes,
+		arg.DueOn,
+		arg.DeferUntil,
+		arg.WaitingFor,
+		arg.CompletedAt,
 		arg.UpdatedAt,
 		arg.ID,
 	)
@@ -629,10 +792,14 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (UpdateT
 	err := row.Scan(
 		&i.ID,
 		&i.Done,
+		&i.Status,
 		&i.Priority,
-		&i.CompletionDate,
-		&i.CreationDate,
-		&i.Description,
+		&i.Title,
+		&i.Notes,
+		&i.DueOn,
+		&i.DeferUntil,
+		&i.WaitingFor,
+		&i.CompletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

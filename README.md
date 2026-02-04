@@ -1,6 +1,6 @@
 # ugh
 
-A todo.txt-inspired task CLI with SQLite storage.
+A GTD-first task CLI with SQLite storage.
 
 ## Installation
 
@@ -17,18 +17,26 @@ nix build
 ## Usage
 
 ```bash
-# Add tasks (supports todo.txt format)
-ugh add "Buy milk +groceries @errands"
-ugh add "Call mom" -p A --project family
+# Add tasks
+ugh add -P groceries -c errands Buy milk
+ugh add --status next -p A -P family -c phone --due 2026-01-20 Call mom
 
-# List tasks
-ugh list                    # pending tasks
-ugh list --all              # include completed
+# GTD lists
+ugh inbox
+ugh next
+ugh waiting
+ugh someday
+ugh tickler
+ugh calendar
+
+# Advanced listing
+ugh list --status next
+ugh list --all
 ugh list --project groceries
 ugh list --context errands
 ugh list --priority A
 
-# List available tags
+# List available projects/contexts
 ugh projects
 ugh contexts
 
@@ -47,9 +55,9 @@ ugh show 1
 # Remove tasks
 ugh rm 1 2
 
-# Import/export todo.txt
-ugh import todo.txt
-ugh export - --all          # stdout
+# Import/export backups
+ugh export backup.jsonl --all
+ugh import backup.jsonl
 ```
 
 ## Development
@@ -71,7 +79,7 @@ just fmt
 
 - **TTY**: Formatted table output (default)
 - **JSON**: `--json` flag for machine-readable output
-- **Pipe**: Plain todo.txt format when piped
+- **Pipe**: Tab-separated output when piped
 
 ## Configuration
 
@@ -125,19 +133,12 @@ sync_on_write = true
 --no-color       Disable color output
 ```
 
-## todo.txt Format
+## Data Model
 
-Tasks follow the [todo.txt](https://github.com/todotxt/todo.txt) format:
-
-```
-(A) 2024-01-15 Call mom +family @phone due:2024-01-20
-x 2024-01-14 2024-01-10 Buy groceries +shopping
-```
-
-- `(A)` - Priority (A-Z)
-- `+project` - Project tags
-- `@context` - Context tags
-- `key:value` - Metadata
+- **Status**: `inbox|next|waiting|someday`
+- **Scheduling**: `--due YYYY-MM-DD` and `--defer YYYY-MM-DD`
+- **Projects/Contexts**: first-class entities linked to tasks
+- **Meta**: custom `key:value` pairs
 
 ## License
 

@@ -386,18 +386,13 @@ Create a new task.
 **Request Body:**
 ```json
 {
-  "description": "Buy milk",
+  "title": "Buy milk",
+  "status": "next",
   "priority": "A",
+  "dueOn": "2026-01-30",
   "projects": ["groceries"],
   "contexts": ["store"],
-  "meta": {"due": "2026-01-30"}
-}
-```
-
-Or use todo.txt format:
-```json
-{
-  "raw": "(A) Buy milk +groceries @store due:2026-01-30"
+  "meta": {"source": "voice"}
 }
 ```
 

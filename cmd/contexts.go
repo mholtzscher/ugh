@@ -9,9 +9,10 @@ import (
 )
 
 var contextsCmd = &cli.Command{
-	Name:    "contexts",
-	Aliases: []string{"ctx"},
-	Usage:   "List available context tags",
+	Name:     "contexts",
+	Aliases:  []string{"ctx"},
+	Usage:    "List contexts",
+	Category: "Projects & Contexts",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:    flags.FlagAll,

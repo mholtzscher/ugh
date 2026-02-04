@@ -11,6 +11,7 @@ import (
 var rmCmd = &cli.Command{
 	Name:      "rm",
 	Usage:     "Delete tasks",
+	Category:  "Tasks",
 	ArgsUsage: "<id...>",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		ids, err := parseIDs(commandArgs(cmd))

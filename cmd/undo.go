@@ -12,6 +12,7 @@ var undoCmd = &cli.Command{
 	Name:      "undo",
 	Aliases:   []string{"u"},
 	Usage:     "Mark tasks as not done",
+	Category:  "Tasks",
 	ArgsUsage: "<id...>",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		ids, err := parseIDs(commandArgs(cmd))

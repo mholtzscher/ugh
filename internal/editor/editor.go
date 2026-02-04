@@ -7,18 +7,24 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
 type TaskTOML struct {
-	Description string            `toml:"description"`
-	Priority    string            `toml:"priority,omitempty"`
-	Done        bool              `toml:"done"`
-	Projects    []string          `toml:"projects,omitempty"`
-	Contexts    []string          `toml:"contexts,omitempty"`
-	Meta        map[string]string `toml:"meta,omitempty"`
+	Title      string            `toml:"title"`
+	Notes      string            `toml:"notes,omitempty"`
+	Status     string            `toml:"status"`
+	Priority   string            `toml:"priority,omitempty"`
+	Done       bool              `toml:"done"`
+	DueOn      string            `toml:"due_on,omitempty"`
+	DeferUntil string            `toml:"defer_until,omitempty"`
+	WaitingFor string            `toml:"waiting_for,omitempty"`
+	Projects   []string          `toml:"projects,omitempty"`
+	Contexts   []string          `toml:"contexts,omitempty"`
+	Meta       map[string]string `toml:"meta,omitempty"`
 }
 
 func TaskToTOML(task *store.Task) TaskTOML {
@@ -36,12 +42,17 @@ func TaskToTOML(task *store.Task) TaskTOML {
 	}
 
 	return TaskTOML{
-		Description: task.Description,
-		Priority:    task.Priority,
-		Done:        task.Done,
-		Projects:    projects,
-		Contexts:    contexts,
-		Meta:        meta,
+		Title:      task.Title,
+		Notes:      task.Notes,
+		Status:     string(task.Status),
+		Priority:   task.Priority,
+		Done:       task.Done,
+		DueOn:      formatDay(task.DueOn),
+		DeferUntil: formatDay(task.DeferUntil),
+		WaitingFor: task.WaitingFor,
+		Projects:   projects,
+		Contexts:   contexts,
+		Meta:       meta,
 	}
 }
 
@@ -49,12 +60,17 @@ const tomlHeader = `# Task %d - Edit and save to apply changes
 # Lines starting with # are ignored
 #
 # Fields:
-#   description - The task text
-#   priority    - A-Z (or empty to remove)
-#   done        - true/false
-#   projects    - List of project tags (without +)
-#   contexts    - List of context tags (without @)
-#   meta        - Key-value pairs
+#   title        - The action title (required)
+#   notes        - Optional notes
+#   status       - inbox|next|waiting|someday
+#   priority     - A-Z (or empty to remove)
+#   done         - true/false
+#   due_on       - YYYY-MM-DD
+#   defer_until  - YYYY-MM-DD
+#   waiting_for  - Optional string
+#   projects     - List of project names
+#   contexts     - List of context names
+#   meta         - Key-value pairs
 
 `
 
@@ -130,9 +146,20 @@ func getEditor() string {
 }
 
 func validate(t *TaskTOML) error {
-	t.Description = strings.TrimSpace(t.Description)
-	if t.Description == "" {
-		return errors.New("description cannot be empty")
+	t.Title = strings.TrimSpace(t.Title)
+	if t.Title == "" {
+		return errors.New("title cannot be empty")
+	}
+
+	t.Status = strings.ToLower(strings.TrimSpace(t.Status))
+	if t.Status == "" {
+		t.Status = "inbox"
+	}
+	switch t.Status {
+	case "inbox", "next", "waiting", "someday":
+		// ok
+	default:
+		return fmt.Errorf("invalid status %q: must be inbox|next|waiting|someday", t.Status)
 	}
 
 	t.Priority = strings.ToUpper(strings.TrimSpace(t.Priority))
@@ -142,10 +169,31 @@ func validate(t *TaskTOML) error {
 		}
 	}
 
+	t.DueOn = strings.TrimSpace(t.DueOn)
+	if t.DueOn != "" {
+		if _, err := time.Parse("2006-01-02", t.DueOn); err != nil {
+			return fmt.Errorf("invalid due_on %q: expected YYYY-MM-DD", t.DueOn)
+		}
+	}
+	t.DeferUntil = strings.TrimSpace(t.DeferUntil)
+	if t.DeferUntil != "" {
+		if _, err := time.Parse("2006-01-02", t.DeferUntil); err != nil {
+			return fmt.Errorf("invalid defer_until %q: expected YYYY-MM-DD", t.DeferUntil)
+		}
+	}
+	t.WaitingFor = strings.TrimSpace(t.WaitingFor)
+
 	t.Projects = cleanTags(t.Projects)
 	t.Contexts = cleanTags(t.Contexts)
 
 	return nil
+}
+
+func formatDay(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.UTC().Format("2006-01-02")
 }
 
 func cleanTags(tags []string) []string {

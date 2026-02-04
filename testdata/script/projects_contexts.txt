@@ -1,9 +1,9 @@
 # List projects and contexts
-exec ugh --db $WORK/db.sqlite add Buy milk +groceries @home
-exec ugh --db $WORK/db.sqlite add (A) Call mom +family @phone due:2026-01-02
-exec ugh --db $WORK/db.sqlite add Plan trip +travel
-exec ugh --db $WORK/db.sqlite add Review docs +work @office
-exec ugh --db $WORK/db.sqlite add Meeting +work @office
+exec ugh --db $WORK/db.sqlite add -P groceries -c home Buy milk
+exec ugh --db $WORK/db.sqlite add -p A -P family -c phone --due 2026-01-02 Call mom
+exec ugh --db $WORK/db.sqlite add -P travel Plan trip
+exec ugh --db $WORK/db.sqlite add -P work -c office Review docs
+exec ugh --db $WORK/db.sqlite add -P work -c office Meeting
 exec ugh --db $WORK/db.sqlite done 5
 
 # Projects default (todo only)
@@ -26,7 +26,7 @@ stdout 'phone'
 ! stdout 'misc'
 
 # Projects with done task
-exec ugh --db $WORK/db.sqlite add Review logs +misc
+exec ugh --db $WORK/db.sqlite add -P misc Review logs
 exec ugh --db $WORK/db.sqlite done 6
 exec ugh --db $WORK/db.sqlite projects
 ! stdout 'misc'

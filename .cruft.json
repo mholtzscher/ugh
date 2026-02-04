@@ -5,7 +5,7 @@
     "cookiecutter": {
       "project_name": "ugh",
       "project_slug": "ugh",
-      "project_description": "A todo.txt-inspired task CLI with SQLite storage.",
+      "project_description": "A GTD-first task CLI with SQLite storage.",
       "github_owner": "mholtzscher",
       "github_repo": "ugh",
       "module_path": "github.com/mholtzscher/ugh",

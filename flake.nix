@@ -1,5 +1,5 @@
 {
-  description = "ugh - A todo.txt-inspired task CLI with SQLite storage.";
+  description = "ugh - A GTD-first task CLI with SQLite storage.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -59,7 +59,7 @@
           ];
 
           meta = with pkgs.lib; {
-            description = "A todo.txt-inspired task CLI with SQLite storage.";
+            description = "A GTD-first task CLI with SQLite storage.";
             homepage = "https://github.com/mholtzscher/ugh";
             license = licenses.mit;
             mainProgram = "ugh";

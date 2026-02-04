@@ -1,40 +1,37 @@
 # Import/export flows
 # Blank lines in import files are skipped.
-exec ugh --db $WORK/db.sqlite import import.txt
+exec ugh --db $WORK/db.sqlite import import.jsonl
 cmp stdout want-import.txt
 
-stdin stdin.txt
+stdin stdin.jsonl
 exec ugh --db $WORK/db.sqlite import -
 cmp stdout want-import-stdin.txt
 
-exec ugh --db $WORK/db.sqlite export export.txt
+exec ugh --db $WORK/db.sqlite export export.jsonl
 cmp stdout want-export.txt
-grep 'Alpha' export.txt
-grep 'Bravo' export.txt
-grep 'Charlie' export.txt
-grep 'Delta' export.txt
+grep 'Alpha' export.jsonl
+grep 'Bravo' export.jsonl
+grep 'Charlie' export.jsonl
+grep 'Delta' export.jsonl
 
 exec ugh --db $WORK/db.sqlite export -
-stdout 'Alpha'
-stdout 'Bravo'
-stdout 'Charlie'
-stdout 'Delta'
+stdout '"title":"Alpha"'
+stdout '"title":"Bravo"'
+stdout '"title":"Charlie"'
+stdout '"title":"Delta"'
 
-! exec ugh --db $WORK/db.sqlite --json export -
-stderr 'cannot be used when exporting to stdout'
+-- import.jsonl --
+{"title":"Alpha","status":"next","projects":["work"]}
 
--- import.txt --
-(A) Alpha +work
+{"title":"Bravo","projects":["home"],"contexts":["phone"]}
+{"title":"Charlie","dueOn":"2026-02-01"}
 
-Bravo @home
-Charlie due:2026-02-01
-
--- stdin.txt --
-Delta +misc
+-- stdin.jsonl --
+{"title":"Delta","projects":["misc"]}
 
 -- want-import.txt --
-import: added 3, skipped 2 (import.txt)
+import: added 3, skipped 2 (import.jsonl)
 -- want-import-stdin.txt --
 import: added 1, skipped 1 (-)
 -- want-export.txt --
-export: 4 (export.txt)
+export: 4 (export.jsonl)

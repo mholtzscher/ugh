@@ -9,9 +9,10 @@ import (
 )
 
 var projectsCmd = &cli.Command{
-	Name:    "projects",
-	Aliases: []string{"proj"},
-	Usage:   "List available project tags",
+	Name:     "projects",
+	Aliases:  []string{"proj"},
+	Usage:    "List projects",
+	Category: "Projects & Contexts",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:    flags.FlagAll,

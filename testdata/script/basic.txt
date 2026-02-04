@@ -1,7 +1,7 @@
 # Add and list tasks
-exec ugh --db $WORK/db.sqlite add Buy milk +groceries @home
-exec ugh --db $WORK/db.sqlite add (A) Call mom +family @phone due:2026-01-02
+exec ugh --db $WORK/db.sqlite add -P groceries -c home Buy milk
+exec ugh --db $WORK/db.sqlite add -p A -P family -c phone --due 2026-01-02 Call mom
 
 exec ugh --db $WORK/db.sqlite list
-stdout '\(A\) [0-9]{4}-[0-9]{2}-[0-9]{2} Call mom \+family @phone due:2026-01-02'
-stdout '[0-9]{4}-[0-9]{2}-[0-9]{2} Buy milk \+groceries @home'
+stdout 'Call mom'
+stdout 'Buy milk'

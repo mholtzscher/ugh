@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/mholtzscher/ugh/internal/store"
-	"github.com/mholtzscher/ugh/internal/todotxt"
 	"golang.org/x/term"
 )
 
@@ -41,7 +41,7 @@ func (w Writer) WriteTask(task *store.Task) error {
 	if w.TTY {
 		return writeHumanTask(w.Out, task)
 	}
-	_, err := fmt.Fprintln(w.Out, todoLine(task))
+	_, err := fmt.Fprintln(w.Out, plainLine(task))
 	return err
 }
 
@@ -58,7 +58,7 @@ func (w Writer) WriteTasks(tasks []*store.Task) error {
 		return writeHumanList(w.Out, tasks)
 	}
 	for _, task := range tasks {
-		if _, err := fmt.Fprintln(w.Out, todoLine(task)); err != nil {
+		if _, err := fmt.Fprintln(w.Out, plainLine(task)); err != nil {
 			return err
 		}
 	}
@@ -105,19 +105,21 @@ func (w Writer) WriteSummary(summary any) error {
 }
 
 type TaskJSON struct {
-	ID             int64             `json:"id"`
-	Done           bool              `json:"done"`
-	Priority       string            `json:"priority,omitempty"`
-	CompletionDate string            `json:"completionDate,omitempty"`
-	CreationDate   string            `json:"creationDate,omitempty"`
-	Description    string            `json:"description"`
-	Projects       []string          `json:"projects"`
-	Contexts       []string          `json:"contexts"`
-	Meta           map[string]string `json:"meta"`
-	Unknown        []string          `json:"unknown"`
-	TodoTxt        string            `json:"todoTxt"`
-	CreatedAt      string            `json:"createdAt"`
-	UpdatedAt      string            `json:"updatedAt"`
+	ID          int64             `json:"id"`
+	Done        bool              `json:"done"`
+	Status      string            `json:"status"`
+	Priority    string            `json:"priority,omitempty"`
+	Title       string            `json:"title"`
+	Notes       string            `json:"notes,omitempty"`
+	DueOn       string            `json:"dueOn,omitempty"`
+	DeferUntil  string            `json:"deferUntil,omitempty"`
+	WaitingFor  string            `json:"waitingFor,omitempty"`
+	CompletedAt string            `json:"completedAt,omitempty"`
+	Projects    []string          `json:"projects"`
+	Contexts    []string          `json:"contexts"`
+	Meta        map[string]string `json:"meta"`
+	CreatedAt   string            `json:"createdAt"`
+	UpdatedAt   string            `json:"updatedAt"`
 }
 
 func toTaskJSON(task *store.Task) TaskJSON {
@@ -129,44 +131,43 @@ func toTaskJSON(task *store.Task) TaskJSON {
 	if contexts == nil {
 		contexts = []string{}
 	}
-	unknown := task.Unknown
-	if unknown == nil {
-		unknown = []string{}
-	}
 	meta := task.Meta
 	if meta == nil {
 		meta = map[string]string{}
 	}
 	return TaskJSON{
-		ID:             task.ID,
-		Done:           task.Done,
-		Priority:       task.Priority,
-		CompletionDate: formatDate(task.CompletionDate),
-		CreationDate:   formatDate(task.CreationDate),
-		Description:    task.Description,
-		Projects:       projects,
-		Contexts:       contexts,
-		Meta:           meta,
-		Unknown:        unknown,
-		TodoTxt:        todoLine(task),
-		CreatedAt:      formatDateTime(task.CreatedAt),
-		UpdatedAt:      formatDateTime(task.UpdatedAt),
+		ID:          task.ID,
+		Done:        task.Done,
+		Status:      string(task.Status),
+		Priority:    task.Priority,
+		Title:       task.Title,
+		Notes:       task.Notes,
+		DueOn:       formatDate(task.DueOn),
+		DeferUntil:  formatDate(task.DeferUntil),
+		WaitingFor:  task.WaitingFor,
+		CompletedAt: formatDateTimePtr(task.CompletedAt),
+		Projects:    projects,
+		Contexts:    contexts,
+		Meta:        meta,
+		CreatedAt:   formatDateTime(task.CreatedAt),
+		UpdatedAt:   formatDateTime(task.UpdatedAt),
 	}
 }
 
-func todoLine(task *store.Task) string {
-	parsed := todotxt.Parsed{
-		Done:           task.Done,
-		Priority:       task.Priority,
-		CompletionDate: task.CompletionDate,
-		CreationDate:   task.CreationDate,
-		Description:    task.Description,
-		Projects:       task.Projects,
-		Contexts:       task.Contexts,
-		Meta:           task.Meta,
-		Unknown:        task.Unknown,
+func plainLine(task *store.Task) string {
+	if task == nil {
+		return ""
 	}
-	return todotxt.Format(parsed)
+	due := formatDate(task.DueOn)
+	deferUntil := formatDate(task.DeferUntil)
+	fields := []string{
+		fmt.Sprintf("%d", task.ID),
+		string(task.Status),
+		due,
+		deferUntil,
+		task.Title,
+	}
+	return strings.Join(fields, "\t")
 }
 
 func writeJSON(out io.Writer, payload any) error {
@@ -179,6 +180,13 @@ func formatDate(val *time.Time) string {
 		return ""
 	}
 	return val.Format("2006-01-02")
+}
+
+func formatDateTimePtr(val *time.Time) string {
+	if val == nil {
+		return ""
+	}
+	return formatDateTime(*val)
 }
 
 func formatDateTime(val time.Time) string {

@@ -8,20 +8,40 @@ import (
 	"database/sql"
 )
 
-type Task struct {
-	ID             int64          `json:"id"`
-	Done           int64          `json:"done"`
-	Priority       sql.NullString `json:"priority"`
-	CompletionDate sql.NullString `json:"completion_date"`
-	CreationDate   sql.NullString `json:"creation_date"`
-	Description    interface{}    `json:"description"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
+type Context struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
 }
 
-type TaskContext struct {
-	TaskID int64  `json:"task_id"`
-	Name   string `json:"name"`
+type Project struct {
+	ID         int64         `json:"id"`
+	Name       string        `json:"name"`
+	Notes      string        `json:"notes"`
+	ArchivedAt sql.NullInt64 `json:"archived_at"`
+	CreatedAt  int64         `json:"created_at"`
+	UpdatedAt  int64         `json:"updated_at"`
+}
+
+type Task struct {
+	ID          int64          `json:"id"`
+	Done        int64          `json:"done"`
+	Status      string         `json:"status"`
+	Priority    sql.NullString `json:"priority"`
+	Title       string         `json:"title"`
+	Notes       string         `json:"notes"`
+	DueOn       sql.NullString `json:"due_on"`
+	DeferUntil  sql.NullString `json:"defer_until"`
+	WaitingFor  sql.NullString `json:"waiting_for"`
+	CompletedAt sql.NullInt64  `json:"completed_at"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+type TaskContextLink struct {
+	TaskID    int64 `json:"task_id"`
+	ContextID int64 `json:"context_id"`
 }
 
 type TaskMetum struct {
@@ -30,13 +50,7 @@ type TaskMetum struct {
 	Value  string `json:"value"`
 }
 
-type TaskProject struct {
-	TaskID int64  `json:"task_id"`
-	Name   string `json:"name"`
-}
-
-type TaskUnknown struct {
-	TaskID  int64  `json:"task_id"`
-	Ordinal int64  `json:"ordinal"`
-	Token   string `json:"token"`
+type TaskProjectLink struct {
+	TaskID    int64 `json:"task_id"`
+	ProjectID int64 `json:"project_id"`
 }
