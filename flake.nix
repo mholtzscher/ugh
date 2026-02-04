@@ -1,11 +1,15 @@
 {
-  description = "A basic gomod2nix flake";
+  description = "ugh - A todo.txt-inspired task CLI with SQLite storage.";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.flake-utils.url = "github:numtide/flake-utils";
-  inputs.gomod2nix.url = "github:nix-community/gomod2nix";
-  inputs.gomod2nix.inputs.nixpkgs.follows = "nixpkgs";
-  inputs.gomod2nix.inputs.flake-utils.follows = "flake-utils";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    gomod2nix = {
+      url = "github:nix-community/gomod2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
+  };
 
   outputs =
     {
@@ -14,58 +18,85 @@
       flake-utils,
       gomod2nix,
     }:
-    (flake-utils.lib.eachDefaultSystem (
+    flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ gomod2nix.overlays.default ];
+        };
 
-        callPackage = pkgs.callPackage;
-        # Simple test check added to nix flake check
-        go-test = pkgs.stdenvNoCC.mkDerivation {
-          name = "go-test";
-          dontBuild = true;
-          src = ./.;
-          doCheck = true;
-          nativeBuildInputs = with pkgs; [
-            go
-            writableTmpDirAsHomeHook
-          ];
-          checkPhase = ''
-            go test -v ./...
-          '';
-          installPhase = ''
-            mkdir "$out"
-          '';
-        };
-        # Simple lint check added to nix flake check
-        go-lint = pkgs.stdenvNoCC.mkDerivation {
-          name = "go-lint";
-          dontBuild = true;
-          src = ./.;
-          doCheck = true;
-          nativeBuildInputs = with pkgs; [
-            golangci-lint
-            go
-            writableTmpDirAsHomeHook
-          ];
-          checkPhase = ''
-            golangci-lint run
-          '';
-          installPhase = ''
-            mkdir "$out"
-          '';
-        };
+        releasePleaseManifest = builtins.fromJSON (
+          builtins.readFile ./.github/.release-please-manifest.json
+        );
+        version = releasePleaseManifest.".";
+
+        # Add platform-specific build inputs here (e.g., CGO deps)
+        buildInputs = [ ];
+
+        # macOS-specific build inputs for CGO
+        darwinBuildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
+          pkgs.apple-sdk_15
+        ];
       in
       {
-        checks = {
-          inherit go-test go-lint;
+        packages.default = pkgs.buildGoApplication {
+          pname = "ugh";
+          inherit version;
+          src = ./.;
+          modules = ./gomod2nix.toml;
+          go = pkgs.go_1_25;
+
+          buildInputs = buildInputs ++ darwinBuildInputs;
+
+          # Set CGO_ENABLED=1 if you need CGO
+          CGO_ENABLED = 0;
+
+          ldflags = [
+            "-s"
+            "-w"
+            "-X github.com/mholtzscher/ugh/cmd.Version=${version}"
+          ];
+
+          meta = with pkgs.lib; {
+            description = "A todo.txt-inspired task CLI with SQLite storage.";
+            homepage = "https://github.com/mholtzscher/ugh";
+            license = licenses.mit;
+            mainProgram = "ugh";
+            platforms = platforms.all;
+          };
         };
-        packages.default = callPackage ./. {
-          inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
+
+        formatter = pkgs.nixfmt-rfc-style;
+
+        devShells.default = pkgs.mkShell {
+          buildInputs = [
+            pkgs.go_1_25
+            pkgs.gopls
+            pkgs.golangci-lint
+            pkgs.gotools
+            pkgs.gomod2nix
+            pkgs.just
+            pkgs.cruft
+          ]
+          ++ buildInputs
+          ++ darwinBuildInputs;
+
+          # Set CGO_ENABLED="1" if you need CGO
+          CGO_ENABLED = "0";
         };
-        devShells.default = callPackage ./shell.nix {
-          inherit (gomod2nix.legacyPackages.${system}) mkGoEnv gomod2nix;
+
+        devShells.ci = pkgs.mkShell {
+          buildInputs = [
+            pkgs.go_1_25
+            pkgs.golangci-lint
+            pkgs.just
+          ]
+          ++ buildInputs
+          ++ darwinBuildInputs;
+
+          CGO_ENABLED = "0";
         };
       }
-    ));
+    );
 }

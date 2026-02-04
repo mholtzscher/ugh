@@ -1,0 +1,35 @@
+{
+  "template": "https://github.com/mholtzscher/templates.git",
+  "commit": "3cdb904131c115adaf8564f0bbeabe5a87aa9740",
+  "context": {
+    "cookiecutter": {
+      "project_name": "ugh",
+      "project_slug": "ugh",
+      "project_description": "A todo.txt-inspired task CLI with SQLite storage.",
+      "github_owner": "mholtzscher",
+      "github_repo": "ugh",
+      "module_path": "github.com/mholtzscher/ugh",
+      "author_name": "Michael Holtzscher",
+      "author_email": "michael@holtzscher.com",
+      "license": "MIT",
+      "use_cgo": "no",
+      "use_homebrew": "no",
+      "go_version": "1.25"
+    }
+  },
+  "directory": "go-nix-cli",
+  "skip": [
+    ".github/.release-please-manifest.json",
+    "CHANGELOG.md",
+    "README.md",
+    ".goreleaser.yaml",
+    "cmd",
+    "internal",
+    "test",
+    "main.go",
+    "go.mod",
+    "go.sum",
+    "gomod2nix.toml",
+    "flake.lock"
+  ]
+}

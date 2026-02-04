@@ -1,206 +1,124 @@
-# AGENTS.md - Agentic Coding Guide for ugh
+# AGENTS.md - AI Agent Guidelines for ugh
 
-This document provides essential information for AI coding agents working in this repository.
+A todo.txt-inspired task CLI with SQLite storage.
 
-## Project Overview
+**Stack**: Go 1.25+, urfave/cli/v3
 
-**ugh** is a todo.txt-inspired task CLI with libSQL storage (Turso), written in Go 1.25.
+## Rules
 
-- **Module**: `github.com/mholtzscher/ugh`
-- **CLI Framework**: spf13/cobra
-- **Database**: libSQL (turso.tech/database/tursogo)
-- **SQL Generation**: sqlc
-- **Migrations**: goose (embedded)
-- **Dev Environment**: Nix flake + just task runner
+**Never commit code unless explicitly prompted by the user.**
+**Always run linting after modifying code.**
+**Always run formatter after modifying code.**
+**Always run tests after modifying code.**
 
-## Build, Test, and Lint Commands
+## Commands
 
-### Using just (recommended)
+Uses direnv with nix flake for automatic environment setup. Use `just` for development tasks.
 
 ```bash
-just build              # Build binary (development)
-just build-release      # Build binary (release, stripped)
-just run <args>         # Run with arguments: just run add "Buy milk"
+# Build
+just build                     # dev build
+just build-release             # release build
 
-just test               # Run all tests
-just test-verbose       # Run tests with verbose output
-just test-run NAME      # Run specific test: just test-run TestScripts
-just test-pkg PKG       # Run tests for package: just test-pkg internal/store
+# Run
+just run <args>                # run locally
 
-just fmt                # Format code (go fmt)
-just vet                # Static analysis (go vet)
-just lint               # Comprehensive linting (golangci-lint)
-just check              # Run all checks: fmt, vet, lint, test
+# Test
+just test                      # all tests
+just test-verbose              # verbose test output
 
-just tidy               # Tidy go modules
-just sqlc               # Regenerate sqlc code after SQL changes
-just gomod2nix          # Update gomod2nix.toml after dependency changes
-```
+# Lint/format
+just fmt                       # format code
+just vet                       # static analysis
+just lint                      # comprehensive linting (golangci-lint)
+just check                     # run all checks (fmt, vet, lint, test)
 
-### Using Go directly
+# Dependencies
+just tidy                      # go mod tidy
+just update-deps               # update dependencies and gomod2nix.toml
 
-```bash
-go build                           # Build
-go test ./...                      # All tests
-go test -v ./...                   # Verbose tests
-go test -run TestScripts ./...     # Specific test by name
-go test ./internal/store           # Tests for specific package
-go fmt ./...                       # Format
-go vet ./...                       # Static analysis
-golangci-lint run                  # Lint (requires golangci-lint)
-```
+# Template Management
+just cruft-check              # validate template consistency
+just cruft-diff               # show template differences
+just cruft-update             # update to latest template
 
-### Using Nix
-
-```bash
-nix build                # Build the package
-nix flake check          # Run all checks (go-test, go-lint)
-nix develop              # Enter development shell
+# Nix build/run
+nix build                      # build package
+nix run                        # run package
 ```
 
 ## Project Structure
 
 ```
 ugh/
-├── main.go                    # Entry point (calls cmd.Execute())
-├── main_test.go               # Integration tests using testscript
-├── cmd/                       # CLI commands (Cobra)
-│   ├── root.go                # Root command, global flags, store init
-│   ├── add.go, list.go, ...   # Subcommands (one file per command)
-│   └── utils.go               # Utility functions
+├── main.go                     # Entry point
+├── cmd/
+│   ├── root.go                 # Root command, global flags
+│   └── example/                # 'example' subcommand package
+│       └── example.go          # Example subcommand
 ├── internal/
-│   ├── store/                 # Database layer
-│   │   ├── store.go           # Store struct, Open, CRUD operations
-│   │   ├── types.go           # Task and Filters types
-│   │   ├── migrations.go      # Embedded migrations filesystem
-│   │   ├── migrations/        # SQL migration files (goose format)
-│   │   └── sqlc/              # Generated sqlc code (DO NOT EDIT)
-│   ├── todotxt/               # todo.txt format parsing/formatting
-│   │   ├── parse.go, format.go, types.go
-│   └── output/                # Output formatting (JSON, human, plain)
-├── db/queries/tasks.sql       # SQL queries for sqlc
-└── testdata/script/           # testscript integration tests
+│   ├── cli/
+│   │   └── options.go          # GlobalOptions (shared across packages)
+│   └── example/
+│       └── example.go          # Example internal package
+├── go.mod
+├── go.sum
+└── flake.nix
 ```
 
-## Code Style Guidelines
+## Code Style
 
 ### Imports
 
-Group imports in this order with blank lines between groups:
-1. Standard library
-2. Internal packages (this module)
-3. External packages
-
-```go
-import (
-    "context"
-    "fmt"
-
-    "github.com/mholtzscher/ugh/internal/store"
-    "github.com/mholtzscher/ugh/internal/todotxt"
-
-    "github.com/spf13/cobra"
-)
-```
-
-### Naming Conventions
-
-- **Files**: lowercase, underscore for multi-word (`task_projects.go`)
-- **Packages**: short, lowercase, no underscores (`store`, `todotxt`, `output`)
-- **Types**: PascalCase (`Task`, `Filters`, `Writer`)
-- **Functions/Methods**: PascalCase for exported, camelCase for unexported
-- **Variables**: camelCase (`rootOpts`, `addCmd`, `storeTask`)
-- **Constants**: PascalCase for exported, camelCase for unexported
-- **Acronyms**: Use consistent casing (`ID`, `JSON`, `SQL`, `TTY`)
-
-### Error Handling
-
-- Wrap errors with context using `fmt.Errorf("action: %w", err)`
-- Return errors early, avoid deep nesting
-- Use `errors.New()` for simple error messages
-- Commands return errors; root command prints to stderr
-
-```go
-if err := doSomething(); err != nil {
-    return fmt.Errorf("do something: %w", err)
-}
-```
-
-### Cobra Command Pattern
-
-Each command follows this structure:
-
-```go
-var cmdOpts struct {
-    // Command-specific options
-}
-
-var cmdCmd = &cobra.Command{
-    Use:     "cmd [args]",
-    Aliases: []string{"c"},
-    Short:   "Brief description",
-    RunE: func(cmd *cobra.Command, args []string) error {
-        ctx := context.Background()
-        // Implementation
-    },
-}
-
-func init() {
-    cmdCmd.Flags().StringVarP(&cmdOpts.Field, "field", "f", "", "description")
-}
-```
-
-### Database Pattern
-
-- Use `openStore(ctx)` to get a store instance
-- Always `defer st.Close()` after opening
-- All times stored as Unix timestamps (int64)
-- Dates stored as strings in "2006-01-02" format
-- Use `sql.NullString` for nullable string columns
+Order: stdlib -> external packages -> internal packages, separated by blank lines.
+Use goimports or let `go fmt` handle ordering.
 
 ### Types
 
-- Use `*time.Time` for optional date fields
-- Use `map[string]string` for metadata
-- Use `[]string` for projects, contexts, unknown tokens
-- Initialize maps before use: `if task.Meta == nil { task.Meta = map[string]string{} }`
+- Use `string` for file paths.
+- Use `*T` (pointer) for optional values instead of sentinel values.
+- Return `error` for error conditions.
 
-### Testing
+### Naming
 
-Integration tests use `rogpeppe/go-internal/testscript`:
-- Test scripts in `testdata/script/*.txt`
-- Each script builds the binary and runs CLI commands
-- Use `exec` for commands, `stdout` for assertions
+- Types: `PascalCase` (MyType, MyStruct)
+- Functions/methods: `PascalCase` for exported, `camelCase` for unexported
+- Constants: `PascalCase` for exported, `camelCase` for unexported
+- Use descriptive names
 
-```
-# Example test script
-exec ugh --db $WORK/db.sqlite add Buy milk +groceries
-exec ugh --db $WORK/db.sqlite list
-stdout 'Buy milk'
-```
+### Error Handling
+
+- Functions return `(T, error)` tuple.
+- Wrap errors with context: `fmt.Errorf("context: %w", err)`.
+- Check errors immediately after function calls.
+- Use user-facing messages, not debug dumps.
 
 ### Formatting
 
-- Run `just fmt` or `go fmt ./...` before committing
-- No manual formatting required - use standard Go formatting
-- Line length: no hard limit, but keep reasonable
+- Run `go fmt ./...` before committing.
+- Use `goimports` for import organization.
+- Let the tooling handle formatting decisions.
 
-### Output Modes
+### Testing
 
-The CLI supports three output modes:
-1. **JSON** (`--json`): Machine-readable JSON output
-2. **Human/TTY**: Formatted tables for interactive use
-3. **Plain/Pipe**: todo.txt format for scripting
+- Tests live in `*_test.go` files alongside the code.
+- Use table-driven tests where appropriate.
+- Use `t.Run` for subtests.
+- Prefer exact assertions.
 
-Always use `outputWriter()` and its methods for consistent output.
+## CLI/UX Guidelines
 
-### Code Generation
+- `fmt.Println` for normal output, `fmt.Fprintln(os.Stderr, ...)` for errors.
+- Avoid breaking existing CLI flags or subcommands.
 
-- sqlc generates code in `internal/store/sqlc/` - DO NOT EDIT these files
-- After modifying `db/queries/tasks.sql`, run `just sqlc`
-- The `//go:generate` directive in `store.go` can also be used
+## Dependency Updates
 
-### Dependencies
+- Update `go.mod` and run `go mod tidy`.
+- Avoid new dependencies unless required.
+- Prefer the standard library before adding packages.
 
-- After adding, removing, or updating Go dependencies, run `just tidy`
-- For Nix builds, also run `just gomod2nix` to update `gomod2nix.toml`
+## Repo Hygiene
+
+- Keep changes minimal and focused.
+- Avoid mass reformatting unless necessary.
+- Run `go mod tidy` after dependency changes.

@@ -1,0 +1,47 @@
+version: 2
+
+project_name: ugh
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: ugh
+    main: .
+    binary: ugh
+    ldflags:
+      - -s -w
+      - -X github.com/mholtzscher/ugh/cmd.Version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github-native
+
+release:
+  github:
+    owner: mholtzscher
+    name: ugh
+  prerelease: auto
+  name_template: "v{{.Version}}"

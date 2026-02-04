@@ -1,7 +1,31 @@
-/target
+# Binaries
+/ugh
+result
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Nix
 .direnv/
 
-result
-.grepai/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-ugh
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+/target
+.grepai/

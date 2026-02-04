@@ -19,6 +19,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version is set at build time.
+var Version = "0.1.0" // x-release-please-version
+
 type rootOptions struct {
 	ConfigPath string
 	DBPath     string
@@ -36,6 +39,7 @@ var rootCmd = &cobra.Command{
 	Use:          "ugh",
 	Short:        "ugh is a todo.txt-inspired task CLI",
 	Long:         "ugh is a todo.txt-inspired task CLI with SQLite storage.",
+	Version:      Version,
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return loadConfig(cmd)

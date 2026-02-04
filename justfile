@@ -45,8 +45,8 @@ vet:
 lint:
     golangci-lint run
 
-# Run all checks (format, vet, lint, test, tidy, sqlc, govulncheck, gomod2nix)
-check: fmt vet lint test tidy sqlc govulncheck gomod2nix
+# Run all checks (format, vet, lint, test, tidy, gomod2nix)
+check: fmt vet lint test tidy gomod2nix
 
 # Update Go dependencies
 update-deps:
@@ -62,14 +62,22 @@ tidy:
 gomod2nix:
     gomod2nix > gomod2nix.toml
 
-# Generate sqlc code
-sqlc:
-    sqlc generate
-
 # Run govulncheck security scanner
 govulncheck:
     govulncheck ./...
 
-# Update flake inputs (package versions)
-update:
-    nix flake update
+# Validate template consistency
+cruft-check:
+    cruft check
+
+# Show template differences
+cruft-diff:
+    cruft diff
+
+# Update to latest template
+cruft-update:
+    cruft update
+
+# Run with nix
+nix-run *ARGS:
+    nix run -- {{ARGS}}
