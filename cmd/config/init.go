@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,7 +9,7 @@ import (
 
 	"github.com/mholtzscher/ugh/internal/config"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
 type initResult struct {
@@ -17,11 +18,10 @@ type initResult struct {
 	DBPath string `json:"dbPath"`
 }
 
-var initCmd = &cobra.Command{
-	Use:   "init",
-	Short: "Initialize configuration file",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+var initCmd = &cli.Command{
+	Name:  "init",
+	Usage: "Initialize configuration file",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		cfgPath, err := configPathForWrite()
 		if err != nil {
 			return err

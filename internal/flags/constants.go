@@ -1,0 +1,28 @@
+package flags
+
+const (
+	FlagAll           = "all"
+	FlagCompleted     = "completed"
+	FlagConfigPath    = "config"
+	FlagContext       = "context"
+	FlagCounts        = "counts"
+	FlagCreated       = "created"
+	FlagDBPath        = "db"
+	FlagDescription   = "description"
+	FlagDone          = "done"
+	FlagEditor        = "editor"
+	FlagJSON          = "json"
+	FlagLines         = "lines"
+	FlagMeta          = "meta"
+	FlagNoColor       = "no-color"
+	FlagNoFollow      = "no-follow"
+	FlagNoPriority    = "no-priority"
+	FlagPriority      = "priority"
+	FlagProject       = "project"
+	FlagRemoveContext = "remove-context"
+	FlagRemoveMeta    = "remove-meta"
+	FlagRemoveProject = "remove-project"
+	FlagSearch        = "search"
+	FlagTodo          = "todo"
+	FlagUndone        = "undone"
+)

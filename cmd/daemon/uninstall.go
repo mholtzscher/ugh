@@ -1,22 +1,22 @@
 package daemon
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/mholtzscher/ugh/internal/daemon/service"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var uninstallCmd = &cobra.Command{
-	Use:   "uninstall",
-	Short: "Uninstall the daemon system service",
-	Long: `Uninstall the daemon system service.
+var uninstallCmd = &cli.Command{
+	Name:  "uninstall",
+	Usage: "Uninstall the daemon system service",
+	Description: `Uninstall the daemon system service.
 
 Stops the service if running, then removes the service configuration.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		mgr, err := getServiceManager()
 		if err != nil {
 			return fmt.Errorf("detect service manager: %w", err)

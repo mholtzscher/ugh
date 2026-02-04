@@ -3,23 +3,37 @@ package cmd
 import (
 	"context"
 
+	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var contextsOpts struct {
-	All      bool
-	DoneOnly bool
-	TodoOnly bool
-	Counts   bool
-}
-
-var contextsCmd = &cobra.Command{
-	Use:     "contexts",
+var contextsCmd = &cli.Command{
+	Name:    "contexts",
 	Aliases: []string{"ctx"},
-	Short:   "List available context tags",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+	Usage:   "List available context tags",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:    flags.FlagAll,
+			Aliases: []string{"a"},
+			Usage:   "include completed tasks",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagDone,
+			Aliases: []string{"x"},
+			Usage:   "only completed tasks",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagTodo,
+			Aliases: []string{"t"},
+			Usage:   "only pending tasks",
+		},
+		&cli.BoolFlag{
+			Name:  flags.FlagCounts,
+			Usage: "include counts",
+		},
+	},
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -27,25 +41,18 @@ var contextsCmd = &cobra.Command{
 		defer func() { _ = svc.Close() }()
 
 		tags, err := svc.ListContexts(ctx, service.ListTagsRequest{
-			All:      contextsOpts.All,
-			DoneOnly: contextsOpts.DoneOnly,
-			TodoOnly: contextsOpts.TodoOnly,
+			All:      cmd.Bool(flags.FlagAll),
+			DoneOnly: cmd.Bool(flags.FlagDone),
+			TodoOnly: cmd.Bool(flags.FlagTodo),
 		})
 		if err != nil {
 			return err
 		}
 
 		writer := outputWriter()
-		if contextsOpts.Counts {
+		if cmd.Bool(flags.FlagCounts) {
 			return writer.WriteTagsWithCounts(tags)
 		}
 		return writer.WriteTags(tags)
 	},
-}
-
-func init() {
-	contextsCmd.Flags().BoolVarP(&contextsOpts.All, "all", "a", false, "include completed tasks")
-	contextsCmd.Flags().BoolVarP(&contextsOpts.DoneOnly, "done", "x", false, "only completed tasks")
-	contextsCmd.Flags().BoolVarP(&contextsOpts.TodoOnly, "todo", "t", false, "only pending tasks")
-	contextsCmd.Flags().BoolVarP(&contextsOpts.Counts, "counts", "", false, "include counts")
 }

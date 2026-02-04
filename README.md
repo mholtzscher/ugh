@@ -52,6 +52,21 @@ ugh import todo.txt
 ugh export - --all          # stdout
 ```
 
+## Development
+
+This CLI uses `github.com/urfave/cli/v3`. Flag names are centralized in
+`internal/flags/constants.go` so commands can read values with `cmd.String()`,
+`cmd.Bool()`, `cmd.Int()`, and friends.
+
+Common tasks:
+
+```bash
+just build
+just test
+just lint
+just fmt
+```
+
 ## Output Formats
 
 - **TTY**: Formatted table output (default)

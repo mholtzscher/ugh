@@ -1,19 +1,19 @@
 package daemon
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/mholtzscher/ugh/internal/daemon/service"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var stopCmd = &cobra.Command{
-	Use:   "stop",
-	Short: "Stop the daemon service",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+var stopCmd = &cli.Command{
+	Name:  "stop",
+	Usage: "Stop the daemon service",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		mgr, err := getServiceManager()
 		if err != nil {
 			return fmt.Errorf("detect service manager: %w", err)

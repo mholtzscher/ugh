@@ -13,41 +13,64 @@ import (
 	configcmd "github.com/mholtzscher/ugh/cmd/config"
 	daemoncmd "github.com/mholtzscher/ugh/cmd/daemon"
 	"github.com/mholtzscher/ugh/internal/config"
+	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/store"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
 // Version is set at build time.
 var Version = "0.1.1" // x-release-please-version
 
-type rootOptions struct {
-	ConfigPath string
-	DBPath     string
-	JSON       bool
-	NoColor    bool
-}
-
 var (
-	rootOpts        rootOptions
+	rootConfigPath  string
+	rootDBPath      string
+	rootJSON        bool
+	rootNoColor     bool
 	loadedConfig    *config.Config
 	loadedConfigWas bool
 )
 
-var rootCmd = &cobra.Command{
-	Use:          "ugh",
-	Short:        "ugh is a todo.txt-inspired task CLI",
-	Long:         "ugh is a todo.txt-inspired task CLI with SQLite storage.",
-	Version:      Version,
-	SilenceUsage: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return loadConfig(cmd)
+var rootCmd = &cli.Command{
+	Name:        "ugh",
+	Usage:       "ugh is a todo.txt-inspired task CLI",
+	Description: "ugh is a todo.txt-inspired task CLI with SQLite storage.",
+	Version:     Version,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  flags.FlagConfigPath,
+			Usage: "path to config file",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagDBPath,
+			Aliases: []string{"d"},
+			Usage:   "path to sqlite database (overrides config)",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagJSON,
+			Aliases: []string{"j"},
+			Usage:   "output json",
+		},
+		&cli.BoolFlag{
+			Name:  flags.FlagNoColor,
+			Usage: "disable color output",
+		},
+	},
+	Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+		return ctx, loadConfig(cmd)
 	},
 }
 
-func loadConfig(cmd *cobra.Command) error {
-	configPath := rootOpts.ConfigPath
+func loadConfig(cmd *cli.Command) error {
+	if cmd != nil {
+		rootConfigPath = cmd.String(flags.FlagConfigPath)
+		rootDBPath = cmd.String(flags.FlagDBPath)
+		rootJSON = cmd.Bool(flags.FlagJSON)
+		rootNoColor = cmd.Bool(flags.FlagNoColor)
+	}
+
+	configPath := rootConfigPath
 	allowMissing := configPath == "" || allowMissingConfig(cmd)
 
 	result, err := config.Load(configPath, allowMissing)
@@ -68,25 +91,36 @@ func loadConfig(cmd *cobra.Command) error {
 	return nil
 }
 
-func allowMissingConfig(cmd *cobra.Command) bool {
+func allowMissingConfig(cmd *cli.Command) bool {
 	if cmd == nil {
 		return false
 	}
-	if cmd.Name() == "set" || cmd.Name() == "init" {
-		parent := cmd.Parent()
-		return parent != nil && parent.Name() == "config"
+	if !cmd.HasName("set") && !cmd.HasName("init") {
+		if cmd.Root() != cmd {
+			return false
+		}
+		args := cmd.Args()
+		if args.Len() < 2 || args.Get(0) != "config" {
+			return false
+		}
+		return args.Get(1) == "set" || args.Get(1) == "init"
 	}
-	return false
+	lineage := cmd.Lineage()
+	if len(lineage) < 2 {
+		return false
+	}
+	parent := lineage[len(lineage)-2]
+	return parent != nil && parent.HasName("config")
 }
 
 func effectiveDBPath() (string, error) {
-	if rootOpts.DBPath != "" {
-		return rootOpts.DBPath, nil
+	if rootDBPath != "" {
+		return rootDBPath, nil
 	}
 	if loadedConfig != nil && loadedConfig.DB.Path != "" {
 		var cfgPath string
-		if rootOpts.ConfigPath != "" {
-			cfgPath = rootOpts.ConfigPath
+		if rootConfigPath != "" {
+			cfgPath = rootConfigPath
 		} else if loadedConfigWas {
 			defaultPath, err := config.DefaultPath()
 			if err != nil {
@@ -104,33 +138,27 @@ func effectiveDBPath() (string, error) {
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := rootCmd.Run(context.Background(), os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&rootOpts.ConfigPath, "config", "", "path to config file")
-
-	rootCmd.PersistentFlags().StringVarP(&rootOpts.DBPath, "db", "d", "", "path to sqlite database (overrides config)")
-	rootCmd.PersistentFlags().BoolVarP(&rootOpts.JSON, "json", "j", false, "output json")
-	rootCmd.PersistentFlags().BoolVar(&rootOpts.NoColor, "no-color", false, "disable color output")
-
-	rootCmd.PersistentFlags().SortFlags = false
-
-	rootCmd.AddCommand(addCmd)
-	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(showCmd)
-	rootCmd.AddCommand(editCmd)
-	rootCmd.AddCommand(doneCmd)
-	rootCmd.AddCommand(undoCmd)
-	rootCmd.AddCommand(rmCmd)
-	rootCmd.AddCommand(importCmd)
-	rootCmd.AddCommand(exportCmd)
-	rootCmd.AddCommand(projectsCmd)
-	rootCmd.AddCommand(contextsCmd)
-	rootCmd.AddCommand(syncCmd)
+	rootCmd.Commands = []*cli.Command{
+		addCmd,
+		listCmd,
+		showCmd,
+		editCmd,
+		doneCmd,
+		undoCmd,
+		rmCmd,
+		importCmd,
+		exportCmd,
+		projectsCmd,
+		contextsCmd,
+		syncCmd,
+	}
 
 	// Register subcommand packages
 	configcmd.Register(rootCmd, configcmd.Deps{
@@ -139,7 +167,7 @@ func init() {
 		ConfigWasLoaded:    func() bool { return loadedConfigWas },
 		SetConfigWasLoaded: func(b bool) { loadedConfigWas = b },
 		OutputWriter:       outputWriter,
-		ConfigPath:         func() string { return rootOpts.ConfigPath },
+		ConfigPath:         func() string { return rootConfigPath },
 		DefaultDBPath:      defaultDBPath,
 	})
 
@@ -238,5 +266,5 @@ func userDataDir() (string, error) {
 }
 
 func outputWriter() output.Writer {
-	return output.NewWriter(rootOpts.JSON, rootOpts.NoColor)
+	return output.NewWriter(rootJSON, rootNoColor)
 }

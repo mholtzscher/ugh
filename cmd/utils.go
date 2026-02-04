@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/mholtzscher/ugh/internal/service"
+	"github.com/urfave/cli/v3"
 )
 
 func parseIDs(args []string) ([]int64, error) {
@@ -22,6 +23,17 @@ func parseIDs(args []string) ([]int64, error) {
 		return nil, errors.New("at least one id is required")
 	}
 	return ids, nil
+}
+
+func commandArgs(cmd *cli.Command) []string {
+	if cmd == nil {
+		return nil
+	}
+	args := make([]string, cmd.Args().Len())
+	for i := 0; i < cmd.Args().Len(); i++ {
+		args[i] = cmd.Args().Get(i)
+	}
+	return args
 }
 
 // newService returns a Service implementation using direct database access.

@@ -11,22 +11,19 @@ import (
 
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var importCmd = &cobra.Command{
-	Use:     "import <path|->",
-	Aliases: []string{"in"},
-	Short:   "Import tasks from todo.txt",
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 1 {
+var importCmd = &cli.Command{
+	Name:      "import",
+	Aliases:   []string{"in"},
+	Usage:     "Import tasks from todo.txt",
+	ArgsUsage: "<path|->",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		if cmd.Args().Len() != 1 {
 			return errors.New("import requires a file path or -")
 		}
-		return nil
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		path := args[0]
+		path := cmd.Args().Get(0)
 		var reader io.Reader
 		if path == "-" {
 			reader = os.Stdin

@@ -1,13 +1,14 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/mholtzscher/ugh/internal/config"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
 type getResult struct {
@@ -15,17 +16,20 @@ type getResult struct {
 	Value string `json:"value"`
 }
 
-var getCmd = &cobra.Command{
-	Use:   "get <key>",
-	Short: "Get a configuration value",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
+var getCmd = &cli.Command{
+	Name:      "get",
+	Usage:     "Get a configuration value",
+	ArgsUsage: "<key>",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		if cmd.Args().Len() != 1 {
+			return errors.New("get requires a key")
+		}
 		cfg := deps.Config()
 		if cfg == nil {
 			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
-		key := args[0]
+		key := cmd.Args().Get(0)
 		value, err := getValue(cfg, key)
 		if err != nil {
 			return err

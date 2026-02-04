@@ -1,22 +1,22 @@
 package daemon
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/mholtzscher/ugh/internal/daemon/service"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var startCmd = &cobra.Command{
-	Use:   "start",
-	Short: "Start the daemon service",
-	Long: `Start the daemon via the system service manager.
+var startCmd = &cli.Command{
+	Name:  "start",
+	Usage: "Start the daemon service",
+	Description: `Start the daemon via the system service manager.
 
 The service must be installed first with 'ugh daemon install'.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		mgr, err := getServiceManager()
 		if err != nil {
 			return fmt.Errorf("detect service manager: %w", err)

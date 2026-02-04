@@ -5,15 +5,15 @@ import (
 	"fmt"
 
 	"github.com/mholtzscher/ugh/internal/output"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var rmCmd = &cobra.Command{
-	Use:   "rm <id...>",
-	Short: "Delete tasks",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		ids, err := parseIDs(args)
+var rmCmd = &cli.Command{
+	Name:      "rm",
+	Usage:     "Delete tasks",
+	ArgsUsage: "<id...>",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		ids, err := parseIDs(commandArgs(cmd))
 		if err != nil {
 			return err
 		}

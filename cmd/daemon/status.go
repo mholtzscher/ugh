@@ -1,10 +1,11 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
 // StatusOutput represents the status information for JSON output.
@@ -15,15 +16,14 @@ type StatusOutput struct {
 	ServicePath string `json:"servicePath,omitempty"`
 }
 
-var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show daemon service status",
-	Long: `Show the status of the daemon service.
+var statusCmd = &cli.Command{
+	Name:  "status",
+	Usage: "Show daemon service status",
+	Description: `Show the status of the daemon service.
 
 Displays whether the service is installed, running, and if running,
 shows uptime and sync status from the daemon's health endpoint.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		mgr, err := getServiceManager()
 		if err != nil {
 			return fmt.Errorf("detect service manager: %w", err)

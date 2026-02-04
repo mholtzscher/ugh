@@ -1,19 +1,19 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/mholtzscher/ugh/internal/config"
 
 	"github.com/BurntSushi/toml"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var showCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show configuration",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
+var showCmd = &cli.Command{
+	Name:  "show",
+	Usage: "Show configuration",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		cfg := deps.Config()
 		if cfg == nil {
 			cfg = &config.Config{Version: config.DefaultVersion}

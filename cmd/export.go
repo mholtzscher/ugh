@@ -7,36 +7,61 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/mholtzscher/ugh/internal/todotxt"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var exportOpts struct {
-	All      bool
-	DoneOnly bool
-	TodoOnly bool
-	Project  string
-	Context  string
-	Priority string
-	Search   string
-}
-
-var exportCmd = &cobra.Command{
-	Use:     "export <path|->",
-	Aliases: []string{"ex"},
-	Short:   "Export tasks to todo.txt",
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 1 {
+var exportCmd = &cli.Command{
+	Name:      "export",
+	Aliases:   []string{"ex"},
+	Usage:     "Export tasks to todo.txt",
+	ArgsUsage: "<path|->",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:    flags.FlagAll,
+			Aliases: []string{"a"},
+			Usage:   "include completed tasks",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagDone,
+			Aliases: []string{"x"},
+			Usage:   "only completed tasks",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagTodo,
+			Aliases: []string{"t"},
+			Usage:   "only pending tasks",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagProject,
+			Aliases: []string{"P"},
+			Usage:   "filter by project",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagContext,
+			Aliases: []string{"c"},
+			Usage:   "filter by context",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagPriority,
+			Aliases: []string{"p"},
+			Usage:   "filter by priority",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagSearch,
+			Aliases: []string{"s"},
+			Usage:   "search text",
+		},
+	},
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		if cmd.Args().Len() != 1 {
 			return errors.New("export requires a file path or -")
 		}
-		return nil
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		path := args[0]
-		if rootOpts.JSON && path == "-" {
+		path := cmd.Args().Get(0)
+		if cmd.Bool(flags.FlagJSON) && path == "-" {
 			return errors.New("--json cannot be used when exporting to stdout")
 		}
 
@@ -47,13 +72,13 @@ var exportCmd = &cobra.Command{
 		defer func() { _ = svc.Close() }()
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
-			All:      exportOpts.All,
-			DoneOnly: exportOpts.DoneOnly,
-			TodoOnly: exportOpts.TodoOnly,
-			Project:  exportOpts.Project,
-			Context:  exportOpts.Context,
-			Priority: exportOpts.Priority,
-			Search:   exportOpts.Search,
+			All:      cmd.Bool(flags.FlagAll),
+			DoneOnly: cmd.Bool(flags.FlagDone),
+			TodoOnly: cmd.Bool(flags.FlagTodo),
+			Project:  cmd.String(flags.FlagProject),
+			Context:  cmd.String(flags.FlagContext),
+			Priority: cmd.String(flags.FlagPriority),
+			Search:   cmd.String(flags.FlagSearch),
 		})
 		if err != nil {
 			return err
@@ -95,14 +120,4 @@ var exportCmd = &cobra.Command{
 		out := outputWriter()
 		return out.WriteSummary(output.ExportSummary{Action: "export", Count: int64(len(tasks)), File: path})
 	},
-}
-
-func init() {
-	exportCmd.Flags().BoolVarP(&exportOpts.All, "all", "a", false, "include completed tasks")
-	exportCmd.Flags().BoolVarP(&exportOpts.DoneOnly, "done", "x", false, "only completed tasks")
-	exportCmd.Flags().BoolVarP(&exportOpts.TodoOnly, "todo", "t", false, "only pending tasks")
-	exportCmd.Flags().StringVarP(&exportOpts.Project, "project", "P", "", "filter by project")
-	exportCmd.Flags().StringVarP(&exportOpts.Context, "context", "c", "", "filter by context")
-	exportCmd.Flags().StringVarP(&exportOpts.Priority, "priority", "p", "", "filter by priority")
-	exportCmd.Flags().StringVarP(&exportOpts.Search, "search", "s", "", "search text")
 }

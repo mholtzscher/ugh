@@ -6,27 +6,53 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var addOpts struct {
-	Priority  string
-	Projects  []string
-	Contexts  []string
-	Meta      []string
-	Done      bool
-	Created   string
-	Completed string
-}
-
-var addCmd = &cobra.Command{
-	Use:     "add [todo.txt line]",
-	Aliases: []string{"a"},
-	Short:   "Add a task",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		line := strings.TrimSpace(strings.Join(args, " "))
+var addCmd = &cli.Command{
+	Name:      "add",
+	Aliases:   []string{"a"},
+	Usage:     "Add a task",
+	ArgsUsage: "[todo.txt line]",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    flags.FlagPriority,
+			Aliases: []string{"p"},
+			Usage:   "priority letter",
+		},
+		&cli.StringSliceFlag{
+			Name:    flags.FlagProject,
+			Aliases: []string{"P"},
+			Usage:   "project tag (repeatable)",
+		},
+		&cli.StringSliceFlag{
+			Name:    flags.FlagContext,
+			Aliases: []string{"c"},
+			Usage:   "context tag (repeatable)",
+		},
+		&cli.StringSliceFlag{
+			Name:    flags.FlagMeta,
+			Aliases: []string{"m"},
+			Usage:   "metadata key:value (repeatable)",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagDone,
+			Aliases: []string{"x"},
+			Usage:   "mark task done",
+		},
+		&cli.StringFlag{
+			Name:  flags.FlagCreated,
+			Usage: "creation date (YYYY-MM-DD)",
+		},
+		&cli.StringFlag{
+			Name:  flags.FlagCompleted,
+			Usage: "completion date (YYYY-MM-DD)",
+		},
+	},
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		line := strings.TrimSpace(strings.Join(commandArgs(cmd), " "))
 		if line == "" {
 			return errors.New("todo text required")
 		}
@@ -43,13 +69,13 @@ var addCmd = &cobra.Command{
 
 		task, err := svc.CreateTask(ctx, service.CreateTaskRequest{
 			Line:      line,
-			Priority:  addOpts.Priority,
-			Projects:  addOpts.Projects,
-			Contexts:  addOpts.Contexts,
-			Meta:      addOpts.Meta,
-			Done:      addOpts.Done,
-			Created:   addOpts.Created,
-			Completed: addOpts.Completed,
+			Priority:  cmd.String(flags.FlagPriority),
+			Projects:  cmd.StringSlice(flags.FlagProject),
+			Contexts:  cmd.StringSlice(flags.FlagContext),
+			Meta:      cmd.StringSlice(flags.FlagMeta),
+			Done:      cmd.Bool(flags.FlagDone),
+			Created:   cmd.String(flags.FlagCreated),
+			Completed: cmd.String(flags.FlagCompleted),
 		})
 		if err != nil {
 			return err
@@ -61,14 +87,4 @@ var addCmd = &cobra.Command{
 		writer := outputWriter()
 		return writer.WriteTask(task)
 	},
-}
-
-func init() {
-	addCmd.Flags().StringVarP(&addOpts.Priority, "priority", "p", "", "priority letter")
-	addCmd.Flags().StringSliceVarP(&addOpts.Projects, "project", "P", nil, "project tag (repeatable)")
-	addCmd.Flags().StringSliceVarP(&addOpts.Contexts, "context", "c", nil, "context tag (repeatable)")
-	addCmd.Flags().StringSliceVarP(&addOpts.Meta, "meta", "m", nil, "metadata key:value (repeatable)")
-	addCmd.Flags().BoolVarP(&addOpts.Done, "done", "x", false, "mark task done")
-	addCmd.Flags().StringVar(&addOpts.Created, "created", "", "creation date (YYYY-MM-DD)")
-	addCmd.Flags().StringVar(&addOpts.Completed, "completed", "", "completion date (YYYY-MM-DD)")
 }

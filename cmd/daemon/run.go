@@ -13,23 +13,20 @@ import (
 	"github.com/mholtzscher/ugh/internal/daemon"
 	"github.com/mholtzscher/ugh/internal/store"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run the daemon in foreground",
-	Long: `Run the daemon server in the foreground.
+var runCmd = &cli.Command{
+	Name:  "run",
+	Usage: "Run the daemon in foreground",
+	Description: `Run the daemon server in the foreground.
 
 This is primarily used by the system service manager (systemd/launchd).
 For debugging, you can run it directly to see logs in the terminal.
 
 The daemon provides background sync to Turso cloud on a periodic interval.
 It only opens the database when syncing, avoiding lock contention with the CLI.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		// Get config
 		cfg := getConfig()
 		if cfg == nil {

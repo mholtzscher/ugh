@@ -5,16 +5,16 @@ import (
 	"fmt"
 
 	"github.com/mholtzscher/ugh/internal/output"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var doneCmd = &cobra.Command{
-	Use:     "done <id...>",
-	Aliases: []string{"d"},
-	Short:   "Mark tasks as done",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		ids, err := parseIDs(args)
+var doneCmd = &cli.Command{
+	Name:      "done",
+	Aliases:   []string{"d"},
+	Usage:     "Mark tasks as done",
+	ArgsUsage: "<id...>",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		ids, err := parseIDs(commandArgs(cmd))
 		if err != nil {
 			return err
 		}

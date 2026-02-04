@@ -6,32 +6,41 @@ import (
 	"fmt"
 	"text/tabwriter"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
 var (
-	syncCmd = &cobra.Command{
-		Use:   "sync",
-		Short: "Sync database with remote server",
-		RunE:  runSync,
+	syncPullCmd = &cli.Command{
+		Name:  "pull",
+		Usage: "Pull changes from remote server",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runSyncPull(ctx)
+		},
 	}
 
-	syncPullCmd = &cobra.Command{
-		Use:   "pull",
-		Short: "Pull changes from remote server",
-		RunE:  runSyncPull,
+	syncPushCmd = &cli.Command{
+		Name:  "push",
+		Usage: "Push local changes to remote server",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runSyncPush(ctx)
+		},
 	}
 
-	syncPushCmd = &cobra.Command{
-		Use:   "push",
-		Short: "Push local changes to remote server",
-		RunE:  runSyncPush,
+	syncStatusCmd = &cli.Command{
+		Name:  "status",
+		Usage: "Show sync status",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runSyncStatus(ctx)
+		},
 	}
 
-	syncStatusCmd = &cobra.Command{
-		Use:   "status",
-		Short: "Show sync status",
-		RunE:  runSyncStatus,
+	syncCmd = &cli.Command{
+		Name:  "sync",
+		Usage: "Sync database with remote server",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runSync(ctx)
+		},
+		Commands: []*cli.Command{syncPullCmd, syncPushCmd, syncStatusCmd},
 	}
 )
 
@@ -50,8 +59,7 @@ type syncResult struct {
 	Message string `json:"message"`
 }
 
-func runSync(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+func runSync(ctx context.Context) error {
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -74,8 +82,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func runSyncPull(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+func runSyncPull(ctx context.Context) error {
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -96,8 +103,7 @@ func runSyncPull(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func runSyncPush(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+func runSyncPush(ctx context.Context) error {
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -117,8 +123,7 @@ func runSyncPush(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func runSyncStatus(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+func runSyncStatus(ctx context.Context) error {
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -184,10 +189,4 @@ func runSyncStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	return tw.Flush()
-}
-
-func init() {
-	syncCmd.AddCommand(syncPullCmd)
-	syncCmd.AddCommand(syncPushCmd)
-	syncCmd.AddCommand(syncStatusCmd)
 }

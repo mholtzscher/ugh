@@ -8,7 +8,7 @@ import (
 	"github.com/mholtzscher/ugh/internal/daemon/service"
 	"github.com/mholtzscher/ugh/internal/output"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
 // Deps holds dependencies injected from the parent cmd package.
@@ -65,10 +65,10 @@ func getConfig() *config.Config {
 }
 
 // Cmd is the parent command for all daemon subcommands.
-var Cmd = &cobra.Command{
-	Use:   "daemon",
-	Short: "Manage the background daemon",
-	Long: `Manage the ugh background daemon for HTTP API and Turso sync.
+var Cmd = &cli.Command{
+	Name:  "daemon",
+	Usage: "Manage the background daemon",
+	Description: `Manage the ugh background daemon for HTTP API and Turso sync.
 
 The daemon provides:
   - HTTP API for external integrations (Raycast, scripts, etc.)
@@ -80,15 +80,17 @@ Use 'ugh daemon install' to set up the system service, then
 
 // Register adds the daemon command and its subcommands to the parent command.
 // Must be called with valid Deps before the command tree is executed.
-func Register(parent *cobra.Command, d Deps) {
+func Register(parent *cli.Command, d Deps) {
 	deps = d
-	Cmd.AddCommand(installCmd)
-	Cmd.AddCommand(uninstallCmd)
-	Cmd.AddCommand(startCmd)
-	Cmd.AddCommand(stopCmd)
-	Cmd.AddCommand(restartCmd)
-	Cmd.AddCommand(statusCmd)
-	Cmd.AddCommand(logsCmd)
-	Cmd.AddCommand(runCmd)
-	parent.AddCommand(Cmd)
+	Cmd.Commands = []*cli.Command{
+		installCmd,
+		uninstallCmd,
+		startCmd,
+		stopCmd,
+		restartCmd,
+		statusCmd,
+		logsCmd,
+		runCmd,
+	}
+	parent.Commands = append(parent.Commands, Cmd)
 }

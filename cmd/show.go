@@ -4,22 +4,19 @@ import (
 	"context"
 	"errors"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var showCmd = &cobra.Command{
-	Use:     "show <id>",
-	Aliases: []string{"s"},
-	Short:   "Show a task",
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 1 {
+var showCmd = &cli.Command{
+	Name:      "show",
+	Aliases:   []string{"s"},
+	Usage:     "Show a task",
+	ArgsUsage: "<id>",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		if cmd.Args().Len() != 1 {
 			return errors.New("show requires a task id")
 		}
-		return nil
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		ids, err := parseIDs(args)
+		ids, err := parseIDs(commandArgs(cmd))
 		if err != nil {
 			return err
 		}

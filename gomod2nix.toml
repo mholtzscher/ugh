@@ -19,9 +19,6 @@ schema = 3
   [mod."github.com/fatih/color"]
     version = "v1.18.0"
     hash = "sha256-pP5y72FSbi4j/BjyVq/XbAOFjzNjMxZt2R/lFFxGWvY="
-  [mod."github.com/inconshreveable/mousetrap"]
-    version = "v1.1.0"
-    hash = "sha256-XWlYH0c8IcxAwQTnIi6WYqq44nOKUylSWxWO/vi+8pE="
   [mod."github.com/mattn/go-colorable"]
     version = "v0.1.14"
     hash = "sha256-JC60PjKj7MvhZmUHTZ9p372FV72I9Mxvli3fivTbxuA="
@@ -55,15 +52,12 @@ schema = 3
   [mod."github.com/sethvargo/go-retry"]
     version = "v0.3.0"
     hash = "sha256-1ZnFRHAaQjralGKVRoCbiwCXXB3w4kS3f+2hK9S8lbU="
-  [mod."github.com/spf13/cobra"]
-    version = "v1.10.2"
-    hash = "sha256-nbRCTFiDCC2jKK7AHi79n7urYCMP5yDZnWtNVJrDi+k="
-  [mod."github.com/spf13/pflag"]
-    version = "v1.0.10"
-    hash = "sha256-uDPnWjHpSrzXr17KEYEA1yAbizfcsfo5AyztY2tS6ZU="
   [mod."github.com/tursodatabase/turso-go-platform-libs"]
     version = "v0.4.3"
     hash = "sha256-8dIVrU1Z7GSQ0G+OCdeNZJiAVkc2qgkdHUc3VSe41nI="
+  [mod."github.com/urfave/cli/v3"]
+    version = "v3.6.2"
+    hash = "sha256-GeTwfmXv2okvX2kmMREozvH4PH6ihPNVFSNSWrW+gyQ="
   [mod."go.uber.org/multierr"]
     version = "v1.11.0"
     hash = "sha256-Lb6rHHfR62Ozg2j2JZy3MKOMKdsfzd1IYTR57r3Mhp0="

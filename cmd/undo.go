@@ -5,16 +5,16 @@ import (
 	"fmt"
 
 	"github.com/mholtzscher/ugh/internal/output"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var undoCmd = &cobra.Command{
-	Use:     "undo <id...>",
-	Aliases: []string{"u"},
-	Short:   "Mark tasks as not done",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		ids, err := parseIDs(args)
+var undoCmd = &cli.Command{
+	Name:      "undo",
+	Aliases:   []string{"u"},
+	Usage:     "Mark tasks as not done",
+	ArgsUsage: "<id...>",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		ids, err := parseIDs(commandArgs(cmd))
 		if err != nil {
 			return err
 		}

@@ -4,7 +4,7 @@ import (
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/output"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
 // Deps holds dependencies injected from the parent cmd package.
@@ -29,20 +29,17 @@ type Deps struct {
 var deps Deps
 
 // Cmd is the parent command for all config subcommands.
-var Cmd = &cobra.Command{
-	Use:   "config",
-	Short: "Manage configuration",
+var Cmd = &cli.Command{
+	Name:  "config",
+	Usage: "Manage configuration",
 }
 
 // Register adds the config command and its subcommands to the parent command.
 // Must be called with valid Deps before the command tree is executed.
-func Register(parent *cobra.Command, d Deps) {
+func Register(parent *cli.Command, d Deps) {
 	deps = d
-	Cmd.AddCommand(initCmd)
-	Cmd.AddCommand(showCmd)
-	Cmd.AddCommand(getCmd)
-	Cmd.AddCommand(setCmd)
-	parent.AddCommand(Cmd)
+	Cmd.Commands = []*cli.Command{initCmd, showCmd, getCmd, setCmd}
+	parent.Commands = append(parent.Commands, Cmd)
 }
 
 // configPathForWrite returns the path to write config to.

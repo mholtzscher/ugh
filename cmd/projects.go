@@ -3,23 +3,37 @@ package cmd
 import (
 	"context"
 
+	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var projectsOpts struct {
-	All      bool
-	DoneOnly bool
-	TodoOnly bool
-	Counts   bool
-}
-
-var projectsCmd = &cobra.Command{
-	Use:     "projects",
+var projectsCmd = &cli.Command{
+	Name:    "projects",
 	Aliases: []string{"proj"},
-	Short:   "List available project tags",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+	Usage:   "List available project tags",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:    flags.FlagAll,
+			Aliases: []string{"a"},
+			Usage:   "include completed tasks",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagDone,
+			Aliases: []string{"x"},
+			Usage:   "only completed tasks",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagTodo,
+			Aliases: []string{"t"},
+			Usage:   "only pending tasks",
+		},
+		&cli.BoolFlag{
+			Name:  flags.FlagCounts,
+			Usage: "include counts",
+		},
+	},
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -27,25 +41,18 @@ var projectsCmd = &cobra.Command{
 		defer func() { _ = svc.Close() }()
 
 		tags, err := svc.ListProjects(ctx, service.ListTagsRequest{
-			All:      projectsOpts.All,
-			DoneOnly: projectsOpts.DoneOnly,
-			TodoOnly: projectsOpts.TodoOnly,
+			All:      cmd.Bool(flags.FlagAll),
+			DoneOnly: cmd.Bool(flags.FlagDone),
+			TodoOnly: cmd.Bool(flags.FlagTodo),
 		})
 		if err != nil {
 			return err
 		}
 
 		writer := outputWriter()
-		if projectsOpts.Counts {
+		if cmd.Bool(flags.FlagCounts) {
 			return writer.WriteTagsWithCounts(tags)
 		}
 		return writer.WriteTags(tags)
 	},
-}
-
-func init() {
-	projectsCmd.Flags().BoolVarP(&projectsOpts.All, "all", "a", false, "include completed tasks")
-	projectsCmd.Flags().BoolVarP(&projectsOpts.DoneOnly, "done", "x", false, "only completed tasks")
-	projectsCmd.Flags().BoolVarP(&projectsOpts.TodoOnly, "todo", "t", false, "only pending tasks")
-	projectsCmd.Flags().BoolVarP(&projectsOpts.Counts, "counts", "", false, "include counts")
 }

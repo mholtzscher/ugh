@@ -1,13 +1,15 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/mholtzscher/ugh/internal/config"
 
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
 type setResult struct {
@@ -17,18 +19,21 @@ type setResult struct {
 	File   string `json:"file"`
 }
 
-var setCmd = &cobra.Command{
-	Use:   "set <key> <value>",
-	Short: "Set a configuration value",
-	Args:  cobra.ExactArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
+var setCmd = &cli.Command{
+	Name:      "set",
+	Usage:     "Set a configuration value",
+	ArgsUsage: "<key> <value>",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		if cmd.Args().Len() != 2 {
+			return errors.New("set requires a key and value")
+		}
 		cfg := deps.Config()
 		if cfg == nil {
 			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
-		key := args[0]
-		value := args[1]
+		key := cmd.Args().Get(0)
+		value := cmd.Args().Get(1)
 		if err := setValue(cfg, key, value); err != nil {
 			return err
 		}

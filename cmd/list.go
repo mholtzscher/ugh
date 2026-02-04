@@ -3,26 +3,53 @@ package cmd
 import (
 	"context"
 
+	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/spf13/cobra"
+	"github.com/urfave/cli/v3"
 )
 
-var listOpts struct {
-	All      bool
-	DoneOnly bool
-	TodoOnly bool
-	Project  string
-	Context  string
-	Priority string
-	Search   string
-}
-
-var listCmd = &cobra.Command{
-	Use:     "list",
+var listCmd = &cli.Command{
+	Name:    "list",
 	Aliases: []string{"ls", "l"},
-	Short:   "List tasks",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+	Usage:   "List tasks",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:    flags.FlagAll,
+			Aliases: []string{"a"},
+			Usage:   "include completed tasks",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagDone,
+			Aliases: []string{"x"},
+			Usage:   "only completed tasks",
+		},
+		&cli.BoolFlag{
+			Name:    flags.FlagTodo,
+			Aliases: []string{"t"},
+			Usage:   "only pending tasks",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagProject,
+			Aliases: []string{"P"},
+			Usage:   "filter by project",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagContext,
+			Aliases: []string{"c"},
+			Usage:   "filter by context",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagPriority,
+			Aliases: []string{"p"},
+			Usage:   "filter by priority",
+		},
+		&cli.StringFlag{
+			Name:    flags.FlagSearch,
+			Aliases: []string{"s"},
+			Usage:   "search text",
+		},
+	},
+	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -30,13 +57,13 @@ var listCmd = &cobra.Command{
 		defer func() { _ = svc.Close() }()
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
-			All:      listOpts.All,
-			DoneOnly: listOpts.DoneOnly,
-			TodoOnly: listOpts.TodoOnly,
-			Project:  listOpts.Project,
-			Context:  listOpts.Context,
-			Priority: listOpts.Priority,
-			Search:   listOpts.Search,
+			All:      cmd.Bool(flags.FlagAll),
+			DoneOnly: cmd.Bool(flags.FlagDone),
+			TodoOnly: cmd.Bool(flags.FlagTodo),
+			Project:  cmd.String(flags.FlagProject),
+			Context:  cmd.String(flags.FlagContext),
+			Priority: cmd.String(flags.FlagPriority),
+			Search:   cmd.String(flags.FlagSearch),
 		})
 		if err != nil {
 			return err
@@ -45,14 +72,4 @@ var listCmd = &cobra.Command{
 		writer := outputWriter()
 		return writer.WriteTasks(tasks)
 	},
-}
-
-func init() {
-	listCmd.Flags().BoolVarP(&listOpts.All, "all", "a", false, "include completed tasks")
-	listCmd.Flags().BoolVarP(&listOpts.DoneOnly, "done", "x", false, "only completed tasks")
-	listCmd.Flags().BoolVarP(&listOpts.TodoOnly, "todo", "t", false, "only pending tasks")
-	listCmd.Flags().StringVarP(&listOpts.Project, "project", "P", "", "filter by project")
-	listCmd.Flags().StringVarP(&listOpts.Context, "context", "c", "", "filter by context")
-	listCmd.Flags().StringVarP(&listOpts.Priority, "priority", "p", "", "filter by priority")
-	listCmd.Flags().StringVarP(&listOpts.Search, "search", "s", "", "search text")
 }
