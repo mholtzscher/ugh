@@ -1,5 +1,5 @@
 # JSON list output
-exec ugh --db $WORK/db.sqlite add -P work Read spec
+exec ugh --db $WORK/db.sqlite add -p work Read spec
 exec ugh --db $WORK/db.sqlite list --json
 stdout '"title":"Read spec"'
 stdout '"state":"inbox"'

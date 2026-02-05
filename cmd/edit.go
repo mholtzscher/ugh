@@ -28,7 +28,7 @@ Use flags for quick single-field changes without opening an editor.
 		  ugh edit 1 --state now              # Move to Now
 		  ugh edit 1 --due 2026-02-10         # Set due date
 		  ugh edit 1 --title "New title"      # Change title
-		  ugh edit 1 -P urgent                # Add project 'urgent'
+		  ugh edit 1 -p urgent                # Add project 'urgent'
 		  ugh edit 1 --remove-project old     # Remove project 'old'
 		  ugh edit 1 -c work -m key:val       # Add context and metadata`,
 	ArgsUsage: "<id>",
@@ -70,7 +70,7 @@ Use flags for quick single-field changes without opening an editor.
 		},
 		&cli.StringSliceFlag{
 			Name:    flags.FlagProject,
-			Aliases: []string{"P"},
+			Aliases: []string{"p"},
 			Usage:   "add project (repeatable)",
 		},
 		&cli.StringSliceFlag{

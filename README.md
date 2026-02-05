@@ -18,8 +18,8 @@ nix build
 
 ```bash
 # Add tasks
-ugh add -P groceries -c errands Buy milk
-ugh add --state now -p A -P family -c phone --due 2026-01-20 Call mom
+ugh add -p groceries -c errands Buy milk
+ugh add --state now -p family -c phone --due 2026-01-20 Call mom
 
 
 # Lists
@@ -47,7 +47,7 @@ ugh done 1 2 3
 ugh undo 1
 
 # Edit a task
-ugh edit 1 --state now -P work
+ugh edit 1 --state now -p work
 
 # Show task details
 ugh show 1

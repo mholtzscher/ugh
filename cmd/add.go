@@ -32,7 +32,7 @@ var addCmd = &cli.Command{
 		},
 		&cli.StringSliceFlag{
 			Name:    flags.FlagProject,
-			Aliases: []string{"P"},
+			Aliases: []string{"p"},
 			Usage:   "project (repeatable)",
 		},
 		&cli.StringSliceFlag{

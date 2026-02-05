@@ -23,6 +23,9 @@ stderr 'invalid meta'
 ! exec ugh --db $WORK/db.sqlite add --state someday Task
 stderr 'invalid state "someday"'
 
+! exec ugh --db $WORK/db.sqlite add -P legacy Task
+stderr 'not defined: -P'
+
 ! exec ugh --db $WORK/db.sqlite list --all --done
 stderr 'cannot combine --all with --done'
 

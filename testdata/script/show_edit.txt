@@ -1,5 +1,5 @@
 # Show and edit flows
-exec ugh --db $WORK/db.sqlite add --state now --due 2026-01-02 --waiting-for Alice --notes pack_stuff -P travel -c home -m note:foo Plan trip
+exec ugh --db $WORK/db.sqlite add --state now --due 2026-01-02 --waiting-for Alice --notes pack_stuff -p travel -c home -m note:foo Plan trip
 
 exec ugh --db $WORK/db.sqlite show 1
 cmp stdout want-show.txt
@@ -21,7 +21,7 @@ exec ugh --db $WORK/db.sqlite show 1 --json
 stdout '"title":"Updated"'
 
 # Add project (additive)
-exec ugh --db $WORK/db.sqlite edit 1 -P work
+exec ugh --db $WORK/db.sqlite edit 1 -p work
 exec ugh --db $WORK/db.sqlite show 1 --json
 stdout '"projects":\["travel","work"\]'
 
@@ -106,7 +106,7 @@ stdout '"state":"later"'
 
 # Multiple flags at once
 exec ugh --db $WORK/db.sqlite add Test multi-edit
-exec ugh --db $WORK/db.sqlite edit 2 --state now -P proj1 -P proj2 -c ctx1 --due 2026-01-05 --waiting-for Alice --notes note -m key1:val1 -m key2:val2
+exec ugh --db $WORK/db.sqlite edit 2 --state now -p proj1 -p proj2 -c ctx1 --due 2026-01-05 --waiting-for Alice --notes note -m key1:val1 -m key2:val2
 exec ugh --db $WORK/db.sqlite show 2 --json
 stdout '"state":"now"'
 stdout '"projects":\["proj1","proj2"\]'

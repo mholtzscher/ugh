@@ -1,8 +1,8 @@
 # List filters
-exec ugh --db $WORK/db.sqlite add -P work -c office Alpha
-exec ugh --db $WORK/db.sqlite add -P home -c phone Bravo
-exec ugh --db $WORK/db.sqlite add -P work -c home Charlie
-exec ugh --db $WORK/db.sqlite add -P misc Delta
+exec ugh --db $WORK/db.sqlite add -p work -c office Alpha
+exec ugh --db $WORK/db.sqlite add -p home -c phone Bravo
+exec ugh --db $WORK/db.sqlite add -p work -c home Charlie
+exec ugh --db $WORK/db.sqlite add -p misc Delta
 exec ugh --db $WORK/db.sqlite done 2
 
 # Default list (todo only)
@@ -25,7 +25,7 @@ stdout 'Charlie'
 stdout 'Delta'
 
 # Project filter
-exec ugh --db $WORK/db.sqlite list --project work
+exec ugh --db $WORK/db.sqlite list -p work
 stdout 'Alpha'
 stdout 'Charlie'
 ! stdout 'Bravo'

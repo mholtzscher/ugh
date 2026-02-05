@@ -65,7 +65,7 @@ var exportCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:    flags.FlagProject,
-			Aliases: []string{"P"},
+			Aliases: []string{"p"},
 			Usage:   "filter by project",
 		},
 		&cli.StringFlag{
