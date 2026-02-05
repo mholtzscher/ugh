@@ -36,14 +36,13 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 	table.Header("Field", "Value")
 	rows := [][]string{
 		{"ID", fmt.Sprintf("%d", task.ID)},
-		{"Status", string(task.Status)},
-		{"Done", fmt.Sprintf("%t", task.Done)},
+		{"State", string(task.State)},
+		{"Prev State", stateOrDash(task.PrevState)},
 		{"Priority", emptyDash(task.Priority)},
 		{"Created", dayFromTimeOrDash(task.CreatedAt)},
 		{"Updated", dayFromTimeOrDash(task.UpdatedAt)},
 		{"Completed", dateTimeOrDash(task.CompletedAt)},
 		{"Due", dateOrDash(task.DueOn)},
-		{"Defer Until", dateOrDash(task.DeferUntil)},
 		{"Waiting For", emptyDash(task.WaitingFor)},
 		{"Title", task.Title},
 		{"Notes", emptyDash(task.Notes)},
@@ -61,13 +60,13 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 
 func writeHumanList(out io.Writer, tasks []*store.Task) error {
 	table := tablewriter.NewWriter(out)
-	table.Header("ID", "Status", "Due", "Defer", "Task")
+	table.Header("ID", "State", "Due", "Waiting", "Task")
 	for _, task := range tasks {
 		row := []string{
 			fmt.Sprintf("%d", task.ID),
-			string(task.Status),
+			string(task.State),
 			dateOrDash(task.DueOn),
-			dateOrDash(task.DeferUntil),
+			emptyDash(task.WaitingFor),
 			task.Title,
 		}
 		if err := appendRow(table, row); err != nil {
@@ -209,6 +208,13 @@ func metaOrDash(meta map[string]string) string {
 		parts = append(parts, k+"="+meta[k])
 	}
 	return strings.Join(parts, ", ")
+}
+
+func stateOrDash(value *store.State) string {
+	if value == nil || *value == "" {
+		return "-"
+	}
+	return string(*value)
 }
 
 func writeHumanTags(out io.Writer, tags []store.NameCount) error {

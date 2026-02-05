@@ -22,15 +22,13 @@ func NewTaskService(store *store.Store) *TaskService {
 type CreateTaskRequest struct {
 	Title      string
 	Notes      string
-	Status     string
+	State      string
 	Priority   string
 	Projects   []string
 	Contexts   []string
 	Meta       []string
 	DueOn      string
-	DeferUntil string
 	WaitingFor string
-	Done       bool
 }
 
 func (s *TaskService) CreateTask(ctx context.Context, req CreateTaskRequest) (*store.Task, error) {
@@ -39,7 +37,7 @@ func (s *TaskService) CreateTask(ctx context.Context, req CreateTaskRequest) (*s
 		return nil, fmt.Errorf("parse meta: %w", err)
 	}
 
-	status, err := normalizeStatus(req.Status)
+	state, err := normalizeState(req.State)
 	if err != nil {
 		return nil, err
 	}
@@ -52,23 +50,12 @@ func (s *TaskService) CreateTask(ctx context.Context, req CreateTaskRequest) (*s
 		}
 		dueOn = parsed
 	}
-	var deferUntil *time.Time
-	if strings.TrimSpace(req.DeferUntil) != "" {
-		parsed, err := parseDay(req.DeferUntil)
-		if err != nil {
-			return nil, err
-		}
-		deferUntil = parsed
-	}
-
 	task := &store.Task{
-		Done:       req.Done,
-		Status:     status,
+		State:      state,
 		Priority:   normalizePriority(req.Priority),
 		Title:      req.Title,
 		Notes:      req.Notes,
 		DueOn:      dueOn,
-		DeferUntil: deferUntil,
 		WaitingFor: strings.TrimSpace(req.WaitingFor),
 		Projects:   req.Projects,
 		Contexts:   req.Contexts,
@@ -79,32 +66,28 @@ func (s *TaskService) CreateTask(ctx context.Context, req CreateTaskRequest) (*s
 }
 
 type ListTasksRequest struct {
-	All             bool
-	DoneOnly        bool
-	TodoOnly        bool
-	Status          string
-	Project         string
-	Context         string
-	Priority        string
-	Search          string
-	DueOnly         bool
-	DeferAfter      string
-	DeferOnOrBefore string
+	All      bool
+	DoneOnly bool
+	TodoOnly bool
+	State    string
+	Project  string
+	Context  string
+	Priority string
+	Search   string
+	DueOnly  bool
 }
 
 func (s *TaskService) ListTasks(ctx context.Context, req ListTasksRequest) ([]*store.Task, error) {
 	filters := store.Filters{
-		All:             req.All,
-		DoneOnly:        req.DoneOnly,
-		TodoOnly:        req.TodoOnly,
-		Status:          strings.TrimSpace(req.Status),
-		Project:         req.Project,
-		Context:         req.Context,
-		Priority:        req.Priority,
-		Search:          req.Search,
-		DueSetOnly:      req.DueOnly,
-		DeferAfter:      strings.TrimSpace(req.DeferAfter),
-		DeferOnOrBefore: strings.TrimSpace(req.DeferOnOrBefore),
+		All:        req.All,
+		DoneOnly:   req.DoneOnly,
+		TodoOnly:   req.TodoOnly,
+		State:      strings.TrimSpace(req.State),
+		Project:    req.Project,
+		Context:    req.Context,
+		Priority:   req.Priority,
+		Search:     req.Search,
+		DueSetOnly: req.DueOnly,
 	}
 
 	if !filters.All && !filters.DoneOnly && !filters.TodoOnly {
@@ -145,44 +128,30 @@ type ListTagsRequest struct {
 }
 
 func (s *TaskService) ListProjects(ctx context.Context, req ListTagsRequest) ([]store.NameCount, error) {
-	var status any
-	if req.DoneOnly {
-		status = int64(1)
-	} else if req.TodoOnly {
-		status = int64(0)
-	}
-
+	onlyDone := req.DoneOnly
+	excludeDone := req.TodoOnly
 	if !req.All && !req.DoneOnly && !req.TodoOnly {
-		status = int64(0)
+		excludeDone = true
 	}
-
-	return s.store.ListProjectCounts(ctx, status)
+	return s.store.ListProjectCounts(ctx, onlyDone, excludeDone)
 }
 
 func (s *TaskService) ListContexts(ctx context.Context, req ListTagsRequest) ([]store.NameCount, error) {
-	var status any
-	if req.DoneOnly {
-		status = int64(1)
-	} else if req.TodoOnly {
-		status = int64(0)
-	}
-
+	onlyDone := req.DoneOnly
+	excludeDone := req.TodoOnly
 	if !req.All && !req.DoneOnly && !req.TodoOnly {
-		status = int64(0)
+		excludeDone = true
 	}
-
-	return s.store.ListContextCounts(ctx, status)
+	return s.store.ListContextCounts(ctx, onlyDone, excludeDone)
 }
 
 type UpdateTaskRequest struct {
 	ID              int64
 	Title           *string
 	Notes           *string
-	Status          *string
+	State           *string
 	Priority        *string
-	Done            *bool
 	DueOn           *string
-	DeferUntil      *string
 	WaitingFor      *string
 	AddProjects     []string
 	AddContexts     []string
@@ -192,7 +161,6 @@ type UpdateTaskRequest struct {
 	RemoveMetaKeys  []string
 	RemovePriority  bool
 	ClearDueOn      bool
-	ClearDeferUntil bool
 	ClearWaitingFor bool
 }
 
@@ -204,13 +172,12 @@ func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*s
 
 	updated := &store.Task{
 		ID:          current.ID,
-		Done:        current.Done,
-		Status:      current.Status,
+		State:       current.State,
+		PrevState:   current.PrevState,
 		Priority:    current.Priority,
 		Title:       current.Title,
 		Notes:       current.Notes,
 		DueOn:       current.DueOn,
-		DeferUntil:  current.DeferUntil,
 		WaitingFor:  current.WaitingFor,
 		CompletedAt: current.CompletedAt,
 		Projects:    append([]string(nil), current.Projects...),
@@ -224,24 +191,29 @@ func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*s
 	if req.Notes != nil {
 		updated.Notes = *req.Notes
 	}
-	if req.Status != nil {
-		status, err := normalizeStatus(*req.Status)
+	if req.State != nil {
+		state, err := normalizeState(*req.State)
 		if err != nil {
 			return nil, err
 		}
-		updated.Status = status
+		// Transition rules for done state.
+		if state == store.StateDone && updated.State != store.StateDone {
+			prev := updated.State
+			updated.PrevState = &prev
+			updated.CompletedAt = nil
+		}
+		if state != store.StateDone && updated.State == store.StateDone {
+			updated.PrevState = nil
+			updated.CompletedAt = nil
+		}
+		updated.State = state
 	}
 	if req.RemovePriority {
 		updated.Priority = ""
 	} else if req.Priority != nil {
 		updated.Priority = normalizePriority(*req.Priority)
 	}
-	if req.Done != nil {
-		updated.Done = *req.Done
-		if !*req.Done {
-			updated.CompletedAt = nil
-		}
-	}
+	// done is represented as state=done; completion toggles are handled by the done/undo commands.
 	if req.ClearDueOn {
 		updated.DueOn = nil
 	} else if req.DueOn != nil {
@@ -253,19 +225,6 @@ func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*s
 				return nil, err
 			}
 			updated.DueOn = parsed
-		}
-	}
-	if req.ClearDeferUntil {
-		updated.DeferUntil = nil
-	} else if req.DeferUntil != nil {
-		if strings.TrimSpace(*req.DeferUntil) == "" {
-			updated.DeferUntil = nil
-		} else {
-			parsed, err := parseDay(*req.DeferUntil)
-			if err != nil {
-				return nil, err
-			}
-			updated.DeferUntil = parsed
 		}
 	}
 	if req.ClearWaitingFor {
@@ -307,14 +266,12 @@ type FullUpdateTaskRequest struct {
 	ID         int64
 	Title      string
 	Notes      string
-	Status     string
+	State      string
 	Priority   string
-	Done       bool
 	Projects   []string
 	Contexts   []string
 	Meta       map[string]string
 	DueOn      string
-	DeferUntil string
 	WaitingFor string
 }
 
@@ -323,7 +280,7 @@ func (s *TaskService) FullUpdateTask(ctx context.Context, req FullUpdateTaskRequ
 	if err != nil {
 		return nil, err
 	}
-	status, err := normalizeStatus(req.Status)
+	state, err := normalizeState(req.State)
 	if err != nil {
 		return nil, err
 	}
@@ -335,32 +292,29 @@ func (s *TaskService) FullUpdateTask(ctx context.Context, req FullUpdateTaskRequ
 		}
 		dueOn = parsed
 	}
-	var deferUntil *time.Time
-	if strings.TrimSpace(req.DeferUntil) != "" {
-		parsed, err := parseDay(req.DeferUntil)
-		if err != nil {
-			return nil, err
-		}
-		deferUntil = parsed
-	}
-
 	updated := &store.Task{
 		ID:          current.ID,
-		Done:        req.Done,
-		Status:      status,
+		State:       state,
 		Priority:    normalizePriority(req.Priority),
 		Title:       req.Title,
 		Notes:       req.Notes,
 		DueOn:       dueOn,
-		DeferUntil:  deferUntil,
 		WaitingFor:  strings.TrimSpace(req.WaitingFor),
 		Projects:    req.Projects,
 		Contexts:    req.Contexts,
 		Meta:        req.Meta,
 		CompletedAt: current.CompletedAt,
+		PrevState:   current.PrevState,
 	}
-	if !req.Done {
+	if updated.State != store.StateDone {
 		updated.CompletedAt = nil
+	}
+	if updated.State == store.StateDone && current.State != store.StateDone {
+		prev := current.State
+		updated.PrevState = &prev
+	}
+	if updated.State != store.StateDone {
+		updated.PrevState = nil
 	}
 
 	return s.store.UpdateTask(ctx, updated)
@@ -428,15 +382,15 @@ func parseDay(value string) (*time.Time, error) {
 	return &utc, nil
 }
 
-func normalizeStatus(value string) (store.Status, error) {
+func normalizeState(value string) (store.State, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
-		return store.StatusInbox, nil
+		return store.StateInbox, nil
 	}
 	switch value {
-	case string(store.StatusInbox), string(store.StatusNext), string(store.StatusWaiting), string(store.StatusSomeday):
-		return store.Status(value), nil
+	case string(store.StateInbox), string(store.StateNow), string(store.StateWaiting), string(store.StateLater), string(store.StateDone):
+		return store.State(value), nil
 	default:
-		return "", fmt.Errorf("invalid status %q (expected inbox|next|waiting|someday)", value)
+		return "", fmt.Errorf("invalid state %q (expected inbox|now|waiting|later|done)", value)
 	}
 }

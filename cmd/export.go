@@ -45,8 +45,8 @@ var exportCmd = &cli.Command{
 			Usage:   "only pending tasks",
 		},
 		&cli.StringFlag{
-			Name:  flags.FlagStatus,
-			Usage: "filter by status (inbox|next|waiting|someday)",
+			Name:  flags.FlagState,
+			Usage: "filter by state (inbox|now|waiting|later|done)",
 		},
 		&cli.StringFlag{
 			Name:    flags.FlagProject,
@@ -95,7 +95,7 @@ var exportCmd = &cli.Command{
 			All:      cmd.Bool(flags.FlagAll),
 			DoneOnly: cmd.Bool(flags.FlagDone),
 			TodoOnly: cmd.Bool(flags.FlagTodo),
-			Status:   cmd.String(flags.FlagStatus),
+			State:    cmd.String(flags.FlagState),
 			Project:  cmd.String(flags.FlagProject),
 			Context:  cmd.String(flags.FlagContext),
 			Priority: cmd.String(flags.FlagPriority),
@@ -166,13 +166,11 @@ func outputTask(task *store.Task) any {
 	}
 	return map[string]any{
 		"id":          task.ID,
-		"done":        task.Done,
-		"status":      string(task.Status),
+		"state":       string(task.State),
 		"priority":    task.Priority,
 		"title":       task.Title,
 		"notes":       task.Notes,
 		"dueOn":       formatDay(task.DueOn),
-		"deferUntil":  formatDay(task.DeferUntil),
 		"waitingFor":  task.WaitingFor,
 		"projects":    projects,
 		"contexts":    contexts,

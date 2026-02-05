@@ -21,7 +21,7 @@ stdout '"title":"Charlie"'
 stdout '"title":"Delta"'
 
 -- import.jsonl --
-{"title":"Alpha","status":"next","projects":["work"]}
+{"title":"Alpha","state":"now","projects":["work"]}
 
 {"title":"Bravo","projects":["home"],"contexts":["phone"]}
 {"title":"Charlie","dueOn":"2026-02-01"}

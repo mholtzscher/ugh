@@ -39,7 +39,7 @@ COPYRIGHT:
 `
 
 var helpCategoryOrder = []string{
-	"GTD Lists",
+	"Lists",
 	"Tasks",
 	"Projects & Contexts",
 	"Backup",

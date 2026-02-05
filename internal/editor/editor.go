@@ -16,11 +16,9 @@ import (
 type TaskTOML struct {
 	Title      string            `toml:"title"`
 	Notes      string            `toml:"notes,omitempty"`
-	Status     string            `toml:"status"`
+	State      string            `toml:"state"`
 	Priority   string            `toml:"priority,omitempty"`
-	Done       bool              `toml:"done"`
 	DueOn      string            `toml:"due_on,omitempty"`
-	DeferUntil string            `toml:"defer_until,omitempty"`
 	WaitingFor string            `toml:"waiting_for,omitempty"`
 	Projects   []string          `toml:"projects,omitempty"`
 	Contexts   []string          `toml:"contexts,omitempty"`
@@ -44,11 +42,9 @@ func TaskToTOML(task *store.Task) TaskTOML {
 	return TaskTOML{
 		Title:      task.Title,
 		Notes:      task.Notes,
-		Status:     string(task.Status),
+		State:      string(task.State),
 		Priority:   task.Priority,
-		Done:       task.Done,
 		DueOn:      formatDay(task.DueOn),
-		DeferUntil: formatDay(task.DeferUntil),
 		WaitingFor: task.WaitingFor,
 		Projects:   projects,
 		Contexts:   contexts,
@@ -62,11 +58,9 @@ const tomlHeader = `# Task %d - Edit and save to apply changes
 # Fields:
 #   title        - The action title (required)
 #   notes        - Optional notes
-#   status       - inbox|next|waiting|someday
+#   state        - inbox|now|waiting|later|done
 #   priority     - A-Z (or empty to remove)
-#   done         - true/false
 #   due_on       - YYYY-MM-DD
-#   defer_until  - YYYY-MM-DD
 #   waiting_for  - Optional string
 #   projects     - List of project names
 #   contexts     - List of context names
@@ -151,15 +145,15 @@ func validate(t *TaskTOML) error {
 		return errors.New("title cannot be empty")
 	}
 
-	t.Status = strings.ToLower(strings.TrimSpace(t.Status))
-	if t.Status == "" {
-		t.Status = "inbox"
+	t.State = strings.ToLower(strings.TrimSpace(t.State))
+	if t.State == "" {
+		t.State = "inbox"
 	}
-	switch t.Status {
-	case "inbox", "next", "waiting", "someday":
+	switch t.State {
+	case "inbox", "now", "waiting", "later", "done":
 		// ok
 	default:
-		return fmt.Errorf("invalid status %q: must be inbox|next|waiting|someday", t.Status)
+		return fmt.Errorf("invalid state %q: must be inbox|now|waiting|later|done", t.State)
 	}
 
 	t.Priority = strings.ToUpper(strings.TrimSpace(t.Priority))
@@ -173,12 +167,6 @@ func validate(t *TaskTOML) error {
 	if t.DueOn != "" {
 		if _, err := time.Parse("2006-01-02", t.DueOn); err != nil {
 			return fmt.Errorf("invalid due_on %q: expected YYYY-MM-DD", t.DueOn)
-		}
-	}
-	t.DeferUntil = strings.TrimSpace(t.DeferUntil)
-	if t.DeferUntil != "" {
-		if _, err := time.Parse("2006-01-02", t.DeferUntil); err != nil {
-			return fmt.Errorf("invalid defer_until %q: expected YYYY-MM-DD", t.DeferUntil)
 		}
 	}
 	t.WaitingFor = strings.TrimSpace(t.WaitingFor)

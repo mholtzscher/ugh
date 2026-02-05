@@ -127,11 +127,9 @@ var importCmd = &cli.Command{
 type backupTask struct {
 	Title      string            `json:"title"`
 	Notes      string            `json:"notes,omitempty"`
-	Status     string            `json:"status,omitempty"`
+	State      string            `json:"state,omitempty"`
 	Priority   string            `json:"priority,omitempty"`
-	Done       bool              `json:"done,omitempty"`
 	DueOn      string            `json:"dueOn,omitempty"`
-	DeferUntil string            `json:"deferUntil,omitempty"`
 	WaitingFor string            `json:"waitingFor,omitempty"`
 	Projects   []string          `json:"projects,omitempty"`
 	Contexts   []string          `json:"contexts,omitempty"`
@@ -143,17 +141,16 @@ func (t backupTask) toCreateRequest() service.CreateTaskRequest {
 	for k, v := range t.Meta {
 		meta = append(meta, k+":"+v)
 	}
+	state := strings.TrimSpace(t.State)
 	return service.CreateTaskRequest{
 		Title:      t.Title,
 		Notes:      t.Notes,
-		Status:     t.Status,
+		State:      state,
 		Priority:   t.Priority,
 		Projects:   t.Projects,
 		Contexts:   t.Contexts,
 		Meta:       meta,
 		DueOn:      t.DueOn,
-		DeferUntil: t.DeferUntil,
 		WaitingFor: t.WaitingFor,
-		Done:       t.Done,
 	}
 }

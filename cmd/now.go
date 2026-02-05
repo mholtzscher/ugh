@@ -7,11 +7,11 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var somedayCmd = &cli.Command{
-	Name:     "someday",
-	Aliases:  []string{"sd"},
-	Usage:    "List someday/maybe items",
-	Category: "GTD Lists",
+var nowCmd = &cli.Command{
+	Name:     "now",
+	Aliases:  []string{"n"},
+	Usage:    "List tasks you can act on now",
+	Category: "Lists",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
@@ -21,7 +21,7 @@ var somedayCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			Status:   "someday",
+			State:    "now",
 		})
 		if err != nil {
 			return err

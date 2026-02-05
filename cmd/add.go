@@ -19,8 +19,8 @@ var addCmd = &cli.Command{
 	ArgsUsage: "<title>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  flags.FlagStatus,
-			Usage: "task status (inbox|next|waiting|someday)",
+			Name:  flags.FlagState,
+			Usage: "task state (inbox|now|waiting|later|done)",
 			Value: "inbox",
 		},
 		&cli.StringFlag{
@@ -52,10 +52,6 @@ var addCmd = &cli.Command{
 			Usage: "due date (YYYY-MM-DD)",
 		},
 		&cli.StringFlag{
-			Name:  flags.FlagDeferUntil,
-			Usage: "defer until date (YYYY-MM-DD)",
-		},
-		&cli.StringFlag{
 			Name:  flags.FlagWaitingFor,
 			Usage: "waiting for (person/thing)",
 		},
@@ -81,18 +77,21 @@ var addCmd = &cli.Command{
 			return fmt.Errorf("sync pull: %w", err)
 		}
 
+		state := cmd.String(flags.FlagState)
+		if cmd.Bool(flags.FlagDone) {
+			state = "done"
+		}
+
 		task, err := svc.CreateTask(ctx, service.CreateTaskRequest{
 			Title:      title,
 			Notes:      cmd.String(flags.FlagNotes),
-			Status:     cmd.String(flags.FlagStatus),
+			State:      state,
 			Priority:   cmd.String(flags.FlagPriority),
 			Projects:   cmd.StringSlice(flags.FlagProject),
 			Contexts:   cmd.StringSlice(flags.FlagContext),
 			Meta:       cmd.StringSlice(flags.FlagMeta),
 			DueOn:      cmd.String(flags.FlagDueOn),
-			DeferUntil: cmd.String(flags.FlagDeferUntil),
 			WaitingFor: cmd.String(flags.FlagWaitingFor),
-			Done:       cmd.Bool(flags.FlagDone),
 		})
 		if err != nil {
 			return err

@@ -26,13 +26,12 @@ type Project struct {
 
 type Task struct {
 	ID          int64          `json:"id"`
-	Done        int64          `json:"done"`
-	Status      string         `json:"status"`
+	State       string         `json:"state"`
+	PrevState   sql.NullString `json:"prev_state"`
 	Priority    sql.NullString `json:"priority"`
 	Title       string         `json:"title"`
 	Notes       string         `json:"notes"`
 	DueOn       sql.NullString `json:"due_on"`
-	DeferUntil  sql.NullString `json:"defer_until"`
 	WaitingFor  sql.NullString `json:"waiting_for"`
 	CompletedAt sql.NullInt64  `json:"completed_at"`
 	CreatedAt   int64          `json:"created_at"`

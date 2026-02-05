@@ -23,14 +23,12 @@ var editCmd = &cli.Command{
 Opens the task in your editor ($VISUAL or $EDITOR) by default.
 Use flags for quick single-field changes without opening an editor.
 
-	Examples:
-	  ugh edit 1                          # Open in editor (default)
-	  ugh edit 1 --status next            # Move to Next Actions
-	  ugh edit 1 --due 2026-02-10         # Set due date
-	  ugh edit 1 --defer 2026-02-20       # Defer until date
-	  ugh edit 1 --no-defer               # Clear defer date
-	  ugh edit 1 -p A                     # Set priority to A
-	  ugh edit 1 --no-priority            # Remove priority
+		Examples:
+		  ugh edit 1                          # Open in editor (default)
+		  ugh edit 1 --state now              # Move to Now
+		  ugh edit 1 --due 2026-02-10         # Set due date
+		  ugh edit 1 -p A                     # Set priority to A
+		  ugh edit 1 --no-priority            # Remove priority
 	  ugh edit 1 --title "New title"      # Change title
 	  ugh edit 1 -P urgent                # Add project 'urgent'
 	  ugh edit 1 --remove-project old     # Remove project 'old'
@@ -47,8 +45,8 @@ Use flags for quick single-field changes without opening an editor.
 			Usage: "update notes",
 		},
 		&cli.StringFlag{
-			Name:  flags.FlagStatus,
-			Usage: "set status (inbox|next|waiting|someday)",
+			Name:  flags.FlagState,
+			Usage: "set state (inbox|now|waiting|later|done)",
 		},
 		&cli.StringFlag{
 			Name:    flags.FlagPriority,
@@ -62,14 +60,6 @@ Use flags for quick single-field changes without opening an editor.
 		&cli.BoolFlag{
 			Name:  flags.FlagNoDue,
 			Usage: "clear due date",
-		},
-		&cli.StringFlag{
-			Name:  flags.FlagDeferUntil,
-			Usage: "set defer until date (YYYY-MM-DD)",
-		},
-		&cli.BoolFlag{
-			Name:  flags.FlagNoDefer,
-			Usage: "clear defer until date",
 		},
 		&cli.StringFlag{
 			Name:  flags.FlagWaitingFor,
@@ -101,11 +91,11 @@ Use flags for quick single-field changes without opening an editor.
 		&cli.BoolFlag{
 			Name:    flags.FlagDone,
 			Aliases: []string{"x"},
-			Usage:   "mark as done",
+			Usage:   "mark as done (state=done)",
 		},
 		&cli.BoolFlag{
 			Name:  flags.FlagUndone,
-			Usage: "mark as not done",
+			Usage: "reopen (undo done)",
 		},
 		&cli.StringSliceFlag{
 			Name:  flags.FlagRemoveProject,
@@ -180,12 +170,10 @@ Use flags for quick single-field changes without opening an editor.
 func hasFieldFlags(cmd *cli.Command) bool {
 	return cmd.String(flags.FlagTitle) != "" ||
 		cmd.String(flags.FlagNotes) != "" ||
-		cmd.String(flags.FlagStatus) != "" ||
+		cmd.String(flags.FlagState) != "" ||
 		cmd.String(flags.FlagPriority) != "" ||
 		cmd.String(flags.FlagDueOn) != "" ||
 		cmd.Bool(flags.FlagNoDue) ||
-		cmd.String(flags.FlagDeferUntil) != "" ||
-		cmd.Bool(flags.FlagNoDefer) ||
 		cmd.String(flags.FlagWaitingFor) != "" ||
 		cmd.Bool(flags.FlagNoWaitingFor) ||
 		cmd.Bool(flags.FlagNoPriority) ||
@@ -218,11 +206,9 @@ func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.T
 		ID:         id,
 		Title:      edited.Title,
 		Notes:      edited.Notes,
-		Status:     edited.Status,
+		State:      edited.State,
 		Priority:   edited.Priority,
-		Done:       edited.Done,
 		DueOn:      edited.DueOn,
-		DeferUntil: edited.DeferUntil,
 		WaitingFor: edited.WaitingFor,
 		Projects:   edited.Projects,
 		Contexts:   edited.Contexts,
@@ -258,7 +244,6 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 		RemoveMetaKeys:  cmd.StringSlice(flags.FlagRemoveMeta),
 		RemovePriority:  cmd.Bool(flags.FlagNoPriority),
 		ClearDueOn:      cmd.Bool(flags.FlagNoDue),
-		ClearDeferUntil: cmd.Bool(flags.FlagNoDefer),
 		ClearWaitingFor: cmd.Bool(flags.FlagNoWaitingFor),
 	}
 
@@ -268,8 +253,8 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 	if notes := cmd.String(flags.FlagNotes); notes != "" {
 		req.Notes = &notes
 	}
-	if status := cmd.String(flags.FlagStatus); status != "" {
-		req.Status = &status
+	if state := cmd.String(flags.FlagState); state != "" {
+		req.State = &state
 	}
 
 	if priority != "" {
@@ -279,22 +264,33 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 	if due := cmd.String(flags.FlagDueOn); due != "" {
 		req.DueOn = &due
 	}
-	if deferUntil := cmd.String(flags.FlagDeferUntil); deferUntil != "" {
-		req.DeferUntil = &deferUntil
-	}
 	if waitingFor := cmd.String(flags.FlagWaitingFor); waitingFor != "" {
 		req.WaitingFor = &waitingFor
 	}
 
-	if cmd.Bool(flags.FlagDone) {
-		done := true
-		req.Done = &done
-	} else if cmd.Bool(flags.FlagUndone) {
-		done := false
-		req.Done = &done
+	// Apply field updates first.
+	updated, err := svc.UpdateTask(ctx, req)
+	if err != nil {
+		return nil, err
 	}
-
-	return svc.UpdateTask(ctx, req)
+	if cmd.Bool(flags.FlagDone) {
+		if req.State != nil && strings.TrimSpace(*req.State) != "" && strings.ToLower(strings.TrimSpace(*req.State)) != "done" {
+			return nil, errors.New("cannot combine --done with --state other than done")
+		}
+		_, err := svc.SetDone(ctx, []int64{id}, true)
+		if err != nil {
+			return nil, err
+		}
+		return svc.GetTask(ctx, id)
+	}
+	if cmd.Bool(flags.FlagUndone) {
+		_, err := svc.SetDone(ctx, []int64{id}, false)
+		if err != nil {
+			return nil, err
+		}
+		return svc.GetTask(ctx, id)
+	}
+	return updated, nil
 }
 
 func parseMetaFlags(meta []string) (map[string]string, error) {

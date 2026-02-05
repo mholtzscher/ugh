@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/urfave/cli/v3"
@@ -62,8 +61,4 @@ func maybeSyncAfterWrite(ctx context.Context, svc service.Service) error {
 		return nil
 	}
 	return svc.Push(ctx)
-}
-
-func todayUTC() string {
-	return time.Now().UTC().Format("2006-01-02")
 }

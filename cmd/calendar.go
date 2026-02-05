@@ -11,7 +11,7 @@ var calendarCmd = &cli.Command{
 	Name:     "calendar",
 	Aliases:  []string{"cal"},
 	Usage:    "List items with due dates",
-	Category: "GTD Lists",
+	Category: "Lists",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {

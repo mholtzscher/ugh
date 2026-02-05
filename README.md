@@ -1,6 +1,6 @@
 # ugh
 
-A GTD-first task CLI with SQLite storage.
+A task CLI with SQLite storage.
 
 ## Installation
 
@@ -19,18 +19,19 @@ nix build
 ```bash
 # Add tasks
 ugh add -P groceries -c errands Buy milk
-ugh add --status next -p A -P family -c phone --due 2026-01-20 Call mom
+ugh add --state now -p A -P family -c phone --due 2026-01-20 Call mom
 
-	# GTD lists
-	ugh inbox
-	ugh next
-	ugh waiting
-	ugh someday
-	ugh snoozed
-	ugh calendar
+
+# Lists
+ugh inbox
+ugh now
+ugh waiting
+ugh later
+ugh calendar
 
 # Advanced listing
-ugh list --status next
+ugh list --state now
+ugh list --state done
 ugh list --all
 ugh list --project groceries
 ugh list --context errands
@@ -135,70 +136,49 @@ sync_on_write = true
 
 ## Data Model
 
-- **Status**: `inbox|next|waiting|someday`
-- **Scheduling**: `--due YYYY-MM-DD` and `--defer YYYY-MM-DD`
+- **State**: `inbox|now|waiting|later|done`
+- **Scheduling**: `--due YYYY-MM-DD`
 - **Projects/Contexts**: first-class entities linked to tasks
 - **Meta**: custom `key:value` pairs
 
 ## Task Lifecycle
 
-`status` is the GTD list a task belongs to; `done` is a separate on/off state.
+Tasks have a single `state`; completion is represented by `state=done`.
 
 ```mermaid
 flowchart LR
-  SInbox[inbox]
-  SNext[next]
-  SWaiting[waiting]
-  SSomeday[someday]
+  Inbox[inbox]
+  Now[now]
+  Waiting[waiting]
+  Later[later]
+  Done[done]
+  Prev[previous state]
 
-  SInbox <--> |ugh edit --status| SNext
-  SInbox <--> |ugh edit --status| SWaiting
-  SInbox <--> |ugh edit --status| SSomeday
-  SNext <--> |ugh edit --status| SWaiting
-  SNext <--> |ugh edit --status| SSomeday
-  SWaiting <--> |ugh edit --status| SSomeday
+  Inbox <--> Now
+  Inbox <--> Waiting
+  Inbox <--> Later
+  Now <--> Waiting
+  Now <--> Later
+  Waiting <--> Later
+
+  Inbox -->|ugh done| Done
+  Now -->|ugh done| Done
+  Waiting -->|ugh done| Done
+  Later -->|ugh done| Done
+  Done -->|ugh undo| Prev
 ```
 
-Open vs done, and how the built-in lists are derived:
+How the built-in lists are derived:
 
 ```mermaid
 flowchart TB
   T[task]
-  T -->|done true| Done["done - excluded from GTD lists"]
-  T -->|done false| Open[open]
-
-  Open -->|status inbox| Inbox["ugh inbox"]
-  Open -->|status waiting| Waiting["ugh waiting"]
-  Open -->|status someday| Someday["ugh someday"]
-
-  Open -->|status next and not deferred| Next["ugh next"]
-  Open -->|deferred until future| Snoozed["ugh snoozed"]
-  Open -->|due date set| Cal["ugh calendar"]
-```
-
-A typical GTD "clarify" flow using ugh commands:
-
-```mermaid
-flowchart TD
-  Capture["Capture: ugh add ..."] --> Inbox[inbox]
-  Inbox --> Actionable{Actionable?}
-
-  Actionable -->|no| NonAction{Someday or delete?}
-  NonAction -->|someday| Someday["Someday: ugh edit --status someday"]
-  NonAction -->|delete| Delete["Delete: ugh rm ID"]
-
-  Actionable -->|yes| Blocked{Waiting on someone?}
-  Blocked -->|yes| Waiting["Waiting: ugh edit --status waiting --waiting-for ..."]
-  Blocked -->|no| Later{Not before a date?}
-  Later -->|yes| Defer["Defer: ugh edit --status next --defer YYYY-MM-DD"]
-  Later -->|no| Next["Next: ugh edit --status next"]
-
-  Next --> Due["Optional due: ugh edit --due YYYY-MM-DD"]
-  Defer --> Due
-  Waiting --> Due
-
-  Due --> Complete["Complete: ugh done ID"]
-  Complete -->|reopen| Reopen["Reopen: ugh undo ID"]
+  T -->|state inbox| Inbox["ugh inbox"]
+  T -->|state now| Now["ugh now"]
+  T -->|state waiting| Waiting["ugh waiting"]
+  T -->|state later| Later["ugh later"]
+  T -->|state done| Done["ugh list --done"]
+  T -->|due date set| Cal["ugh calendar"]
 ```
 
 ## License

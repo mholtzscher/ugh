@@ -2,7 +2,7 @@
 exec ugh --db $WORK/db.sqlite add -P work Read spec
 exec ugh --db $WORK/db.sqlite list --json
 stdout '"title":"Read spec"'
-stdout '"status":"inbox"'
+stdout '"state":"inbox"'
 stdout '"projects":\["work"\]'
 
 -- want.json --

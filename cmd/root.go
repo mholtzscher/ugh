@@ -34,8 +34,8 @@ var (
 
 var rootCmd = &cli.Command{
 	Name:        "ugh",
-	Usage:       "ugh is a GTD-first task CLI",
-	Description: "ugh is a GTD-first task CLI with SQLite storage.",
+	Usage:       "ugh is a task CLI",
+	Description: "ugh is a task CLI with SQLite storage.",
 	Version:     Version,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -148,10 +148,9 @@ func init() {
 	rootCmd.Commands = []*cli.Command{
 		addCmd,
 		inboxCmd,
-		nextCmd,
+		nowCmd,
 		waitingCmd,
-		somedayCmd,
-		snoozedCmd,
+		laterCmd,
 		calendarCmd,
 		listCmd,
 		showCmd,

@@ -30,8 +30,8 @@ var listCmd = &cli.Command{
 			Usage:   "only pending tasks",
 		},
 		&cli.StringFlag{
-			Name:  flags.FlagStatus,
-			Usage: "filter by status (inbox|next|waiting|someday)",
+			Name:  flags.FlagState,
+			Usage: "filter by state (inbox|now|waiting|later|done)",
 		},
 		&cli.StringFlag{
 			Name:    flags.FlagProject,
@@ -65,7 +65,7 @@ var listCmd = &cli.Command{
 			All:      cmd.Bool(flags.FlagAll),
 			DoneOnly: cmd.Bool(flags.FlagDone),
 			TodoOnly: cmd.Bool(flags.FlagTodo),
-			Status:   cmd.String(flags.FlagStatus),
+			State:    cmd.String(flags.FlagState),
 			Project:  cmd.String(flags.FlagProject),
 			Context:  cmd.String(flags.FlagContext),
 			Priority: cmd.String(flags.FlagPriority),

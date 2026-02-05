@@ -11,7 +11,7 @@ var waitingCmd = &cli.Command{
 	Name:     "waiting",
 	Aliases:  []string{"w"},
 	Usage:    "List waiting-for items",
-	Category: "GTD Lists",
+	Category: "Lists",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
@@ -21,7 +21,7 @@ var waitingCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			Status:   "waiting",
+			State:    "waiting",
 		})
 		if err != nil {
 			return err

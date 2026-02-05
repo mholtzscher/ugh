@@ -1,17 +1,15 @@
 # Show and edit flows
-exec ugh --db $WORK/db.sqlite add --status next --due 2026-01-02 --defer 2026-01-10 --waiting-for Alice --notes pack_stuff -P travel -c home -m note:foo Plan trip
+exec ugh --db $WORK/db.sqlite add --state now --due 2026-01-02 --waiting-for Alice --notes pack_stuff -P travel -c home -m note:foo Plan trip
 
 exec ugh --db $WORK/db.sqlite show 1
 cmp stdout want-show.txt
 
 exec ugh --db $WORK/db.sqlite show 1 --json
 stdout '"id":1'
-stdout '"done":false'
-stdout '"status":"next"'
+stdout '"state":"now"'
 stdout '"title":"Plan trip"'
 stdout '"notes":"pack_stuff"'
 stdout '"dueOn":"2026-01-02"'
-stdout '"deferUntil":"2026-01-10"'
 stdout '"waitingFor":"Alice"'
 stdout '"projects":\["travel"\]'
 stdout '"contexts":\["home"\]'
@@ -46,9 +44,9 @@ stdout '"key":"val"'
 stdout '"note":"foo"'
 
 # Update status and waiting-for
-exec ugh --db $WORK/db.sqlite edit 1 --status waiting --waiting-for Bob
+exec ugh --db $WORK/db.sqlite edit 1 --state waiting --waiting-for Bob
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"status":"waiting"'
+stdout '"state":"waiting"'
 stdout '"waitingFor":"Bob"'
 
 # Clear waiting-for
@@ -56,11 +54,10 @@ exec ugh --db $WORK/db.sqlite edit 1 --no-waiting-for
 exec ugh --db $WORK/db.sqlite show 1 --json
 ! stdout '"waitingFor"'
 
-# Clear due and defer
-exec ugh --db $WORK/db.sqlite edit 1 --no-due --no-defer
+# Clear due
+exec ugh --db $WORK/db.sqlite edit 1 --no-due
 exec ugh --db $WORK/db.sqlite show 1 --json
 ! stdout '"dueOn"'
-! stdout '"deferUntil"'
 
 # Remove project
 exec ugh --db $WORK/db.sqlite edit 1 --remove-project travel
@@ -86,13 +83,13 @@ exec ugh --db $WORK/db.sqlite show 1 --json
 # Mark done via edit
 exec ugh --db $WORK/db.sqlite edit 1 -x
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"done":true'
+stdout '"state":"done"'
 stdout '"completedAt"'
 
 # Mark undone via edit
 exec ugh --db $WORK/db.sqlite edit 1 --undone
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"done":false'
+stdout '"state":"waiting"'
 ! stdout '"completedAt"'
 
 # Note: 'ugh edit 1' without flags now opens the editor by default
@@ -125,18 +122,17 @@ stdout '"priority":"B"'
 
 # Multiple flags at once
 exec ugh --db $WORK/db.sqlite add Test multi-edit
-exec ugh --db $WORK/db.sqlite edit 2 --status next -p A -P proj1 -P proj2 -c ctx1 --due 2026-01-05 --defer 2026-01-06 --waiting-for Alice --notes note -m key1:val1 -m key2:val2
+exec ugh --db $WORK/db.sqlite edit 2 --state now -p A -P proj1 -P proj2 -c ctx1 --due 2026-01-05 --waiting-for Alice --notes note -m key1:val1 -m key2:val2
 exec ugh --db $WORK/db.sqlite show 2 --json
-stdout '"status":"next"'
+stdout '"state":"now"'
 stdout '"priority":"A"'
 stdout '"projects":\["proj1","proj2"\]'
 stdout '"contexts":\["ctx1"\]'
 stdout '"dueOn":"2026-01-05"'
-stdout '"deferUntil":"2026-01-06"'
 stdout '"waitingFor":"Alice"'
 stdout '"notes":"note"'
 stdout '"key1":"val1"'
 stdout '"key2":"val2"'
 
 -- want-show.txt --
-1	next	2026-01-02	2026-01-10	Plan trip
+1	now	2026-01-02	Alice	Plan trip

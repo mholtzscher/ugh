@@ -106,13 +106,11 @@ func (w Writer) WriteSummary(summary any) error {
 
 type TaskJSON struct {
 	ID          int64             `json:"id"`
-	Done        bool              `json:"done"`
-	Status      string            `json:"status"`
+	State       string            `json:"state"`
 	Priority    string            `json:"priority,omitempty"`
 	Title       string            `json:"title"`
 	Notes       string            `json:"notes,omitempty"`
 	DueOn       string            `json:"dueOn,omitempty"`
-	DeferUntil  string            `json:"deferUntil,omitempty"`
 	WaitingFor  string            `json:"waitingFor,omitempty"`
 	CompletedAt string            `json:"completedAt,omitempty"`
 	Projects    []string          `json:"projects"`
@@ -137,13 +135,11 @@ func toTaskJSON(task *store.Task) TaskJSON {
 	}
 	return TaskJSON{
 		ID:          task.ID,
-		Done:        task.Done,
-		Status:      string(task.Status),
+		State:       string(task.State),
 		Priority:    task.Priority,
 		Title:       task.Title,
 		Notes:       task.Notes,
 		DueOn:       formatDate(task.DueOn),
-		DeferUntil:  formatDate(task.DeferUntil),
 		WaitingFor:  task.WaitingFor,
 		CompletedAt: formatDateTimePtr(task.CompletedAt),
 		Projects:    projects,
@@ -159,12 +155,11 @@ func plainLine(task *store.Task) string {
 		return ""
 	}
 	due := formatDate(task.DueOn)
-	deferUntil := formatDate(task.DeferUntil)
 	fields := []string{
 		fmt.Sprintf("%d", task.ID),
-		string(task.Status),
+		string(task.State),
 		due,
-		deferUntil,
+		task.WaitingFor,
 		task.Title,
 	}
 	return strings.Join(fields, "\t")

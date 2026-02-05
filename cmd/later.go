@@ -7,11 +7,11 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var snoozedCmd = &cli.Command{
-	Name:     "snoozed",
-	Aliases:  []string{"sz"},
-	Usage:    "List snoozed items (deferred until later)",
-	Category: "GTD Lists",
+var laterCmd = &cli.Command{
+	Name:     "later",
+	Aliases:  []string{"sd"},
+	Usage:    "List tasks you are not doing now",
+	Category: "Lists",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
@@ -19,10 +19,9 @@ var snoozedCmd = &cli.Command{
 		}
 		defer func() { _ = svc.Close() }()
 
-		today := todayUTC()
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
-			TodoOnly:   true,
-			DeferAfter: today,
+			TodoOnly: true,
+			State:    "later",
 		})
 		if err != nil {
 			return err

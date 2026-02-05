@@ -1,28 +1,26 @@
 -- name: InsertTask :one
 INSERT INTO tasks (
-  done,
-  status,
+  state,
+  prev_state,
   priority,
   title,
   notes,
   due_on,
-  defer_until,
   waiting_for,
   completed_at,
   created_at,
   updated_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING
   id,
-  done,
-  status,
+  state,
+  prev_state,
   priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
-  defer_until,
   waiting_for,
   completed_at,
   created_at,
@@ -30,26 +28,24 @@ RETURNING
 
 -- name: UpdateTask :one
 UPDATE tasks
-SET done = ?,
-  status = ?,
+SET state = ?,
+  prev_state = ?,
   priority = ?,
   title = ?,
   notes = ?,
   due_on = ?,
-  defer_until = ?,
   waiting_for = ?,
   completed_at = ?,
   updated_at = ?
 WHERE id = ?
 RETURNING
   id,
-  done,
-  status,
+  state,
+  prev_state,
   priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
-  defer_until,
   waiting_for,
   completed_at,
   created_at,
@@ -58,13 +54,12 @@ RETURNING
 -- name: GetTask :one
 SELECT
   id,
-  done,
-  status,
+  state,
+  prev_state,
   priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
-  defer_until,
   waiting_for,
   completed_at,
   created_at,
@@ -75,20 +70,19 @@ WHERE id = ?;
 -- name: ListTasks :many
 SELECT
   t.id,
-  t.done,
-  t.status,
+  t.state,
+  t.prev_state,
   t.priority,
   CAST(t.title AS TEXT) AS title,
   CAST(t.notes AS TEXT) AS notes,
   t.due_on,
-  t.defer_until,
   t.waiting_for,
   t.completed_at,
   t.created_at,
   t.updated_at
 FROM tasks t
-WHERE (? IS NULL OR t.done = ?)
-  AND (? IS NULL OR t.status = ?)
+WHERE (? = 0 OR t.state != 'done')
+  AND (? IS NULL OR t.state = ?)
   AND (? IS NULL OR EXISTS (
     SELECT 1
     FROM task_project_links tpl
@@ -127,17 +121,28 @@ WHERE (? IS NULL OR t.done = ?)
     )
   ))
   AND (? = 0 OR (t.due_on IS NOT NULL AND t.due_on != ''))
-  AND (? IS NULL OR (t.defer_until IS NOT NULL AND t.defer_until != '' AND t.defer_until > ?))
-  AND (? IS NULL OR (t.defer_until IS NULL OR t.defer_until = '' OR t.defer_until <= ?))
 ORDER BY
-  CASE WHEN t.done = 1 THEN 1 ELSE 0 END,
+  CASE WHEN t.state = 'done' THEN 1 ELSE 0 END,
   CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END,
   t.due_on ASC,
   t.updated_at DESC;
 
--- name: SetDone :execrows
+-- name: CompleteTasks :execrows
 UPDATE tasks
-SET done = ?, completed_at = ?, updated_at = ?
+SET
+  prev_state = CASE WHEN state != 'done' THEN state ELSE prev_state END,
+  state = 'done',
+  completed_at = ?,
+  updated_at = ?
+WHERE id IN (sqlc.slice('ids'));
+
+-- name: ReopenTasks :execrows
+UPDATE tasks
+SET
+  state = COALESCE(prev_state, 'inbox'),
+  prev_state = NULL,
+  completed_at = NULL,
+  updated_at = ?
 WHERE id IN (sqlc.slice('ids'));
 
 -- name: DeleteTasks :execrows
@@ -212,7 +217,8 @@ SELECT p.name, COUNT(t.id) AS count
 FROM projects p
 JOIN task_project_links tpl ON tpl.project_id = p.id
 JOIN tasks t ON t.id = tpl.task_id
-WHERE (? IS NULL OR t.done = ?)
+WHERE (? = 0 OR t.state = 'done')
+  AND (? = 0 OR t.state != 'done')
 GROUP BY p.name
 ORDER BY p.name ASC;
 
@@ -221,6 +227,7 @@ SELECT c.name, COUNT(t.id) AS count
 FROM contexts c
 JOIN task_context_links tcl ON tcl.context_id = c.id
 JOIN tasks t ON t.id = tcl.task_id
-WHERE (? IS NULL OR t.done = ?)
+WHERE (? = 0 OR t.state = 'done')
+  AND (? = 0 OR t.state != 'done')
 GROUP BY c.name
 ORDER BY c.name ASC;

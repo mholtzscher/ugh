@@ -11,7 +11,7 @@ var inboxCmd = &cli.Command{
 	Name:     "inbox",
 	Aliases:  []string{"i"},
 	Usage:    "List inbox tasks",
-	Category: "GTD Lists",
+	Category: "Lists",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
@@ -21,7 +21,7 @@ var inboxCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			Status:   "inbox",
+			State:    "inbox",
 		})
 		if err != nil {
 			return err

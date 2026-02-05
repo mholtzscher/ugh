@@ -2,24 +2,24 @@ package store
 
 import "time"
 
-type Status string
+type State string
 
 const (
-	StatusInbox   Status = "inbox"
-	StatusNext    Status = "next"
-	StatusWaiting Status = "waiting"
-	StatusSomeday Status = "someday"
+	StateInbox   State = "inbox"
+	StateNow     State = "now"
+	StateWaiting State = "waiting"
+	StateLater   State = "later"
+	StateDone    State = "done"
 )
 
 type Task struct {
 	ID          int64
-	Done        bool
-	Status      Status
+	State       State
+	PrevState   *State
 	Priority    string
 	Title       string
 	Notes       string
 	DueOn       *time.Time
-	DeferUntil  *time.Time
 	WaitingFor  string
 	CompletedAt *time.Time
 	Projects    []string
@@ -30,17 +30,15 @@ type Task struct {
 }
 
 type Filters struct {
-	All             bool
-	DoneOnly        bool
-	TodoOnly        bool
-	Status          string
-	Project         string
-	Context         string
-	Priority        string
-	Search          string
-	DueSetOnly      bool
-	DeferAfter      string // YYYY-MM-DD
-	DeferOnOrBefore string // YYYY-MM-DD
+	All        bool
+	DoneOnly   bool
+	TodoOnly   bool
+	State      string
+	Project    string
+	Context    string
+	Priority   string
+	Search     string
+	DueSetOnly bool
 }
 
 type NameCount struct {

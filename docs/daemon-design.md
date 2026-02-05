@@ -352,7 +352,7 @@ List tasks with optional filters.
 **Query Parameters:**
 | Param | Type | Description |
 |-------|------|-------------|
-| `done` | bool | Filter by done status (`true`, `false`) |
+| `state` | string | Filter by state (`inbox`, `now`, `waiting`, `later`, `done`) |
 | `project` | string | Filter by project name |
 | `context` | string | Filter by context name |
 | `priority` | string | Filter by priority (A-Z) |
@@ -364,7 +364,7 @@ List tasks with optional filters.
   "tasks": [
     {
       "id": 1,
-      "done": false,
+      "state": "inbox",
       "priority": "A",
       "completion_date": null,
       "creation_date": "2026-01-27",
@@ -387,7 +387,7 @@ Create a new task.
 ```json
 {
   "title": "Buy milk",
-  "status": "next",
+  "state": "now",
   "priority": "A",
   "dueOn": "2026-01-30",
   "projects": ["groceries"],
@@ -467,7 +467,7 @@ Delete a task.
 
 #### `POST /tasks/done`
 
-Mark multiple tasks as done.
+Mark multiple tasks as done (`state=done`).
 
 **Request Body:**
 ```json
@@ -485,7 +485,7 @@ Mark multiple tasks as done.
 
 #### `POST /tasks/undone`
 
-Mark multiple tasks as not done.
+Reopen multiple tasks (restores `prev_state`, clears completion timestamp).
 
 **Request Body:**
 ```json
@@ -528,7 +528,7 @@ List all projects with task counts.
 **Query Parameters:**
 | Param | Type | Description |
 |-------|------|-------------|
-| `done` | bool | Count only done/todo tasks |
+| `state` | string | Count only tasks in a given state (`inbox`, `now`, `waiting`, `later`, `done`) |
 
 **Response:**
 ```json
@@ -547,7 +547,7 @@ List all contexts with task counts.
 **Query Parameters:**
 | Param | Type | Description |
 |-------|------|-------------|
-| `done` | bool | Count only done/todo tasks |
+| `state` | string | Count only tasks in a given state (`inbox`, `now`, `waiting`, `later`, `done`) |
 
 **Response:**
 ```json
