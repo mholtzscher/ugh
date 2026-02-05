@@ -146,59 +146,59 @@ sync_on_write = true
 
 ```mermaid
 flowchart LR
-  inbox([inbox])
-  next([next])
-  waiting([waiting])
-  someday([someday])
+  SInbox[inbox]
+  SNext[next]
+  SWaiting[waiting]
+  SSomeday[someday]
 
-  inbox <--> |ugh edit --status| next
-  inbox <--> |ugh edit --status| waiting
-  inbox <--> |ugh edit --status| someday
-  next <--> |ugh edit --status| waiting
-  next <--> |ugh edit --status| someday
-  waiting <--> |ugh edit --status| someday
+  SInbox <--> |ugh edit --status| SNext
+  SInbox <--> |ugh edit --status| SWaiting
+  SInbox <--> |ugh edit --status| SSomeday
+  SNext <--> |ugh edit --status| SWaiting
+  SNext <--> |ugh edit --status| SSomeday
+  SWaiting <--> |ugh edit --status| SSomeday
 ```
 
 Open vs done, and how the built-in lists are derived:
 
 ```mermaid
 flowchart TB
-  T[(task)]
-  T -->|done=1| Done[done (hidden from GTD lists)]
-  T -->|done=0| Open[open]
+  T[task]
+  T -->|done true| Done["done - excluded from GTD lists"]
+  T -->|done false| Open[open]
 
-  Open -->|status=inbox| Inbox[ugh inbox]
-  Open -->|status=waiting| Waiting[ugh waiting]
-  Open -->|status=someday| Someday[ugh someday]
+  Open -->|status inbox| Inbox["ugh inbox"]
+  Open -->|status waiting| Waiting["ugh waiting"]
+  Open -->|status someday| Someday["ugh someday"]
 
-  Open -->|status=next AND (defer_until empty OR <= today)| Next[ugh next]
-  Open -->|defer_until > today| Snoozed[ugh snoozed]
-  Open -->|due_on set| Cal[ugh calendar]
+  Open -->|status next and not deferred| Next["ugh next"]
+  Open -->|deferred until future| Snoozed["ugh snoozed"]
+  Open -->|due date set| Cal["ugh calendar"]
 ```
 
 A typical GTD "clarify" flow using ugh commands:
 
 ```mermaid
 flowchart TD
-  Capture[Capture\nugh add ...] --> Inbox[inbox]
+  Capture["Capture: ugh add ..."] --> Inbox[inbox]
   Inbox --> Actionable{Actionable?}
 
   Actionable -->|no| NonAction{Someday or delete?}
-  NonAction -->|someday| Someday[someday\nugh edit --status someday]
-  NonAction -->|delete| Delete[trash\nugh rm ID]
+  NonAction -->|someday| Someday["Someday: ugh edit --status someday"]
+  NonAction -->|delete| Delete["Delete: ugh rm ID"]
 
   Actionable -->|yes| Blocked{Waiting on someone?}
-  Blocked -->|yes| Waiting[waiting\nugh edit --status waiting --waiting-for ...]
+  Blocked -->|yes| Waiting["Waiting: ugh edit --status waiting --waiting-for ..."]
   Blocked -->|no| Later{Not before a date?}
-  Later -->|yes| Defer[next (snoozed)\nugh edit --status next --defer YYYY-MM-DD]
-  Later -->|no| Next[next\nugh edit --status next]
+  Later -->|yes| Defer["Defer: ugh edit --status next --defer YYYY-MM-DD"]
+  Later -->|no| Next["Next: ugh edit --status next"]
 
-  Next --> Due[Optional: hard deadline\nugh edit --due YYYY-MM-DD]
+  Next --> Due["Optional due: ugh edit --due YYYY-MM-DD"]
   Defer --> Due
   Waiting --> Due
 
-  Due --> Complete[Complete\nugh done ID]
-  Complete -->|reopen| Reopen[ugh undo ID]
+  Due --> Complete["Complete: ugh done ID"]
+  Complete -->|reopen| Reopen["Reopen: ugh undo ID"]
 ```
 
 ## License
