@@ -45,8 +45,12 @@ vet:
 lint:
     golangci-lint run
 
-# Run all checks (format, vet, lint, test, tidy, gomod2nix)
-check: fmt vet lint test tidy gomod2nix
+# Generate code (sqlc)
+generate:
+   sqlc generate
+
+# Run all checks (generate, format, vet, lint, test, tidy, gomod2nix)
+check: generate fmt vet lint test tidy gomod2nix
 
 # Update Go dependencies
 update-deps:

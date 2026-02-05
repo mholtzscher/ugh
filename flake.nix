@@ -76,6 +76,7 @@
             pkgs.golangci-lint
             pkgs.gotools
             pkgs.gomod2nix
+            pkgs.sqlc
             pkgs.just
             pkgs.cruft
           ]
@@ -90,6 +91,7 @@
           buildInputs = [
             pkgs.go_1_25
             pkgs.golangci-lint
+            pkgs.sqlc
             pkgs.just
           ]
           ++ buildInputs

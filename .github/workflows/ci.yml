@@ -41,8 +41,13 @@ jobs:
       - name: Install just
         uses: extractions/setup-just@v2
 
+      - name: Set up sqlc
+        uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: "1.30.0"
+
       - name: Run cruft check
         run: cruft check
 
       - name: Run checks
-        run: just fmt vet lint test tidy
+        run: just generate fmt vet lint test tidy
