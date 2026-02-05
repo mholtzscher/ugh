@@ -2,16 +2,22 @@ package editor
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/mholtzscher/ugh/internal/store"
 )
+
+//go:embed task.schema.json
+var taskSchemaJSON []byte
 
 type TaskTOML struct {
 	Title      string            `toml:"title"`
@@ -50,6 +56,8 @@ func TaskToTOML(task *store.Task) TaskTOML {
 	}
 }
 
+const taskSchemaFileName = "ugh-task.schema.json"
+
 const tomlHeader = `# Task %d - Edit and save to apply changes
 # Lines starting with # are ignored
 #
@@ -69,18 +77,48 @@ func Edit(task *store.Task) (*TaskTOML, error) {
 	taskTOML := TaskToTOML(task)
 
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf(tomlHeader, task.ID))
+
+	tmpDir, err := makeEditTempDir()
+	if err != nil {
+		return nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	useSchemaHeader := false
+	schemaRef := ""
+	if len(taskSchemaJSON) > 0 {
+		schemaPath := filepath.Join(tmpDir, taskSchemaFileName)
+		if err := os.WriteFile(schemaPath, taskSchemaJSON, 0o644); err == nil {
+			useSchemaHeader = true
+			_ = os.WriteFile(filepath.Join(tmpDir, "taplo.toml"), []byte(fmt.Sprintf(`include = ["*.toml"]
+
+[schema]
+path = "./%s"
+enabled = true
+`, taskSchemaFileName)), 0o644)
+			if runtime.GOOS == "windows" {
+				schemaRef = "file:///" + filepath.ToSlash(schemaPath)
+			} else {
+				schemaRef = "file://" + schemaPath
+			}
+		}
+	}
+
+	header := fmt.Sprintf(tomlHeader, task.ID)
+	if useSchemaHeader {
+		header = fmt.Sprintf("#:schema %s\n%s", schemaRef, header)
+	}
+	buf.WriteString(header)
 	if err := toml.NewEncoder(&buf).Encode(taskTOML); err != nil {
 		return nil, fmt.Errorf("encode task to TOML: %w", err)
 	}
 	original := buf.String()
 
-	tmpFile, err := os.CreateTemp("", "ugh-edit-*.toml")
+	tmpFile, err := os.CreateTemp(tmpDir, "ugh-edit-*.toml")
 	if err != nil {
 		return nil, fmt.Errorf("create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
 
 	if _, err := tmpFile.WriteString(original); err != nil {
 		_ = tmpFile.Close()
@@ -119,6 +157,15 @@ func Edit(task *store.Task) (*TaskTOML, error) {
 	}
 
 	return &result, nil
+}
+
+func makeEditTempDir() (string, error) {
+	if wd, err := os.Getwd(); err == nil && wd != "" {
+		if dir, err := os.MkdirTemp(wd, "ugh-edit-"); err == nil {
+			return dir, nil
+		}
+	}
+	return os.MkdirTemp("", "ugh-edit-")
 }
 
 func getEditor() string {
