@@ -35,8 +35,9 @@ var (
 	}
 
 	syncCmd = &cli.Command{
-		Name:  "sync",
-		Usage: "Sync database with remote server",
+		Name:     "sync",
+		Usage:    "Sync database with remote server",
+		Category: "Sync",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return runSync(ctx)
 		},

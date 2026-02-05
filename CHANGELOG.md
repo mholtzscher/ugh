@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **daemon:** implement daemon service for background Turso sync with systemd/launchd support ([ce2a1f5](https://github.com/mholtzscher/ugh/commit/ce2a1f59b44c1932fb248ee5fad95f666dc1aa05))
 * **edit:** add partial updates and interactive editor mode ([cba617a](https://github.com/mholtzscher/ugh/commit/cba617a7c3a6aeca91df4be483c5c02594cfa89e))
 * ensure creation dates are set for all tasks ([79522f0](https://github.com/mholtzscher/ugh/commit/79522f0067ec74ba847546fef4b2e2d8f1dff188))
-* implement todo.txt CLI with SQLite storage ([7a05af9](https://github.com/mholtzscher/ugh/commit/7a05af9f6ac9b4fcecdaa09aa56d00244f775393))
+* implement initial task CLI with SQLite storage ([7a05af9](https://github.com/mholtzscher/ugh/commit/7a05af9f6ac9b4fcecdaa09aa56d00244f775393))
 * migrate database backend from SQLite to Turso libSQL ([c02c8bd](https://github.com/mholtzscher/ugh/commit/c02c8bdbd808758486a08f4d2623328dba64b62b))
 * migrate to sqlc for type-safe queries and goose for migrations ([a600bb9](https://github.com/mholtzscher/ugh/commit/a600bb976defc431004094d0ac019331ecba90e5))
 * **output:** improve terminal table layout with dynamic column widths and responsive sizing ([be1a47d](https://github.com/mholtzscher/ugh/commit/be1a47d8e7acdd0286572657652c370437a1e55a))
@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - Initial release
-- Cobra-based CLI for todo.txt workflows
+- Cobra-based CLI for task workflows
 - SQLite/Turso-backed storage
 - Nix flake support
 - GitHub Actions CI/CD

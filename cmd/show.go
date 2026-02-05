@@ -11,6 +11,7 @@ var showCmd = &cli.Command{
 	Name:      "show",
 	Aliases:   []string{"s"},
 	Usage:     "Show a task",
+	Category:  "Tasks",
 	ArgsUsage: "<id>",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		if cmd.Args().Len() != 1 {

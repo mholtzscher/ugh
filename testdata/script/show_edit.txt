@@ -1,27 +1,27 @@
 # Show and edit flows
-exec ugh --db $WORK/db.sqlite add (B) 2026-01-02 Plan trip +travel @home due:2026-01-02 note:foo ++bad
+exec ugh --db $WORK/db.sqlite add --state now --due 2026-01-02 --waiting-for Alice --notes pack_stuff -p travel -c home -m note:foo Plan trip
 
 exec ugh --db $WORK/db.sqlite show 1
 cmp stdout want-show.txt
 
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '\{"id":1,"done":false,"priority":"B","creationDate":"2026-01-02","description":"Plan trip","projects":\["travel"\],"contexts":\["home"\],"meta":\{"due":"2026-01-02","note":"foo"\},"unknown":\["\+\+bad"\],"todoTxt":"\(B\) 2026-01-02 Plan trip \+travel @home due:2026-01-02 note:foo \+\+bad","createdAt":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z","updatedAt":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"\}'
-
-# Edit priority only
-exec ugh --db $WORK/db.sqlite edit 1 -p A
-exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"priority":"A"'
-stdout '"description":"Plan trip"'
+stdout '"id":1'
+stdout '"state":"now"'
+stdout '"title":"Plan trip"'
+stdout '"notes":"pack_stuff"'
+stdout '"dueOn":"2026-01-02"'
+stdout '"waitingFor":"Alice"'
 stdout '"projects":\["travel"\]'
+stdout '"contexts":\["home"\]'
+stdout '"note":"foo"'
 
-# Edit description only
-exec ugh --db $WORK/db.sqlite edit 1 --description Updated
+# Edit title only
+exec ugh --db $WORK/db.sqlite edit 1 --title Updated
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"description":"Updated"'
-stdout '"priority":"A"'
+stdout '"title":"Updated"'
 
 # Add project (additive)
-exec ugh --db $WORK/db.sqlite edit 1 -P work
+exec ugh --db $WORK/db.sqlite edit 1 -p work
 exec ugh --db $WORK/db.sqlite show 1 --json
 stdout '"projects":\["travel","work"\]'
 
@@ -34,7 +34,23 @@ stdout '"contexts":\["home","office"\]'
 exec ugh --db $WORK/db.sqlite edit 1 -m key:val
 exec ugh --db $WORK/db.sqlite show 1 --json
 stdout '"key":"val"'
-stdout '"due":"2026-01-02"'
+stdout '"note":"foo"'
+
+# Update status and waiting-for
+exec ugh --db $WORK/db.sqlite edit 1 --state waiting --waiting-for Bob
+exec ugh --db $WORK/db.sqlite show 1 --json
+stdout '"state":"waiting"'
+stdout '"waitingFor":"Bob"'
+
+# Clear waiting-for
+exec ugh --db $WORK/db.sqlite edit 1 --no-waiting-for
+exec ugh --db $WORK/db.sqlite show 1 --json
+! stdout '"waitingFor"'
+
+# Clear due
+exec ugh --db $WORK/db.sqlite edit 1 --no-due
+exec ugh --db $WORK/db.sqlite show 1 --json
+! stdout '"dueOn"'
 
 # Remove project
 exec ugh --db $WORK/db.sqlite edit 1 --remove-project travel
@@ -50,22 +66,19 @@ stdout '"contexts":\["office"\]'
 exec ugh --db $WORK/db.sqlite edit 1 --remove-meta note
 exec ugh --db $WORK/db.sqlite show 1 --json
 ! stdout '"note"'
-stdout '"due":"2026-01-02"'
-
-# Remove priority
-exec ugh --db $WORK/db.sqlite edit 1 --no-priority
-exec ugh --db $WORK/db.sqlite show 1 --json
-! stdout '"priority"'
+stdout '"key":"val"'
 
 # Mark done via edit
 exec ugh --db $WORK/db.sqlite edit 1 -x
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"done":true'
+stdout '"state":"done"'
+stdout '"completedAt"'
 
 # Mark undone via edit
 exec ugh --db $WORK/db.sqlite edit 1 --undone
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"done":false'
+stdout '"state":"waiting"'
+! stdout '"completedAt"'
 
 # Note: 'ugh edit 1' without flags now opens the editor by default
 # This can't be tested in non-interactive mode
@@ -74,36 +87,35 @@ stdout '"done":false'
 ! exec ugh --db $WORK/db.sqlite edit 1 -x --undone
 stderr 'cannot use both'
 
-# Error: invalid priority
-! exec ugh --db $WORK/db.sqlite edit 1 -p invalid
-stderr 'invalid priority'
-
 # Error: invalid meta format
 ! exec ugh --db $WORK/db.sqlite edit 1 -m badmeta
 stderr 'invalid meta format'
 
 # Error: editor flag with field flags
-! exec ugh --db $WORK/db.sqlite edit 1 -e -p A
+! exec ugh --db $WORK/db.sqlite edit 1 -e --title Noop
 stderr 'cannot combine field flags with --editor'
 
 # Error: non-existent task
-! exec ugh --db $WORK/db.sqlite edit 999 -p A
+! exec ugh --db $WORK/db.sqlite edit 999 --title Noop
 stderr 'no rows'
 
-# Priority normalization (lowercase to uppercase)
-exec ugh --db $WORK/db.sqlite edit 1 -p b
+# State normalization (case-insensitive)
+exec ugh --db $WORK/db.sqlite edit 1 --state LATER
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"priority":"B"'
+stdout '"state":"later"'
 
 # Multiple flags at once
 exec ugh --db $WORK/db.sqlite add Test multi-edit
-exec ugh --db $WORK/db.sqlite edit 2 -p A -P proj1 -P proj2 -c ctx1 -m key1:val1 -m key2:val2
+exec ugh --db $WORK/db.sqlite edit 2 --state now -p proj1 -p proj2 -c ctx1 --due 2026-01-05 --waiting-for Alice --notes note -m key1:val1 -m key2:val2
 exec ugh --db $WORK/db.sqlite show 2 --json
-stdout '"priority":"A"'
+stdout '"state":"now"'
 stdout '"projects":\["proj1","proj2"\]'
 stdout '"contexts":\["ctx1"\]'
+stdout '"dueOn":"2026-01-05"'
+stdout '"waitingFor":"Alice"'
+stdout '"notes":"note"'
 stdout '"key1":"val1"'
 stdout '"key2":"val2"'
 
 -- want-show.txt --
-(B) 2026-01-02 Plan trip +travel @home due:2026-01-02 note:foo ++bad
+1	now	2026-01-02	Alice	Plan trip

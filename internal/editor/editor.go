@@ -2,23 +2,33 @@ package editor
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/mholtzscher/ugh/internal/domain"
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
+//go:embed task.schema.json
+var taskSchemaJSON []byte
+
 type TaskTOML struct {
-	Description string            `toml:"description"`
-	Priority    string            `toml:"priority,omitempty"`
-	Done        bool              `toml:"done"`
-	Projects    []string          `toml:"projects,omitempty"`
-	Contexts    []string          `toml:"contexts,omitempty"`
-	Meta        map[string]string `toml:"meta,omitempty"`
+	Title      string            `toml:"title"`
+	Notes      string            `toml:"notes,omitempty"`
+	State      string            `toml:"state"`
+	DueOn      string            `toml:"due_on,omitempty"`
+	WaitingFor string            `toml:"waiting_for,omitempty"`
+	Projects   []string          `toml:"projects,omitempty"`
+	Contexts   []string          `toml:"contexts,omitempty"`
+	Meta       map[string]string `toml:"meta,omitempty"`
 }
 
 func TaskToTOML(task *store.Task) TaskTOML {
@@ -36,44 +46,82 @@ func TaskToTOML(task *store.Task) TaskTOML {
 	}
 
 	return TaskTOML{
-		Description: task.Description,
-		Priority:    task.Priority,
-		Done:        task.Done,
-		Projects:    projects,
-		Contexts:    contexts,
-		Meta:        meta,
+		Title:      task.Title,
+		Notes:      task.Notes,
+		State:      string(task.State),
+		DueOn:      formatDay(task.DueOn),
+		WaitingFor: task.WaitingFor,
+		Projects:   projects,
+		Contexts:   contexts,
+		Meta:       meta,
 	}
 }
 
-const tomlHeader = `# Task %d - Edit and save to apply changes
+const taskSchemaFileName = "ugh-task.schema.json"
+
+func taskTOMLHeader(taskID int64) string {
+	return fmt.Sprintf(`# Task %d - Edit and save to apply changes
 # Lines starting with # are ignored
 #
 # Fields:
-#   description - The task text
-#   priority    - A-Z (or empty to remove)
-#   done        - true/false
-#   projects    - List of project tags (without +)
-#   contexts    - List of context tags (without @)
-#   meta        - Key-value pairs
+#   title        - The action title (required)
+#   notes        - Optional notes
+#   state        - %s
+#   due_on       - %s
+#   waiting_for  - Optional string
+#   projects     - List of project names
+#   contexts     - List of context names
+#   meta         - Key-value pairs
 
-`
+`, taskID, domain.TaskStatesUsage, domain.DateTextYYYYMMDD)
+}
 
 func Edit(task *store.Task) (*TaskTOML, error) {
 	taskTOML := TaskToTOML(task)
 
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf(tomlHeader, task.ID))
+
+	tmpDir, err := makeEditTempDir()
+	if err != nil {
+		return nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	useSchemaHeader := false
+	schemaRef := ""
+	if len(taskSchemaJSON) > 0 {
+		schemaPath := filepath.Join(tmpDir, taskSchemaFileName)
+		if err := os.WriteFile(schemaPath, taskSchemaJSON, 0o644); err == nil {
+			useSchemaHeader = true
+			_ = os.WriteFile(filepath.Join(tmpDir, "taplo.toml"), []byte(fmt.Sprintf(`include = ["*.toml"]
+
+[schema]
+path = "./%s"
+enabled = true
+`, taskSchemaFileName)), 0o644)
+			if runtime.GOOS == "windows" {
+				schemaRef = "file:///" + filepath.ToSlash(schemaPath)
+			} else {
+				schemaRef = "file://" + schemaPath
+			}
+		}
+	}
+
+	header := taskTOMLHeader(task.ID)
+	if useSchemaHeader {
+		header = fmt.Sprintf("#:schema %s\n%s", schemaRef, header)
+	}
+	buf.WriteString(header)
 	if err := toml.NewEncoder(&buf).Encode(taskTOML); err != nil {
 		return nil, fmt.Errorf("encode task to TOML: %w", err)
 	}
 	original := buf.String()
 
-	tmpFile, err := os.CreateTemp("", "ugh-edit-*.toml")
+	tmpFile, err := os.CreateTemp(tmpDir, "ugh-edit-*.toml")
 	if err != nil {
 		return nil, fmt.Errorf("create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
 
 	if _, err := tmpFile.WriteString(original); err != nil {
 		_ = tmpFile.Close()
@@ -114,6 +162,15 @@ func Edit(task *store.Task) (*TaskTOML, error) {
 	return &result, nil
 }
 
+func makeEditTempDir() (string, error) {
+	if wd, err := os.Getwd(); err == nil && wd != "" {
+		if dir, err := os.MkdirTemp(wd, "ugh-edit-"); err == nil {
+			return dir, nil
+		}
+	}
+	return os.MkdirTemp("", "ugh-edit-")
+}
+
 func getEditor() string {
 	if editor := os.Getenv("VISUAL"); editor != "" {
 		return editor
@@ -130,22 +187,38 @@ func getEditor() string {
 }
 
 func validate(t *TaskTOML) error {
-	t.Description = strings.TrimSpace(t.Description)
-	if t.Description == "" {
-		return errors.New("description cannot be empty")
+	t.Title = strings.TrimSpace(t.Title)
+	if t.Title == "" {
+		return errors.New("title cannot be empty")
 	}
 
-	t.Priority = strings.ToUpper(strings.TrimSpace(t.Priority))
-	if t.Priority != "" {
-		if len(t.Priority) != 1 || t.Priority[0] < 'A' || t.Priority[0] > 'Z' {
-			return fmt.Errorf("invalid priority %q: must be A-Z", t.Priority)
+	t.State = strings.ToLower(strings.TrimSpace(t.State))
+	if t.State == "" {
+		t.State = domain.TaskStateInbox
+	}
+	if !domain.IsTaskState(t.State) {
+		return domain.InvalidStateMustBeError(t.State)
+	}
+
+	t.DueOn = strings.TrimSpace(t.DueOn)
+	if t.DueOn != "" {
+		if _, err := time.Parse(domain.DateLayoutYYYYMMDD, t.DueOn); err != nil {
+			return domain.InvalidDueOnFormatError(t.DueOn)
 		}
 	}
+	t.WaitingFor = strings.TrimSpace(t.WaitingFor)
 
 	t.Projects = cleanTags(t.Projects)
 	t.Contexts = cleanTags(t.Contexts)
 
 	return nil
+}
+
+func formatDay(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.UTC().Format("2006-01-02")
 }
 
 func cleanTags(tags []string) []string {

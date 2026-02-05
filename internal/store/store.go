@@ -1,4 +1,4 @@
-//go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate
+//go:generate go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate -f ../../sqlc.yaml
 
 package store
 
@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tursogo "turso.tech/database/tursogo"
@@ -150,6 +151,13 @@ func (s *Store) CreateTask(ctx context.Context, task *Task) (*Task, error) {
 	if task == nil {
 		return nil, errors.New("task is required")
 	}
+	task.Title = strings.TrimSpace(task.Title)
+	if task.Title == "" {
+		return nil, errors.New("title is required")
+	}
+	if task.State == "" {
+		task.State = StateInbox
+	}
 	if task.Meta == nil {
 		task.Meta = map[string]string{}
 	}
@@ -158,21 +166,37 @@ func (s *Store) CreateTask(ctx context.Context, task *Task) (*Task, error) {
 	createdAt := now.Unix()
 	updatedAt := now.Unix()
 
+	completedAt := task.CompletedAt
+	if task.State == StateDone {
+		if completedAt == nil {
+			completedAt = &now
+		}
+	} else {
+		completedAt = nil
+	}
+
+	prevStateNull := sql.NullString{}
+	if task.PrevState != nil && *task.PrevState != "" {
+		prevStateNull = sql.NullString{String: string(*task.PrevState), Valid: true}
+	}
+
 	params := sqlc.InsertTaskParams{
-		Done:           boolToInt(task.Done),
-		Priority:       nullString(task.Priority),
-		CompletionDate: nullDate(task.CompletionDate),
-		CreationDate:   nullDate(task.CreationDate),
-		Description:    task.Description,
-		CreatedAt:      createdAt,
-		UpdatedAt:      updatedAt,
+		State:       string(task.State),
+		PrevState:   prevStateNull,
+		Title:       task.Title,
+		Notes:       task.Notes,
+		DueOn:       nullDate(task.DueOn),
+		WaitingFor:  nullString(task.WaitingFor),
+		CompletedAt: nullUnixTime(completedAt),
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
 	}
 	row, err := s.queries.InsertTask(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("insert task: %w", err)
 	}
 
-	if err := s.insertTokens(ctx, row.ID, task); err != nil {
+	if err := s.insertDetails(ctx, row.ID, task); err != nil {
 		return nil, err
 	}
 
@@ -186,29 +210,52 @@ func (s *Store) UpdateTask(ctx context.Context, task *Task) (*Task, error) {
 	if task.ID == 0 {
 		return nil, errors.New("task id is required")
 	}
+	task.Title = strings.TrimSpace(task.Title)
+	if task.Title == "" {
+		return nil, errors.New("title is required")
+	}
+	if task.State == "" {
+		task.State = StateInbox
+	}
 	if task.Meta == nil {
 		task.Meta = map[string]string{}
 	}
 
-	updatedAt := time.Now().UTC().Unix()
+	now := time.Now().UTC()
+	updatedAt := now.Unix()
+	completedAt := task.CompletedAt
+	if task.State == StateDone {
+		if completedAt == nil {
+			completedAt = &now
+		}
+	} else {
+		completedAt = nil
+	}
+
+	prevStateNull := sql.NullString{}
+	if task.PrevState != nil && *task.PrevState != "" {
+		prevStateNull = sql.NullString{String: string(*task.PrevState), Valid: true}
+	}
 
 	params := sqlc.UpdateTaskParams{
-		Done:           boolToInt(task.Done),
-		Priority:       nullString(task.Priority),
-		CompletionDate: nullDate(task.CompletionDate),
-		CreationDate:   nullDate(task.CreationDate),
-		Description:    task.Description,
-		UpdatedAt:      updatedAt,
-		ID:             task.ID,
+		State:       string(task.State),
+		PrevState:   prevStateNull,
+		Title:       task.Title,
+		Notes:       task.Notes,
+		DueOn:       nullDate(task.DueOn),
+		WaitingFor:  nullString(task.WaitingFor),
+		CompletedAt: nullUnixTime(completedAt),
+		UpdatedAt:   updatedAt,
+		ID:          task.ID,
 	}
 	if _, err := s.queries.UpdateTask(ctx, params); err != nil {
 		return nil, fmt.Errorf("update task: %w", err)
 	}
 
-	if err := s.deleteTokens(ctx, task.ID); err != nil {
+	if err := s.deleteDetails(ctx, task.ID); err != nil {
 		return nil, err
 	}
-	if err := s.insertTokens(ctx, task.ID, task); err != nil {
+	if err := s.insertDetails(ctx, task.ID, task); err != nil {
 		return nil, err
 	}
 
@@ -222,22 +269,21 @@ func (s *Store) GetTask(ctx context.Context, id int64) (*Task, error) {
 	}
 
 	task := fromGetRow(row)
-	if err := s.loadTokens(ctx, []*Task{task}); err != nil {
+	if err := s.loadDetails(ctx, []*Task{task}); err != nil {
 		return nil, err
 	}
 	return task, nil
 }
 
 func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error) {
-	// Build status filter - nil means no filter
-	var statusAny any
-	var statusInt int64
+	state := strings.TrimSpace(filters.State)
 	if filters.DoneOnly {
-		statusAny = int64(1)
-		statusInt = 1
-	} else if filters.TodoOnly {
-		statusAny = int64(0)
-		statusInt = 0
+		state = string(StateDone)
+	}
+
+	excludeDone := int64(0)
+	if filters.TodoOnly {
+		excludeDone = 1
 	}
 
 	// Build search filter as sql.NullString
@@ -246,29 +292,32 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 		searchNull = sql.NullString{String: filters.Search, Valid: true}
 	}
 
-	// Build priority filter as sql.NullString
-	priorityNull := sql.NullString{}
-	if filters.Priority != "" {
-		priorityNull = sql.NullString{String: filters.Priority, Valid: true}
+	dueSet := int64(0)
+	if filters.DueSetOnly {
+		dueSet = 1
 	}
 
 	// For (? IS NULL OR field = ?) pattern, pass the same value twice
 	// When first param is nil, second doesn't matter (OR short-circuits)
 	params := sqlc.ListTasksParams{
-		Column1:  statusAny,                 // status IS NULL check
-		Done:     statusInt,                 // t.done = status
-		Column3:  nullAny(filters.Project),  // project IS NULL check
-		Name:     filters.Project,           // p.name = project
-		Column5:  nullAny(filters.Context),  // context IS NULL check
-		Name_2:   filters.Context,           // c.name = context
-		Column7:  nullAny(filters.Priority), // priority IS NULL check
-		Priority: priorityNull,              // t.priority = priority
-		Column9:  nullAny(filters.Search),   // search IS NULL check
-		Column10: searchNull,                // search LIKE (description)
-		Column11: searchNull,                // search LIKE (projects)
-		Column12: searchNull,                // search LIKE (contexts)
-		Column13: searchNull,                // search LIKE (meta key)
-		Column14: searchNull,                // search LIKE (meta value)
+		Column1: excludeDone,
+		Column2: nullAny(state),
+		State:   state,
+
+		Column4: nullAny(filters.Project),
+		Name:    filters.Project,
+		Column6: nullAny(filters.Context),
+		Name_2:  filters.Context,
+
+		Column8:  nullAny(filters.Search),
+		Column9:  searchNull,
+		Column10: searchNull,
+		Column11: searchNull,
+		Column12: searchNull,
+		Column13: searchNull,
+		Column14: searchNull,
+
+		Column15: dueSet,
 	}
 	rows, err := s.queries.ListTasks(ctx, params)
 	if err != nil {
@@ -279,7 +328,7 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 	for _, row := range rows {
 		tasks = append(tasks, fromListRow(row))
 	}
-	if err := s.loadTokens(ctx, tasks); err != nil {
+	if err := s.loadDetails(ctx, tasks); err != nil {
 		return nil, err
 	}
 	return tasks, nil
@@ -289,20 +338,24 @@ func (s *Store) SetDone(ctx context.Context, ids []int64, done bool) (int64, err
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	completion := sql.NullString{}
+	updatedAt := time.Now().UTC().Unix()
 	if done {
-		completion = sql.NullString{String: time.Now().UTC().Format("2006-01-02"), Valid: true}
-	}
-	params := sqlc.SetDoneParams{
-		Done:           boolToInt(done),
-		CompletionDate: completion,
-		UpdatedAt:      time.Now().UTC().Unix(),
-		Ids:            ids,
+		params := sqlc.CompleteTasksParams{
+			CompletedAt: sql.NullInt64{Int64: time.Now().UTC().Unix(), Valid: true},
+			UpdatedAt:   updatedAt,
+			Ids:         ids,
+		}
+		count, err := s.queries.CompleteTasks(ctx, params)
+		if err != nil {
+			return 0, fmt.Errorf("complete tasks: %w", err)
+		}
+		return count, nil
 	}
 
-	count, err := s.queries.SetDone(ctx, params)
+	params := sqlc.ReopenTasksParams{UpdatedAt: updatedAt, Ids: ids}
+	count, err := s.queries.ReopenTasks(ctx, params)
 	if err != nil {
-		return 0, fmt.Errorf("update done: %w", err)
+		return 0, fmt.Errorf("reopen tasks: %w", err)
 	}
 	return count, nil
 }
@@ -318,7 +371,7 @@ func (s *Store) DeleteTasks(ctx context.Context, ids []int64) (int64, error) {
 	return count, nil
 }
 
-func (s *Store) loadTokens(ctx context.Context, tasks []*Task) error {
+func (s *Store) loadDetails(ctx context.Context, tasks []*Task) error {
 	if len(tasks) == 0 {
 		return nil
 	}
@@ -329,11 +382,10 @@ func (s *Store) loadTokens(ctx context.Context, tasks []*Task) error {
 		byID[task.ID] = task
 		task.Projects = nil
 		task.Contexts = nil
-		task.Unknown = nil
 		task.Meta = map[string]string{}
 	}
 
-	projects, err := s.queries.ListProjects(ctx, ids)
+	projects, err := s.queries.ListProjectsForTasks(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("load projects: %w", err)
 	}
@@ -343,7 +395,7 @@ func (s *Store) loadTokens(ctx context.Context, tasks []*Task) error {
 		}
 	}
 
-	contexts, err := s.queries.ListContexts(ctx, ids)
+	contexts, err := s.queries.ListContextsForTasks(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("load contexts: %w", err)
 	}
@@ -363,53 +415,45 @@ func (s *Store) loadTokens(ctx context.Context, tasks []*Task) error {
 		}
 	}
 
-	unknown, err := s.queries.ListUnknown(ctx, ids)
-	if err != nil {
-		return fmt.Errorf("load unknown: %w", err)
-	}
-	for _, row := range unknown {
-		if task := byID[row.TaskID]; task != nil {
-			task.Unknown = append(task.Unknown, row.Token)
-		}
-	}
-
 	return nil
 }
 
-func (s *Store) insertTokens(ctx context.Context, id int64, task *Task) error {
-	for _, project := range uniqueStrings(task.Projects) {
-		if err := s.queries.InsertProject(ctx, sqlc.InsertProjectParams{TaskID: id, Name: project}); err != nil {
-			return fmt.Errorf("insert project: %w", err)
+func (s *Store) insertDetails(ctx context.Context, taskID int64, task *Task) error {
+	now := time.Now().UTC().Unix()
+
+	for _, project := range uniqueStrings(cleanNames(task.Projects)) {
+		projectID, err := s.queries.EnsureProject(ctx, sqlc.EnsureProjectParams{Name: project, CreatedAt: now, UpdatedAt: now})
+		if err != nil {
+			return fmt.Errorf("ensure project %q: %w", project, err)
+		}
+		if err := s.queries.InsertTaskProjectLink(ctx, sqlc.InsertTaskProjectLinkParams{TaskID: taskID, ProjectID: projectID}); err != nil {
+			return fmt.Errorf("insert project link: %w", err)
 		}
 	}
-	for _, context := range uniqueStrings(task.Contexts) {
-		if err := s.queries.InsertContext(ctx, sqlc.InsertContextParams{TaskID: id, Name: context}); err != nil {
-			return fmt.Errorf("insert context: %w", err)
+
+	for _, context := range uniqueStrings(cleanNames(task.Contexts)) {
+		contextID, err := s.queries.EnsureContext(ctx, sqlc.EnsureContextParams{Name: context, CreatedAt: now, UpdatedAt: now})
+		if err != nil {
+			return fmt.Errorf("ensure context %q: %w", context, err)
+		}
+		if err := s.queries.InsertTaskContextLink(ctx, sqlc.InsertTaskContextLinkParams{TaskID: taskID, ContextID: contextID}); err != nil {
+			return fmt.Errorf("insert context link: %w", err)
 		}
 	}
+
 	for key, value := range task.Meta {
-		if err := s.queries.InsertMeta(ctx, sqlc.InsertMetaParams{TaskID: id, Key: key, Value: value}); err != nil {
+		if err := s.queries.InsertMeta(ctx, sqlc.InsertMetaParams{TaskID: taskID, Key: key, Value: value}); err != nil {
 			return fmt.Errorf("insert meta: %w", err)
 		}
 	}
-	for ordinal, token := range task.Unknown {
-		params := sqlc.InsertUnknownParams{TaskID: id, Ordinal: int64(ordinal), Token: token}
-		if err := s.queries.InsertUnknown(ctx, params); err != nil {
-			return fmt.Errorf("insert unknown: %w", err)
-		}
-	}
+
 	return nil
 }
 
-func (s *Store) ListProjectCounts(ctx context.Context, status any) ([]NameCount, error) {
-	// Convert status to int64 for the equals check (value doesn't matter if status is nil)
-	var statusInt int64
-	if v, ok := status.(int64); ok {
-		statusInt = v
-	}
+func (s *Store) ListProjectCounts(ctx context.Context, onlyDone bool, excludeDone bool) ([]NameCount, error) {
 	params := sqlc.ListProjectCountsParams{
-		Column1: status,    // status IS NULL check
-		Done:    statusInt, // t.done = status
+		Column1: boolToInt(onlyDone),
+		Column2: boolToInt(excludeDone),
 	}
 	rows, err := s.queries.ListProjectCounts(ctx, params)
 	if err != nil {
@@ -422,15 +466,10 @@ func (s *Store) ListProjectCounts(ctx context.Context, status any) ([]NameCount,
 	return result, nil
 }
 
-func (s *Store) ListContextCounts(ctx context.Context, status any) ([]NameCount, error) {
-	// Convert status to int64 for the equals check (value doesn't matter if status is nil)
-	var statusInt int64
-	if v, ok := status.(int64); ok {
-		statusInt = v
-	}
+func (s *Store) ListContextCounts(ctx context.Context, onlyDone bool, excludeDone bool) ([]NameCount, error) {
 	params := sqlc.ListContextCountsParams{
-		Column1: status,    // status IS NULL check
-		Done:    statusInt, // t.done = status
+		Column1: boolToInt(onlyDone),
+		Column2: boolToInt(excludeDone),
 	}
 	rows, err := s.queries.ListContextCounts(ctx, params)
 	if err != nil {
@@ -443,46 +482,55 @@ func (s *Store) ListContextCounts(ctx context.Context, status any) ([]NameCount,
 	return result, nil
 }
 
-func (s *Store) deleteTokens(ctx context.Context, id int64) error {
-	if err := s.queries.DeleteTokens(ctx, id); err != nil {
-		return fmt.Errorf("delete projects: %w", err)
+func (s *Store) deleteDetails(ctx context.Context, taskID int64) error {
+	if err := s.queries.DeleteTaskProjectLinks(ctx, taskID); err != nil {
+		return fmt.Errorf("delete project links: %w", err)
 	}
-	if err := s.queries.DeleteContexts(ctx, id); err != nil {
-		return fmt.Errorf("delete contexts: %w", err)
+	if err := s.queries.DeleteTaskContextLinks(ctx, taskID); err != nil {
+		return fmt.Errorf("delete context links: %w", err)
 	}
-	if err := s.queries.DeleteMeta(ctx, id); err != nil {
+	if err := s.queries.DeleteMeta(ctx, taskID); err != nil {
 		return fmt.Errorf("delete meta: %w", err)
-	}
-	if err := s.queries.DeleteUnknown(ctx, id); err != nil {
-		return fmt.Errorf("delete unknown: %w", err)
 	}
 	return nil
 }
 
 func fromGetRow(row sqlc.GetTaskRow) *Task {
 	return &Task{
-		ID:             row.ID,
-		Done:           row.Done == 1,
-		Priority:       row.Priority.String,
-		CompletionDate: parseDate(row.CompletionDate),
-		CreationDate:   parseDate(row.CreationDate),
-		Description:    row.Description,
-		CreatedAt:      time.Unix(row.CreatedAt, 0).UTC(),
-		UpdatedAt:      time.Unix(row.UpdatedAt, 0).UTC(),
+		ID:          row.ID,
+		State:       State(row.State),
+		PrevState:   parseStatePtr(row.PrevState),
+		Title:       row.Title,
+		Notes:       row.Notes,
+		DueOn:       parseDate(row.DueOn),
+		WaitingFor:  row.WaitingFor.String,
+		CompletedAt: parseUnixTime(row.CompletedAt),
+		CreatedAt:   time.Unix(row.CreatedAt, 0).UTC(),
+		UpdatedAt:   time.Unix(row.UpdatedAt, 0).UTC(),
 	}
 }
 
 func fromListRow(row sqlc.ListTasksRow) *Task {
 	return &Task{
-		ID:             row.ID,
-		Done:           row.Done == 1,
-		Priority:       row.Priority.String,
-		CompletionDate: parseDate(row.CompletionDate),
-		CreationDate:   parseDate(row.CreationDate),
-		Description:    row.Description,
-		CreatedAt:      time.Unix(row.CreatedAt, 0).UTC(),
-		UpdatedAt:      time.Unix(row.UpdatedAt, 0).UTC(),
+		ID:          row.ID,
+		State:       State(row.State),
+		PrevState:   parseStatePtr(row.PrevState),
+		Title:       row.Title,
+		Notes:       row.Notes,
+		DueOn:       parseDate(row.DueOn),
+		WaitingFor:  row.WaitingFor.String,
+		CompletedAt: parseUnixTime(row.CompletedAt),
+		CreatedAt:   time.Unix(row.CreatedAt, 0).UTC(),
+		UpdatedAt:   time.Unix(row.UpdatedAt, 0).UTC(),
 	}
+}
+
+func parseStatePtr(val sql.NullString) *State {
+	if !val.Valid || val.String == "" {
+		return nil
+	}
+	s := State(val.String)
+	return &s
 }
 
 func parseDate(val sql.NullString) *time.Time {
@@ -495,6 +543,14 @@ func parseDate(val sql.NullString) *time.Time {
 	}
 	utc := parsed.UTC()
 	return &utc
+}
+
+func parseUnixTime(val sql.NullInt64) *time.Time {
+	if !val.Valid {
+		return nil
+	}
+	t := time.Unix(val.Int64, 0).UTC()
+	return &t
 }
 
 func boolToInt(value bool) int64 {
@@ -518,6 +574,13 @@ func nullDate(value *time.Time) sql.NullString {
 	return sql.NullString{String: value.Format("2006-01-02"), Valid: true}
 }
 
+func nullUnixTime(value *time.Time) sql.NullInt64 {
+	if value == nil {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: value.UTC().Unix(), Valid: true}
+}
+
 func nullAny(value string) any {
 	if value == "" {
 		return nil
@@ -536,6 +599,23 @@ func uniqueStrings(values []string) []string {
 			continue
 		}
 		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func cleanNames(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		value = strings.TrimPrefix(value, "+")
+		value = strings.TrimPrefix(value, "@")
+		if value == "" {
+			continue
+		}
 		result = append(result, value)
 	}
 	return result

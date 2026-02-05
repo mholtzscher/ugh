@@ -1,6 +1,6 @@
 # AGENTS.md - AI Agent Guidelines for ugh
 
-A todo.txt-inspired task CLI with SQLite storage.
+A task CLI with SQLite storage.
 
 **Stack**: Go 1.25+, urfave/cli/v3
 
@@ -23,6 +23,9 @@ just build-release             # release build
 # Run
 just run <args>                # run locally
 
+# Generate
+just generate                  # run sqlc code generation
+
 # Test
 just test                      # all tests
 just test-verbose              # verbose test output
@@ -31,7 +34,7 @@ just test-verbose              # verbose test output
 just fmt                       # format code
 just vet                       # static analysis
 just lint                      # comprehensive linting (golangci-lint)
-just check                     # run all checks (fmt, vet, lint, test)
+just check                     # run all checks (generate, fmt, vet, lint, test)
 
 # Dependencies
 just tidy                      # go mod tidy

@@ -66,8 +66,9 @@ func getConfig() *config.Config {
 
 // Cmd is the parent command for all daemon subcommands.
 var Cmd = &cli.Command{
-	Name:  "daemon",
-	Usage: "Manage the background daemon",
+	Name:     "daemon",
+	Usage:    "Manage the background daemon",
+	Category: "System",
 	Description: `Manage the ugh background daemon for HTTP API and Turso sync.
 
 The daemon provides:

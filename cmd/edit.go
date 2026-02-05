@@ -14,40 +14,63 @@ import (
 )
 
 var editCmd = &cli.Command{
-	Name:    "edit",
-	Aliases: []string{"e"},
-	Usage:   "Edit a task",
+	Name:     "edit",
+	Aliases:  []string{"e"},
+	Usage:    "Edit a task",
+	Category: "Tasks",
 	Description: `Edit a task by ID.
 
 Opens the task in your editor ($VISUAL or $EDITOR) by default.
 Use flags for quick single-field changes without opening an editor.
 
-Examples:
-  ugh edit 1                         # Open in editor (default)
-  ugh edit 1 -p A                    # Set priority to A
-  ugh edit 1 --no-priority           # Remove priority
-  ugh edit 1 --description "New text" # Change description
-  ugh edit 1 -P urgent               # Add project 'urgent'
-  ugh edit 1 --remove-project old    # Remove project 'old'
-  ugh edit 1 -c work -m due:tomorrow # Add context and metadata`,
+		Examples:
+		  ugh edit 1                          # Open in editor (default)
+		  ugh edit 1 --state now              # Move to Now
+		  ugh edit 1 --due 2026-02-10         # Set due date
+		  ugh edit 1 --title "New title"      # Change title
+		  ugh edit 1 -p urgent                # Add project 'urgent'
+		  ugh edit 1 --remove-project old     # Remove project 'old'
+		  ugh edit 1 -c work -m key:val       # Add context and metadata`,
 	ArgsUsage: "<id>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  flags.FlagDescription,
-			Usage: "update description",
+			Name:    flags.FlagTitle,
+			Aliases: []string{flags.FlagDescription},
+			Usage:   "update title",
 		},
 		&cli.StringFlag{
-			Name:    flags.FlagPriority,
-			Aliases: []string{"p"},
-			Usage:   "set priority (A-Z)",
+			Name:  flags.FlagNotes,
+			Usage: "update notes",
+		},
+		&cli.StringFlag{
+			Name:  flags.FlagState,
+			Usage: "set state (" + flags.TaskStatesUsage + ")",
+			Action: flags.StringAction(
+				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
+			),
+		},
+		&cli.StringFlag{
+			Name:  flags.FlagDueOn,
+			Usage: "set due date (" + flags.DateTextYYYYMMDD + ")",
+			Action: flags.StringAction(
+				flags.DateLayoutRule(flags.FieldDate, flags.DateLayoutYYYYMMDD, flags.DateTextYYYYMMDD),
+			),
 		},
 		&cli.BoolFlag{
-			Name:  flags.FlagNoPriority,
-			Usage: "remove priority",
+			Name:  flags.FlagNoDue,
+			Usage: "clear due date",
+		},
+		&cli.StringFlag{
+			Name:  flags.FlagWaitingFor,
+			Usage: "set waiting-for value",
+		},
+		&cli.BoolFlag{
+			Name:  flags.FlagNoWaitingFor,
+			Usage: "clear waiting-for value",
 		},
 		&cli.StringSliceFlag{
 			Name:    flags.FlagProject,
-			Aliases: []string{"P"},
+			Aliases: []string{"p"},
 			Usage:   "add project (repeatable)",
 		},
 		&cli.StringSliceFlag{
@@ -58,16 +81,26 @@ Examples:
 		&cli.StringSliceFlag{
 			Name:    flags.FlagMeta,
 			Aliases: []string{"m"},
-			Usage:   "set metadata key:value (repeatable)",
+			Usage:   "set metadata " + flags.MetaTextKeyValue + " (repeatable)",
+			Action: flags.StringSliceAction(
+				flags.EachContainsSeparatorRule(flags.FieldMeta, flags.MetaSeparatorColon, flags.MetaTextKeyValue),
+			),
 		},
 		&cli.BoolFlag{
 			Name:    flags.FlagDone,
 			Aliases: []string{"x"},
-			Usage:   "mark as done",
+			Usage:   "mark as done (state=done)",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagDone, flags.FlagUndone),
+				flags.BoolRequiresStringOneOfCaseInsensitiveRule(flags.FlagDone, flags.FlagState, flags.TaskStateDone),
+			),
 		},
 		&cli.BoolFlag{
 			Name:  flags.FlagUndone,
-			Usage: "mark as not done",
+			Usage: "reopen (undo done)",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagDone, flags.FlagUndone),
+			),
 		},
 		&cli.StringSliceFlag{
 			Name:  flags.FlagRemoveProject,
@@ -140,9 +173,13 @@ Examples:
 }
 
 func hasFieldFlags(cmd *cli.Command) bool {
-	return cmd.String(flags.FlagDescription) != "" ||
-		cmd.String(flags.FlagPriority) != "" ||
-		cmd.Bool(flags.FlagNoPriority) ||
+	return cmd.String(flags.FlagTitle) != "" ||
+		cmd.String(flags.FlagNotes) != "" ||
+		cmd.String(flags.FlagState) != "" ||
+		cmd.String(flags.FlagDueOn) != "" ||
+		cmd.Bool(flags.FlagNoDue) ||
+		cmd.String(flags.FlagWaitingFor) != "" ||
+		cmd.Bool(flags.FlagNoWaitingFor) ||
 		len(cmd.StringSlice(flags.FlagProject)) > 0 ||
 		len(cmd.StringSlice(flags.FlagContext)) > 0 ||
 		len(cmd.StringSlice(flags.FlagMeta)) > 0 ||
@@ -169,62 +206,73 @@ func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.T
 	}
 
 	return svc.FullUpdateTask(ctx, service.FullUpdateTaskRequest{
-		ID:          id,
-		Description: edited.Description,
-		Priority:    edited.Priority,
-		Done:        edited.Done,
-		Projects:    edited.Projects,
-		Contexts:    edited.Contexts,
-		Meta:        edited.Meta,
+		ID:         id,
+		Title:      edited.Title,
+		Notes:      edited.Notes,
+		State:      edited.State,
+		DueOn:      edited.DueOn,
+		WaitingFor: edited.WaitingFor,
+		Projects:   edited.Projects,
+		Contexts:   edited.Contexts,
+		Meta:       edited.Meta,
 	})
 }
 
 func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id int64) (*store.Task, error) {
-	priority := cmd.String(flags.FlagPriority)
-	if cmd.Bool(flags.FlagDone) && cmd.Bool(flags.FlagUndone) {
-		return nil, errors.New("cannot use both --done and --undone")
-	}
-	if priority != "" {
-		p := strings.ToUpper(strings.TrimSpace(priority))
-		if len(p) != 1 || p[0] < 'A' || p[0] > 'Z' {
-			return nil, fmt.Errorf("invalid priority %q: must be A-Z", priority)
-		}
-		priority = p
-	}
-
 	meta, err := parseMetaFlags(cmd.StringSlice(flags.FlagMeta))
 	if err != nil {
 		return nil, fmt.Errorf("parse meta: %w", err)
 	}
 
 	req := service.UpdateTaskRequest{
-		ID:             id,
-		AddProjects:    cmd.StringSlice(flags.FlagProject),
-		AddContexts:    cmd.StringSlice(flags.FlagContext),
-		SetMeta:        meta,
-		RemoveProjects: cmd.StringSlice(flags.FlagRemoveProject),
-		RemoveContexts: cmd.StringSlice(flags.FlagRemoveContext),
-		RemoveMetaKeys: cmd.StringSlice(flags.FlagRemoveMeta),
-		RemovePriority: cmd.Bool(flags.FlagNoPriority),
+		ID:              id,
+		AddProjects:     cmd.StringSlice(flags.FlagProject),
+		AddContexts:     cmd.StringSlice(flags.FlagContext),
+		SetMeta:         meta,
+		RemoveProjects:  cmd.StringSlice(flags.FlagRemoveProject),
+		RemoveContexts:  cmd.StringSlice(flags.FlagRemoveContext),
+		RemoveMetaKeys:  cmd.StringSlice(flags.FlagRemoveMeta),
+		ClearDueOn:      cmd.Bool(flags.FlagNoDue),
+		ClearWaitingFor: cmd.Bool(flags.FlagNoWaitingFor),
 	}
 
-	if description := cmd.String(flags.FlagDescription); description != "" {
-		req.Description = &description
+	if title := cmd.String(flags.FlagTitle); title != "" {
+		req.Title = &title
+	}
+	if notes := cmd.String(flags.FlagNotes); notes != "" {
+		req.Notes = &notes
+	}
+	if state := cmd.String(flags.FlagState); state != "" {
+		req.State = &state
 	}
 
-	if priority != "" {
-		req.Priority = &priority
+	if due := cmd.String(flags.FlagDueOn); due != "" {
+		req.DueOn = &due
+	}
+	if waitingFor := cmd.String(flags.FlagWaitingFor); waitingFor != "" {
+		req.WaitingFor = &waitingFor
 	}
 
+	// Apply field updates first.
+	updated, err := svc.UpdateTask(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	if cmd.Bool(flags.FlagDone) {
-		done := true
-		req.Done = &done
-	} else if cmd.Bool(flags.FlagUndone) {
-		done := false
-		req.Done = &done
+		_, err := svc.SetDone(ctx, []int64{id}, true)
+		if err != nil {
+			return nil, err
+		}
+		return svc.GetTask(ctx, id)
 	}
-
-	return svc.UpdateTask(ctx, req)
+	if cmd.Bool(flags.FlagUndone) {
+		_, err := svc.SetDone(ctx, []int64{id}, false)
+		if err != nil {
+			return nil, err
+		}
+		return svc.GetTask(ctx, id)
+	}
+	return updated, nil
 }
 
 func parseMetaFlags(meta []string) (map[string]string, error) {
@@ -233,9 +281,9 @@ func parseMetaFlags(meta []string) (map[string]string, error) {
 	}
 	result := make(map[string]string, len(meta))
 	for _, m := range meta {
-		k, v, ok := strings.Cut(m, ":")
+		k, v, ok := strings.Cut(m, flags.MetaSeparatorColon)
 		if !ok {
-			return nil, fmt.Errorf("invalid meta format: %s (expected key:value)", m)
+			return nil, fmt.Errorf("invalid meta format: %s (expected %s)", m, flags.MetaTextKeyValue)
 		}
 		result[strings.TrimSpace(k)] = strings.TrimSpace(v)
 	}

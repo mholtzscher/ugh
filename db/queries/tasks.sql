@@ -1,109 +1,226 @@
 -- name: InsertTask :one
 INSERT INTO tasks (
-  done,
-  priority,
-  completion_date,
-  creation_date,
-  description,
+  state,
+  prev_state,
+  title,
+  notes,
+  due_on,
+  waiting_for,
+  completed_at,
   created_at,
   updated_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, done, priority, completion_date, creation_date, CAST(description AS TEXT) AS description, created_at, updated_at;
+RETURNING
+  id,
+  state,
+  prev_state,
+  CAST(title AS TEXT) AS title,
+  CAST(notes AS TEXT) AS notes,
+  due_on,
+  waiting_for,
+  completed_at,
+  created_at,
+  updated_at;
 
 -- name: UpdateTask :one
 UPDATE tasks
-SET done = ?,
-  priority = ?,
-  completion_date = ?,
-  creation_date = ?,
-  description = ?,
+SET state = ?,
+  prev_state = ?,
+  title = ?,
+  notes = ?,
+  due_on = ?,
+  waiting_for = ?,
+  completed_at = ?,
   updated_at = ?
 WHERE id = ?
-RETURNING id, done, priority, completion_date, creation_date, CAST(description AS TEXT) AS description, created_at, updated_at;
+RETURNING
+  id,
+  state,
+  prev_state,
+  CAST(title AS TEXT) AS title,
+  CAST(notes AS TEXT) AS notes,
+  due_on,
+  waiting_for,
+  completed_at,
+  created_at,
+  updated_at;
 
 -- name: GetTask :one
-SELECT id, done, priority, completion_date, creation_date, CAST(description AS TEXT) AS description, created_at, updated_at
+SELECT
+  id,
+  state,
+  prev_state,
+  CAST(title AS TEXT) AS title,
+  CAST(notes AS TEXT) AS notes,
+  due_on,
+  waiting_for,
+  completed_at,
+  created_at,
+  updated_at
 FROM tasks
 WHERE id = ?;
 
 -- name: ListTasks :many
-SELECT t.id, t.done, t.priority, t.completion_date, t.creation_date, CAST(t.description AS TEXT) AS description, t.created_at, t.updated_at
+SELECT
+  t.id,
+  t.state,
+  t.prev_state,
+  CAST(t.title AS TEXT) AS title,
+  CAST(t.notes AS TEXT) AS notes,
+  t.due_on,
+  t.waiting_for,
+  t.completed_at,
+  t.created_at,
+  t.updated_at
 FROM tasks t
-WHERE (? IS NULL OR t.done = ?)
+WHERE (? = 0 OR t.state != 'done')
+  AND (? IS NULL OR t.state = ?)
   AND (? IS NULL OR EXISTS (
-    SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name = ?
+    SELECT 1
+    FROM task_project_links tpl
+    JOIN projects p ON p.id = tpl.project_id
+    WHERE tpl.task_id = t.id AND p.name = ?
   ))
   AND (? IS NULL OR EXISTS (
-    SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name = ?
+    SELECT 1
+    FROM task_context_links tcl
+    JOIN contexts c ON c.id = tcl.context_id
+    WHERE tcl.task_id = t.id AND c.name = ?
   ))
-  AND (? IS NULL OR t.priority = ?)
   AND (? IS NULL OR (
-    t.description LIKE '%' || ? || '%'
-    OR EXISTS (SELECT 1 FROM task_projects p WHERE p.task_id = t.id AND p.name LIKE '%' || ? || '%')
-    OR EXISTS (SELECT 1 FROM task_contexts c WHERE c.task_id = t.id AND c.name LIKE '%' || ? || '%')
-    OR EXISTS (SELECT 1 FROM task_meta m WHERE m.task_id = t.id AND (m.key LIKE '%' || ? || '%' OR m.value LIKE '%' || ? || '%'))
+    t.title LIKE '%' || ? || '%'
+    OR t.notes LIKE '%' || ? || '%'
+    OR EXISTS (
+      SELECT 1
+      FROM task_project_links tpl
+      JOIN projects p ON p.id = tpl.project_id
+      WHERE tpl.task_id = t.id AND p.name LIKE '%' || ? || '%'
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM task_context_links tcl
+      JOIN contexts c ON c.id = tcl.context_id
+      WHERE tcl.task_id = t.id AND c.name LIKE '%' || ? || '%'
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM task_meta m
+      WHERE m.task_id = t.id AND (
+        m.key LIKE '%' || ? || '%'
+        OR m.value LIKE '%' || ? || '%'
+      )
+    )
   ))
-ORDER BY CASE WHEN t.done = 1 THEN 1 ELSE 0 END, t.priority IS NULL, t.priority ASC, t.created_at DESC;
+  AND (? = 0 OR (t.due_on IS NOT NULL AND t.due_on != ''))
+ORDER BY
+  CASE WHEN t.state = 'done' THEN 1 ELSE 0 END,
+  CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END,
+  t.due_on ASC,
+  t.updated_at DESC;
 
--- name: SetDone :execrows
+-- name: CompleteTasks :execrows
 UPDATE tasks
-SET done = ?, completion_date = ?, updated_at = ?
+SET
+  prev_state = CASE WHEN state != 'done' THEN state ELSE prev_state END,
+  state = 'done',
+  completed_at = ?,
+  updated_at = ?
+WHERE id IN (sqlc.slice('ids'));
+
+-- name: ReopenTasks :execrows
+UPDATE tasks
+SET
+  state = COALESCE(prev_state, 'inbox'),
+  prev_state = NULL,
+  completed_at = NULL,
+  updated_at = ?
 WHERE id IN (sqlc.slice('ids'));
 
 -- name: DeleteTasks :execrows
 DELETE FROM tasks
 WHERE id IN (sqlc.slice('ids'));
 
--- name: InsertProject :exec
-INSERT INTO task_projects (task_id, name) VALUES (?, ?);
+-- name: EnsureProject :one
+INSERT INTO projects (
+  name,
+  notes,
+  created_at,
+  updated_at
+) VALUES (
+  ?, '', ?, ?
+)
+ON CONFLICT(name) DO UPDATE SET
+  updated_at = excluded.updated_at
+RETURNING id;
 
--- name: InsertContext :exec
-INSERT INTO task_contexts (task_id, name) VALUES (?, ?);
+-- name: EnsureContext :one
+INSERT INTO contexts (
+  name,
+  created_at,
+  updated_at
+) VALUES (
+  ?, ?, ?
+)
+ON CONFLICT(name) DO UPDATE SET
+  updated_at = excluded.updated_at
+RETURNING id;
+
+-- name: InsertTaskProjectLink :exec
+INSERT INTO task_project_links (task_id, project_id) VALUES (?, ?);
+
+-- name: InsertTaskContextLink :exec
+INSERT INTO task_context_links (task_id, context_id) VALUES (?, ?);
 
 -- name: InsertMeta :exec
 INSERT INTO task_meta (task_id, key, value) VALUES (?, ?, ?);
 
--- name: InsertUnknown :exec
-INSERT INTO task_unknown (task_id, ordinal, token) VALUES (?, ?, ?);
+-- name: DeleteTaskProjectLinks :exec
+DELETE FROM task_project_links WHERE task_id = ?;
 
--- name: DeleteTokens :exec
-DELETE FROM task_projects WHERE task_id = ?;
-
--- name: DeleteContexts :exec
-DELETE FROM task_contexts WHERE task_id = ?;
+-- name: DeleteTaskContextLinks :exec
+DELETE FROM task_context_links WHERE task_id = ?;
 
 -- name: DeleteMeta :exec
 DELETE FROM task_meta WHERE task_id = ?;
 
--- name: DeleteUnknown :exec
-DELETE FROM task_unknown WHERE task_id = ?;
+-- name: ListProjectsForTasks :many
+SELECT tpl.task_id, p.name
+FROM task_project_links tpl
+JOIN projects p ON p.id = tpl.project_id
+WHERE tpl.task_id IN (sqlc.slice('ids'))
+ORDER BY tpl.task_id, p.name;
 
--- name: ListProjects :many
-SELECT task_id, name FROM task_projects WHERE task_id IN (sqlc.slice('ids')) ORDER BY task_id;
-
--- name: ListContexts :many
-SELECT task_id, name FROM task_contexts WHERE task_id IN (sqlc.slice('ids')) ORDER BY task_id;
+-- name: ListContextsForTasks :many
+SELECT tcl.task_id, c.name
+FROM task_context_links tcl
+JOIN contexts c ON c.id = tcl.context_id
+WHERE tcl.task_id IN (sqlc.slice('ids'))
+ORDER BY tcl.task_id, c.name;
 
 -- name: ListMeta :many
-SELECT task_id, key, value FROM task_meta WHERE task_id IN (sqlc.slice('ids')) ORDER BY task_id;
-
--- name: ListUnknown :many
-SELECT task_id, ordinal, token FROM task_unknown WHERE task_id IN (sqlc.slice('ids')) ORDER BY task_id, ordinal;
+SELECT task_id, key, value
+FROM task_meta
+WHERE task_id IN (sqlc.slice('ids'))
+ORDER BY task_id;
 
 -- name: ListProjectCounts :many
-SELECT tp.name, COUNT(t.id) AS count
-FROM task_projects tp
-JOIN tasks t ON tp.task_id = t.id
-WHERE (? IS NULL OR t.done = ?)
-GROUP BY tp.name
-ORDER BY tp.name ASC;
+SELECT p.name, COUNT(t.id) AS count
+FROM projects p
+JOIN task_project_links tpl ON tpl.project_id = p.id
+JOIN tasks t ON t.id = tpl.task_id
+WHERE (? = 0 OR t.state = 'done')
+  AND (? = 0 OR t.state != 'done')
+GROUP BY p.name
+ORDER BY p.name ASC;
 
 -- name: ListContextCounts :many
-SELECT tc.name, COUNT(t.id) AS count
-FROM task_contexts tc
-JOIN tasks t ON tc.task_id = t.id
-WHERE (? IS NULL OR t.done = ?)
-GROUP BY tc.name
-ORDER BY tc.name ASC;
+SELECT c.name, COUNT(t.id) AS count
+FROM contexts c
+JOIN task_context_links tcl ON tcl.context_id = c.id
+JOIN tasks t ON t.id = tcl.task_id
+WHERE (? = 0 OR t.state = 'done')
+  AND (? = 0 OR t.state != 'done')
+GROUP BY c.name
+ORDER BY c.name ASC;

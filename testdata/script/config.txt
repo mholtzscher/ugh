@@ -5,7 +5,7 @@ version = 1
 [db]
 path = "data/ugh.sqlite"
 --
-exec ugh --config config.toml add Buy milk +groceries
+exec ugh --config config.toml add -p groceries Buy milk
 exec ugh --config config.toml list
 stdout 'Buy milk'
 
@@ -14,7 +14,7 @@ stdout 'Buy milk'
 version = 1
 --
 # This should use the default DB path since db.path is not set
-exec ugh --config config-no-db.toml add Test task @work
+exec ugh --config config-no-db.toml add -c work Test task
 stdout 'Test task'
 
 # Config file missing should fail
@@ -28,7 +28,7 @@ version = 1
 [db]
 path = ""
 --
-exec ugh --config config-empty-path.toml add Another task +misc
+exec ugh --config config-empty-path.toml add -p misc Another task
 stdout 'Another task'
 
 # Config file with db section but no path key should use default
@@ -37,7 +37,7 @@ version = 1
 
 [db]
 --
-exec ugh --config config-no-path-key.toml add Yet another task @home
+exec ugh --config config-no-path-key.toml add -c home Yet another task
 stdout 'Yet another task'
 
 # Config file without version should default to 1
@@ -66,5 +66,5 @@ version = 1
 path = "data/ugh.sqlite"
 EOF'
 exec sh -c 'mkdir -p $WORK/subdir/data'
-exec ugh --config $WORK/subdir/config.toml add Relative path task +test
+exec ugh --config $WORK/subdir/config.toml add -p test Relative path task
 stdout 'Relative path task'

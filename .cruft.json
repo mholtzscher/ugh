@@ -1,11 +1,11 @@
 {
   "template": "https://github.com/mholtzscher/templates.git",
-  "commit": "3cdb904131c115adaf8564f0bbeabe5a87aa9740",
+  "commit": "608c37fd90e6b9ecba1a7d1e55206bd0e7abff39",
   "context": {
     "cookiecutter": {
       "project_name": "ugh",
       "project_slug": "ugh",
-      "project_description": "A todo.txt-inspired task CLI with SQLite storage.",
+      "project_description": "A GTD-first task CLI with SQLite storage.",
       "github_owner": "mholtzscher",
       "github_repo": "ugh",
       "module_path": "github.com/mholtzscher/ugh",
@@ -14,11 +14,13 @@
       "license": "MIT",
       "use_cgo": "no",
       "use_homebrew": "no",
+      "use_sqlc": "yes",
       "go_version": "1.25",
       "_template": "https://github.com/mholtzscher/templates.git",
-      "_commit": "3cdb904131c115adaf8564f0bbeabe5a87aa9740",
+      "_commit": "608c37fd90e6b9ecba1a7d1e55206bd0e7abff39",
       "_copy_without_render": [
-        "test/testscript/scripts/*.txtar"
+        "test/testscript/scripts/*.txtar",
+        "db/*.sql"
       ]
     }
   },

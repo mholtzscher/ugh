@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ugh:task-edit",
+  "title": "ugh Task Edit File",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Task title (required)."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes."
+    },
+    "state": {
+      "type": "string",
+      "default": "inbox",
+      "description": "Task state.",
+      "anyOf": [
+        {"enum": ["", "inbox", "now", "waiting", "later", "done"]}
+      ]
+    },
+    "due_on": {
+      "type": "string",
+      "description": "Due date in YYYY-MM-DD (empty for none).",
+      "anyOf": [
+        {"const": ""},
+        {"pattern": "^\\d{4}-\\d{2}-\\d{2}$"}
+      ]
+    },
+    "waiting_for": {
+      "type": "string",
+      "description": "Optional waiting-for value."
+    },
+    "projects": {
+      "type": "array",
+      "description": "List of project names.",
+      "items": {"type": "string"},
+      "default": []
+    },
+    "contexts": {
+      "type": "array",
+      "description": "List of context names.",
+      "items": {"type": "string"},
+      "default": []
+    },
+    "meta": {
+      "type": "object",
+      "description": "Metadata key/value pairs.",
+      "additionalProperties": {"type": "string"},
+      "default": {}
+    }
+  }
+}

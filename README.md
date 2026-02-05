@@ -1,6 +1,6 @@
 # ugh
 
-A todo.txt-inspired task CLI with SQLite storage.
+A task CLI with SQLite storage.
 
 ## Installation
 
@@ -17,18 +17,26 @@ nix build
 ## Usage
 
 ```bash
-# Add tasks (supports todo.txt format)
-ugh add "Buy milk +groceries @errands"
-ugh add "Call mom" -p A --project family
+# Add tasks
+ugh add -p groceries -c errands Buy milk
+ugh add --state now -p family -c phone --due 2026-01-20 Call mom
 
-# List tasks
-ugh list                    # pending tasks
-ugh list --all              # include completed
+
+# Lists
+ugh inbox
+ugh now
+ugh waiting
+ugh later
+ugh calendar
+
+# Advanced listing
+ugh list --state now
+ugh list --state done
+ugh list --all
 ugh list --project groceries
 ugh list --context errands
-ugh list --priority A
 
-# List available tags
+# List available projects/contexts
 ugh projects
 ugh contexts
 
@@ -39,7 +47,7 @@ ugh done 1 2 3
 ugh undo 1
 
 # Edit a task
-ugh edit 1 --priority B --project work
+ugh edit 1 --state now -p work
 
 # Show task details
 ugh show 1
@@ -47,9 +55,9 @@ ugh show 1
 # Remove tasks
 ugh rm 1 2
 
-# Import/export todo.txt
-ugh import todo.txt
-ugh export - --all          # stdout
+# Import/export backups
+ugh export backup.jsonl --all
+ugh import backup.jsonl
 ```
 
 ## Development
@@ -71,7 +79,7 @@ just fmt
 
 - **TTY**: Formatted table output (default)
 - **JSON**: `--json` flag for machine-readable output
-- **Pipe**: Plain todo.txt format when piped
+- **Pipe**: Tab-separated output when piped
 
 ## Configuration
 
@@ -125,19 +133,52 @@ sync_on_write = true
 --no-color       Disable color output
 ```
 
-## todo.txt Format
+## Data Model
 
-Tasks follow the [todo.txt](https://github.com/todotxt/todo.txt) format:
+- **State**: `inbox|now|waiting|later|done`
+- **Scheduling**: `--due YYYY-MM-DD`
+- **Projects/Contexts**: first-class entities linked to tasks
+- **Meta**: custom `key:value` pairs
 
+## Task Lifecycle
+
+Tasks have a single `state`; completion is represented by `state=done`.
+
+```mermaid
+flowchart LR
+  Inbox[inbox]
+  Now[now]
+  Waiting[waiting]
+  Later[later]
+  Done[done]
+  Prev[previous state]
+
+  Inbox <--> Now
+  Inbox <--> Waiting
+  Inbox <--> Later
+  Now <--> Waiting
+  Now <--> Later
+  Waiting <--> Later
+
+  Inbox -->|ugh done| Done
+  Now -->|ugh done| Done
+  Waiting -->|ugh done| Done
+  Later -->|ugh done| Done
+  Done -->|ugh undo| Prev
 ```
-(A) 2024-01-15 Call mom +family @phone due:2024-01-20
-x 2024-01-14 2024-01-10 Buy groceries +shopping
-```
 
-- `(A)` - Priority (A-Z)
-- `+project` - Project tags
-- `@context` - Context tags
-- `key:value` - Metadata
+How the built-in lists are derived:
+
+```mermaid
+flowchart TB
+  T[task]
+  T -->|state inbox| Inbox["ugh inbox"]
+  T -->|state now| Now["ugh now"]
+  T -->|state waiting| Waiting["ugh waiting"]
+  T -->|state later| Later["ugh later"]
+  T -->|state done| Done["ugh list --done"]
+  T -->|due date set| Cal["ugh calendar"]
+```
 
 ## License
 

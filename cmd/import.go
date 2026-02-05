@@ -3,12 +3,14 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
+	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/urfave/cli/v3"
@@ -17,8 +19,19 @@ import (
 var importCmd = &cli.Command{
 	Name:      "import",
 	Aliases:   []string{"in"},
-	Usage:     "Import tasks from todo.txt",
+	Usage:     "Import tasks from a backup file",
+	Category:  "Backup",
 	ArgsUsage: "<path|->",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  flags.FlagFormat,
+			Usage: "input format (" + flags.FormatsUsage + ")",
+			Value: flags.FormatJSONL,
+			Action: flags.StringAction(
+				flags.OneOfCaseInsensitiveRule(flags.FieldFormat, flags.Formats...),
+			),
+		},
+	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		if cmd.Args().Len() != 1 {
 			return errors.New("import requires a file path or -")
@@ -46,27 +59,58 @@ var importCmd = &cli.Command{
 			return fmt.Errorf("sync pull: %w", err)
 		}
 
-		scanner := bufio.NewScanner(reader)
-		buf := make([]byte, 0, 64*1024)
-		scanner.Buffer(buf, 1024*1024)
+		format := strings.ToLower(strings.TrimSpace(cmd.String(flags.FlagFormat)))
+		if format == "" {
+			format = flags.FormatJSONL
+		}
 
 		var added int64
 		var skipped int64
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
-				skipped++
-				continue
+		if format == flags.FormatJSON {
+			data, err := io.ReadAll(reader)
+			if err != nil {
+				return fmt.Errorf("read import: %w", err)
 			}
-			if _, err := svc.CreateTask(ctx, service.CreateTaskRequest{
-				Line: line,
-			}); err != nil {
-				return err
+			var items []backupTask
+			if err := json.Unmarshal(data, &items); err != nil {
+				return fmt.Errorf("parse json: %w", err)
 			}
-			added++
-		}
-		if err := scanner.Err(); err != nil {
-			return fmt.Errorf("read import: %w", err)
+			for _, item := range items {
+				if strings.TrimSpace(item.Title) == "" {
+					skipped++
+					continue
+				}
+				if _, err := svc.CreateTask(ctx, item.toCreateRequest()); err != nil {
+					return err
+				}
+				added++
+			}
+		} else {
+			scanner := bufio.NewScanner(reader)
+			buf := make([]byte, 0, 64*1024)
+			scanner.Buffer(buf, 1024*1024)
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" {
+					skipped++
+					continue
+				}
+				var item backupTask
+				if err := json.Unmarshal([]byte(line), &item); err != nil {
+					return fmt.Errorf("parse jsonl: %w", err)
+				}
+				if strings.TrimSpace(item.Title) == "" {
+					skipped++
+					continue
+				}
+				if _, err := svc.CreateTask(ctx, item.toCreateRequest()); err != nil {
+					return err
+				}
+				added++
+			}
+			if err := scanner.Err(); err != nil {
+				return fmt.Errorf("read import: %w", err)
+			}
 		}
 		if err := maybeSyncAfterWrite(ctx, svc); err != nil {
 			return fmt.Errorf("sync push: %w", err)
@@ -75,4 +119,33 @@ var importCmd = &cli.Command{
 		writer := outputWriter()
 		return writer.WriteSummary(output.ImportSummary{Action: "import", Added: added, Skipped: skipped, File: path})
 	},
+}
+
+type backupTask struct {
+	Title      string            `json:"title"`
+	Notes      string            `json:"notes,omitempty"`
+	State      string            `json:"state,omitempty"`
+	DueOn      string            `json:"dueOn,omitempty"`
+	WaitingFor string            `json:"waitingFor,omitempty"`
+	Projects   []string          `json:"projects,omitempty"`
+	Contexts   []string          `json:"contexts,omitempty"`
+	Meta       map[string]string `json:"meta,omitempty"`
+}
+
+func (t backupTask) toCreateRequest() service.CreateTaskRequest {
+	meta := make([]string, 0)
+	for k, v := range t.Meta {
+		meta = append(meta, k+":"+v)
+	}
+	state := strings.TrimSpace(t.State)
+	return service.CreateTaskRequest{
+		Title:      t.Title,
+		Notes:      t.Notes,
+		State:      state,
+		Projects:   t.Projects,
+		Contexts:   t.Contexts,
+		Meta:       meta,
+		DueOn:      t.DueOn,
+		WaitingFor: t.WaitingFor,
+	}
 }

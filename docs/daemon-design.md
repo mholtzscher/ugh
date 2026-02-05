@@ -352,10 +352,9 @@ List tasks with optional filters.
 **Query Parameters:**
 | Param | Type | Description |
 |-------|------|-------------|
-| `done` | bool | Filter by done status (`true`, `false`) |
+| `state` | string | Filter by state (`inbox`, `now`, `waiting`, `later`, `done`) |
 | `project` | string | Filter by project name |
 | `context` | string | Filter by context name |
-| `priority` | string | Filter by priority (A-Z) |
 | `search` | string | Search in description, projects, contexts, meta |
 
 **Response:**
@@ -364,8 +363,7 @@ List tasks with optional filters.
   "tasks": [
     {
       "id": 1,
-      "done": false,
-      "priority": "A",
+      "state": "inbox",
       "completion_date": null,
       "creation_date": "2026-01-27",
       "description": "Buy milk",
@@ -386,18 +384,12 @@ Create a new task.
 **Request Body:**
 ```json
 {
-  "description": "Buy milk",
-  "priority": "A",
+  "title": "Buy milk",
+  "state": "now",
+  "dueOn": "2026-01-30",
   "projects": ["groceries"],
   "contexts": ["store"],
-  "meta": {"due": "2026-01-30"}
-}
-```
-
-Or use todo.txt format:
-```json
-{
-  "raw": "(A) Buy milk +groceries @store due:2026-01-30"
+  "meta": {"source": "voice"}
 }
 ```
 
@@ -430,7 +422,6 @@ Replace a task (full update).
 ```json
 {
   "description": "Buy milk and eggs",
-  "priority": "A",
   "projects": ["groceries"],
   "contexts": ["store"],
   "meta": {"due": "2026-01-30"}
@@ -451,7 +442,6 @@ Partial update (only specified fields).
 **Request Body:**
 ```json
 {
-  "priority": "B"
 }
 ```
 
@@ -472,7 +462,7 @@ Delete a task.
 
 #### `POST /tasks/done`
 
-Mark multiple tasks as done.
+Mark multiple tasks as done (`state=done`).
 
 **Request Body:**
 ```json
@@ -490,7 +480,7 @@ Mark multiple tasks as done.
 
 #### `POST /tasks/undone`
 
-Mark multiple tasks as not done.
+Reopen multiple tasks (restores `prev_state`, clears completion timestamp).
 
 **Request Body:**
 ```json
@@ -533,7 +523,7 @@ List all projects with task counts.
 **Query Parameters:**
 | Param | Type | Description |
 |-------|------|-------------|
-| `done` | bool | Count only done/todo tasks |
+| `state` | string | Count only tasks in a given state (`inbox`, `now`, `waiting`, `later`, `done`) |
 
 **Response:**
 ```json
@@ -552,7 +542,7 @@ List all contexts with task counts.
 **Query Parameters:**
 | Param | Type | Description |
 |-------|------|-------------|
-| `done` | bool | Count only done/todo tasks |
+| `state` | string | Count only tasks in a given state (`inbox`, `now`, `waiting`, `later`, `done`) |
 
 **Response:**
 ```json

@@ -9,24 +9,34 @@ import (
 )
 
 var contextsCmd = &cli.Command{
-	Name:    "contexts",
-	Aliases: []string{"ctx"},
-	Usage:   "List available context tags",
+	Name:     "contexts",
+	Aliases:  []string{"ctx"},
+	Usage:    "List contexts",
+	Category: "Projects & Contexts",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:    flags.FlagAll,
 			Aliases: []string{"a"},
 			Usage:   "include completed tasks",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagAll, flags.FlagDone, flags.FlagTodo),
+			),
 		},
 		&cli.BoolFlag{
 			Name:    flags.FlagDone,
 			Aliases: []string{"x"},
 			Usage:   "only completed tasks",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagAll, flags.FlagDone, flags.FlagTodo),
+			),
 		},
 		&cli.BoolFlag{
 			Name:    flags.FlagTodo,
 			Aliases: []string{"t"},
 			Usage:   "only pending tasks",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagAll, flags.FlagDone, flags.FlagTodo),
+			),
 		},
 		&cli.BoolFlag{
 			Name:  flags.FlagCounts,

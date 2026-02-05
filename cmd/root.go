@@ -34,8 +34,8 @@ var (
 
 var rootCmd = &cli.Command{
 	Name:        "ugh",
-	Usage:       "ugh is a todo.txt-inspired task CLI",
-	Description: "ugh is a todo.txt-inspired task CLI with SQLite storage.",
+	Usage:       "ugh is a task CLI",
+	Description: "ugh is a task CLI with SQLite storage.",
 	Version:     Version,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -147,6 +147,11 @@ func Execute() {
 func init() {
 	rootCmd.Commands = []*cli.Command{
 		addCmd,
+		inboxCmd,
+		nowCmd,
+		waitingCmd,
+		laterCmd,
+		calendarCmd,
 		listCmd,
 		showCmd,
 		editCmd,
