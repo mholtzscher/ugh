@@ -140,6 +140,67 @@ sync_on_write = true
 - **Projects/Contexts**: first-class entities linked to tasks
 - **Meta**: custom `key:value` pairs
 
+## Task Lifecycle
+
+`status` is the GTD list a task belongs to; `done` is a separate on/off state.
+
+```mermaid
+flowchart LR
+  inbox([inbox])
+  next([next])
+  waiting([waiting])
+  someday([someday])
+
+  inbox <--> |ugh edit --status| next
+  inbox <--> |ugh edit --status| waiting
+  inbox <--> |ugh edit --status| someday
+  next <--> |ugh edit --status| waiting
+  next <--> |ugh edit --status| someday
+  waiting <--> |ugh edit --status| someday
+```
+
+Open vs done, and how the built-in lists are derived:
+
+```mermaid
+flowchart TB
+  T[(task)]
+  T -->|done=1| Done[done (hidden from GTD lists)]
+  T -->|done=0| Open[open]
+
+  Open -->|status=inbox| Inbox[ugh inbox]
+  Open -->|status=waiting| Waiting[ugh waiting]
+  Open -->|status=someday| Someday[ugh someday]
+
+  Open -->|status=next AND (defer_until empty OR <= today)| Next[ugh next]
+  Open -->|defer_until > today| Snoozed[ugh snoozed]
+  Open -->|due_on set| Cal[ugh calendar]
+```
+
+A typical GTD "clarify" flow using ugh commands:
+
+```mermaid
+flowchart TD
+  Capture[Capture\nugh add ...] --> Inbox[inbox]
+  Inbox --> Actionable{Actionable?}
+
+  Actionable -->|no| NonAction{Someday or delete?}
+  NonAction -->|someday| Someday[someday\nugh edit --status someday]
+  NonAction -->|delete| Delete[trash\nugh rm ID]
+
+  Actionable -->|yes| Blocked{Waiting on someone?}
+  Blocked -->|yes| Waiting[waiting\nugh edit --status waiting --waiting-for ...]
+  Blocked -->|no| Later{Not before a date?}
+  Later -->|yes| Defer[next (snoozed)\nugh edit --status next --defer YYYY-MM-DD]
+  Later -->|no| Next[next\nugh edit --status next]
+
+  Next --> Due[Optional: hard deadline\nugh edit --due YYYY-MM-DD]
+  Defer --> Due
+  Waiting --> Due
+
+  Due --> Complete[Complete\nugh done ID]
+  Complete -->|reopen| Reopen[ugh undo ID]
+```
+
 ## License
 
 MIT
