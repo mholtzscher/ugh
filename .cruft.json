@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/mholtzscher/templates.git",
-  "commit": "608c37fd90e6b9ecba1a7d1e55206bd0e7abff39",
+  "commit": "2b03dc7d2a8f",
   "context": {
     "cookiecutter": {
       "project_name": "ugh",
