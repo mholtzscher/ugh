@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mholtzscher/ugh/internal/domain"
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
@@ -346,9 +347,9 @@ func removeStrings(slice []string, toRemove []string) []string {
 func parseMetaFlags(meta []string) (map[string]string, error) {
 	result := map[string]string{}
 	for _, m := range meta {
-		k, v, ok := strings.Cut(m, ":")
+		k, v, ok := strings.Cut(m, domain.MetaSeparatorColon)
 		if !ok {
-			return nil, fmt.Errorf("invalid meta format: %s (expected key:value)", m)
+			return nil, domain.InvalidMetaFormatError(m)
 		}
 		result[strings.TrimSpace(k)] = strings.TrimSpace(v)
 	}
@@ -356,9 +357,9 @@ func parseMetaFlags(meta []string) (map[string]string, error) {
 }
 
 func parseDay(value string) (*time.Time, error) {
-	parsed, err := time.Parse("2006-01-02", value)
+	parsed, err := time.Parse(domain.DateLayoutYYYYMMDD, value)
 	if err != nil {
-		return nil, fmt.Errorf("invalid date format: %s (expected YYYY-MM-DD)", value)
+		return nil, domain.InvalidDateFormatError(value)
 	}
 	utc := parsed.UTC()
 	return &utc, nil
@@ -367,12 +368,10 @@ func parseDay(value string) (*time.Time, error) {
 func normalizeState(value string) (store.State, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
-		return store.StateInbox, nil
+		return store.State(domain.TaskStateInbox), nil
 	}
-	switch value {
-	case string(store.StateInbox), string(store.StateNow), string(store.StateWaiting), string(store.StateLater), string(store.StateDone):
-		return store.State(value), nil
-	default:
-		return "", fmt.Errorf("invalid state %q (expected inbox|now|waiting|later|done)", value)
+	if !domain.IsTaskState(value) {
+		return "", domain.InvalidStateExpectedError(value)
 	}
+	return store.State(value), nil
 }

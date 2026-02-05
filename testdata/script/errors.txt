@@ -19,3 +19,19 @@ stderr 'invalid date format'
 
 ! exec ugh --db $WORK/db.sqlite add --meta badmeta Task
 stderr 'invalid meta'
+
+! exec ugh --db $WORK/db.sqlite add --state someday Task
+stderr 'invalid state "someday"'
+
+! exec ugh --db $WORK/db.sqlite list --all --done
+stderr 'cannot combine --all with --done'
+
+! exec ugh --db $WORK/db.sqlite import --format yaml -
+stderr 'invalid format "yaml"'
+
+! exec ugh --db $WORK/db.sqlite export --format yaml -
+stderr 'invalid format "yaml"'
+
+exec ugh --db $WORK/db.sqlite add Check conflict
+! exec ugh --db $WORK/db.sqlite edit 1 --done --state now
+stderr 'cannot combine --done with --state other than done'

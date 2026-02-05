@@ -44,11 +44,17 @@ Use flags for quick single-field changes without opening an editor.
 		},
 		&cli.StringFlag{
 			Name:  flags.FlagState,
-			Usage: "set state (inbox|now|waiting|later|done)",
+			Usage: "set state (" + flags.TaskStatesUsage + ")",
+			Action: flags.StringAction(
+				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
+			),
 		},
 		&cli.StringFlag{
 			Name:  flags.FlagDueOn,
-			Usage: "set due date (YYYY-MM-DD)",
+			Usage: "set due date (" + flags.DateTextYYYYMMDD + ")",
+			Action: flags.StringAction(
+				flags.DateLayoutRule(flags.FieldDate, flags.DateLayoutYYYYMMDD, flags.DateTextYYYYMMDD),
+			),
 		},
 		&cli.BoolFlag{
 			Name:  flags.FlagNoDue,
@@ -75,16 +81,26 @@ Use flags for quick single-field changes without opening an editor.
 		&cli.StringSliceFlag{
 			Name:    flags.FlagMeta,
 			Aliases: []string{"m"},
-			Usage:   "set metadata key:value (repeatable)",
+			Usage:   "set metadata " + flags.MetaTextKeyValue + " (repeatable)",
+			Action: flags.StringSliceAction(
+				flags.EachContainsSeparatorRule(flags.FieldMeta, flags.MetaSeparatorColon, flags.MetaTextKeyValue),
+			),
 		},
 		&cli.BoolFlag{
 			Name:    flags.FlagDone,
 			Aliases: []string{"x"},
 			Usage:   "mark as done (state=done)",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagDone, flags.FlagUndone),
+				flags.BoolRequiresStringOneOfCaseInsensitiveRule(flags.FlagDone, flags.FlagState, flags.TaskStateDone),
+			),
 		},
 		&cli.BoolFlag{
 			Name:  flags.FlagUndone,
 			Usage: "reopen (undo done)",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagDone, flags.FlagUndone),
+			),
 		},
 		&cli.StringSliceFlag{
 			Name:  flags.FlagRemoveProject,
@@ -203,10 +219,6 @@ func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.T
 }
 
 func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id int64) (*store.Task, error) {
-	if cmd.Bool(flags.FlagDone) && cmd.Bool(flags.FlagUndone) {
-		return nil, errors.New("cannot use both --done and --undone")
-	}
-
 	meta, err := parseMetaFlags(cmd.StringSlice(flags.FlagMeta))
 	if err != nil {
 		return nil, fmt.Errorf("parse meta: %w", err)
@@ -247,9 +259,6 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 		return nil, err
 	}
 	if cmd.Bool(flags.FlagDone) {
-		if req.State != nil && strings.TrimSpace(*req.State) != "" && strings.ToLower(strings.TrimSpace(*req.State)) != "done" {
-			return nil, errors.New("cannot combine --done with --state other than done")
-		}
 		_, err := svc.SetDone(ctx, []int64{id}, true)
 		if err != nil {
 			return nil, err
@@ -272,9 +281,9 @@ func parseMetaFlags(meta []string) (map[string]string, error) {
 	}
 	result := make(map[string]string, len(meta))
 	for _, m := range meta {
-		k, v, ok := strings.Cut(m, ":")
+		k, v, ok := strings.Cut(m, flags.MetaSeparatorColon)
 		if !ok {
-			return nil, fmt.Errorf("invalid meta format: %s (expected key:value)", m)
+			return nil, fmt.Errorf("invalid meta format: %s (expected %s)", m, flags.MetaTextKeyValue)
 		}
 		result[strings.TrimSpace(k)] = strings.TrimSpace(v)
 	}

@@ -1,5 +1,7 @@
 package flags
 
+import "github.com/mholtzscher/ugh/internal/domain"
+
 const (
 	FlagAll           = "all"
 	FlagCompleted     = "completed"
@@ -31,4 +33,41 @@ const (
 	FlagUndone        = "undone"
 	FlagDueOn         = "due"
 	FlagWaitingFor    = "waiting-for"
+)
+
+const (
+	FieldState  = "state"
+	FieldFormat = "format"
+	FieldDate   = "date"
+	FieldMeta   = "meta"
+)
+
+const (
+	TaskStateInbox   = domain.TaskStateInbox
+	TaskStateNow     = domain.TaskStateNow
+	TaskStateWaiting = domain.TaskStateWaiting
+	TaskStateLater   = domain.TaskStateLater
+	TaskStateDone    = domain.TaskStateDone
+
+	TaskStatesUsage = domain.TaskStatesUsage
+)
+
+const (
+	FormatJSONL = "jsonl"
+	FormatJSON  = "json"
+
+	FormatsUsage = FormatJSONL + "|" + FormatJSON
+)
+
+const (
+	DateLayoutYYYYMMDD = domain.DateLayoutYYYYMMDD
+	DateTextYYYYMMDD   = domain.DateTextYYYYMMDD
+
+	MetaSeparatorColon = domain.MetaSeparatorColon
+	MetaTextKeyValue   = domain.MetaTextKeyValue
+)
+
+var (
+	TaskStates = []string{TaskStateInbox, TaskStateNow, TaskStateWaiting, TaskStateLater, TaskStateDone}
+	Formats    = []string{FormatJSONL, FormatJSON}
 )

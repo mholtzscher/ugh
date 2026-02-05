@@ -20,8 +20,11 @@ var addCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  flags.FlagState,
-			Usage: "task state (inbox|now|waiting|later|done)",
-			Value: "inbox",
+			Usage: "task state (" + flags.TaskStatesUsage + ")",
+			Value: flags.TaskStateInbox,
+			Action: flags.StringAction(
+				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
+			),
 		},
 		&cli.StringFlag{
 			Name:  flags.FlagNotes,
@@ -40,11 +43,17 @@ var addCmd = &cli.Command{
 		&cli.StringSliceFlag{
 			Name:    flags.FlagMeta,
 			Aliases: []string{"m"},
-			Usage:   "metadata key:value (repeatable)",
+			Usage:   "metadata " + flags.MetaTextKeyValue + " (repeatable)",
+			Action: flags.StringSliceAction(
+				flags.EachContainsSeparatorRule(flags.FieldMeta, flags.MetaSeparatorColon, flags.MetaTextKeyValue),
+			),
 		},
 		&cli.StringFlag{
 			Name:  flags.FlagDueOn,
-			Usage: "due date (YYYY-MM-DD)",
+			Usage: "due date (" + flags.DateTextYYYYMMDD + ")",
+			Action: flags.StringAction(
+				flags.DateLayoutRule(flags.FieldDate, flags.DateLayoutYYYYMMDD, flags.DateTextYYYYMMDD),
+			),
 		},
 		&cli.StringFlag{
 			Name:  flags.FlagWaitingFor,
@@ -74,7 +83,7 @@ var addCmd = &cli.Command{
 
 		state := cmd.String(flags.FlagState)
 		if cmd.Bool(flags.FlagDone) {
-			state = "done"
+			state = flags.TaskStateDone
 		}
 
 		task, err := svc.CreateTask(ctx, service.CreateTaskRequest{

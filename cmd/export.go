@@ -26,27 +26,42 @@ var exportCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  flags.FlagFormat,
-			Usage: "output format (jsonl|json)",
-			Value: "jsonl",
+			Usage: "output format (" + flags.FormatsUsage + ")",
+			Value: flags.FormatJSONL,
+			Action: flags.StringAction(
+				flags.OneOfCaseInsensitiveRule(flags.FieldFormat, flags.Formats...),
+			),
 		},
 		&cli.BoolFlag{
 			Name:    flags.FlagAll,
 			Aliases: []string{"a"},
 			Usage:   "include completed tasks",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagAll, flags.FlagDone, flags.FlagTodo),
+			),
 		},
 		&cli.BoolFlag{
 			Name:    flags.FlagDone,
 			Aliases: []string{"x"},
 			Usage:   "only completed tasks",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagAll, flags.FlagDone, flags.FlagTodo),
+			),
 		},
 		&cli.BoolFlag{
 			Name:    flags.FlagTodo,
 			Aliases: []string{"t"},
 			Usage:   "only pending tasks",
+			Action: flags.BoolAction(
+				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagAll, flags.FlagDone, flags.FlagTodo),
+			),
 		},
 		&cli.StringFlag{
 			Name:  flags.FlagState,
-			Usage: "filter by state (inbox|now|waiting|later|done)",
+			Usage: "filter by state (" + flags.TaskStatesUsage + ")",
+			Action: flags.StringAction(
+				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
+			),
 		},
 		&cli.StringFlag{
 			Name:    flags.FlagProject,
@@ -71,13 +86,7 @@ var exportCmd = &cli.Command{
 		path := cmd.Args().Get(0)
 		format := strings.ToLower(strings.TrimSpace(cmd.String(flags.FlagFormat)))
 		if format == "" {
-			format = "jsonl"
-		}
-		switch format {
-		case "jsonl", "json":
-			// ok
-		default:
-			return fmt.Errorf("invalid format %q (expected jsonl|json)", format)
+			format = flags.FormatJSONL
 		}
 
 		svc, err := newService(ctx)
@@ -111,7 +120,7 @@ var exportCmd = &cli.Command{
 			file = created
 		}
 
-		if format == "json" {
+		if format == flags.FormatJSON {
 			enc := json.NewEncoder(file)
 			payload := make([]any, 0, len(tasks))
 			for _, task := range tasks {

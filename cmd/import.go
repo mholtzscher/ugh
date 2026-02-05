@@ -25,8 +25,11 @@ var importCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  flags.FlagFormat,
-			Usage: "input format (jsonl|json)",
-			Value: "jsonl",
+			Usage: "input format (" + flags.FormatsUsage + ")",
+			Value: flags.FormatJSONL,
+			Action: flags.StringAction(
+				flags.OneOfCaseInsensitiveRule(flags.FieldFormat, flags.Formats...),
+			),
 		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -58,18 +61,12 @@ var importCmd = &cli.Command{
 
 		format := strings.ToLower(strings.TrimSpace(cmd.String(flags.FlagFormat)))
 		if format == "" {
-			format = "jsonl"
-		}
-		switch format {
-		case "jsonl", "json":
-			// ok
-		default:
-			return fmt.Errorf("invalid format %q (expected jsonl|json)", format)
+			format = flags.FormatJSONL
 		}
 
 		var added int64
 		var skipped int64
-		if format == "json" {
+		if format == flags.FormatJSON {
 			data, err := io.ReadAll(reader)
 			if err != nil {
 				return fmt.Errorf("read import: %w", err)

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 
+	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/urfave/cli/v3"
 )
@@ -21,7 +22,7 @@ var waitingCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			State:    "waiting",
+			State:    flags.TaskStateWaiting,
 		})
 		if err != nil {
 			return err

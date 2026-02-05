@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/mholtzscher/ugh/internal/domain"
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
@@ -58,20 +59,22 @@ func TaskToTOML(task *store.Task) TaskTOML {
 
 const taskSchemaFileName = "ugh-task.schema.json"
 
-const tomlHeader = `# Task %d - Edit and save to apply changes
+func taskTOMLHeader(taskID int64) string {
+	return fmt.Sprintf(`# Task %d - Edit and save to apply changes
 # Lines starting with # are ignored
 #
 # Fields:
 #   title        - The action title (required)
 #   notes        - Optional notes
-#   state        - inbox|now|waiting|later|done
-#   due_on       - YYYY-MM-DD
+#   state        - %s
+#   due_on       - %s
 #   waiting_for  - Optional string
 #   projects     - List of project names
 #   contexts     - List of context names
 #   meta         - Key-value pairs
 
-`
+`, taskID, domain.TaskStatesUsage, domain.DateTextYYYYMMDD)
+}
 
 func Edit(task *store.Task) (*TaskTOML, error) {
 	taskTOML := TaskToTOML(task)
@@ -104,7 +107,7 @@ enabled = true
 		}
 	}
 
-	header := fmt.Sprintf(tomlHeader, task.ID)
+	header := taskTOMLHeader(task.ID)
 	if useSchemaHeader {
 		header = fmt.Sprintf("#:schema %s\n%s", schemaRef, header)
 	}
@@ -191,19 +194,16 @@ func validate(t *TaskTOML) error {
 
 	t.State = strings.ToLower(strings.TrimSpace(t.State))
 	if t.State == "" {
-		t.State = "inbox"
+		t.State = domain.TaskStateInbox
 	}
-	switch t.State {
-	case "inbox", "now", "waiting", "later", "done":
-		// ok
-	default:
-		return fmt.Errorf("invalid state %q: must be inbox|now|waiting|later|done", t.State)
+	if !domain.IsTaskState(t.State) {
+		return domain.InvalidStateMustBeError(t.State)
 	}
 
 	t.DueOn = strings.TrimSpace(t.DueOn)
 	if t.DueOn != "" {
-		if _, err := time.Parse("2006-01-02", t.DueOn); err != nil {
-			return fmt.Errorf("invalid due_on %q: expected YYYY-MM-DD", t.DueOn)
+		if _, err := time.Parse(domain.DateLayoutYYYYMMDD, t.DueOn); err != nil {
+			return domain.InvalidDueOnFormatError(t.DueOn)
 		}
 	}
 	t.WaitingFor = strings.TrimSpace(t.WaitingFor)
