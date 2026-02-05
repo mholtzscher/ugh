@@ -1,6 +1,6 @@
 # Add and list tasks
 exec ugh --db $WORK/db.sqlite add -P groceries -c home Buy milk
-exec ugh --db $WORK/db.sqlite add -p A -P family -c phone --due 2026-01-02 Call mom
+exec ugh --db $WORK/db.sqlite add -P family -c phone --due 2026-01-02 Call mom
 
 exec ugh --db $WORK/db.sqlite list
 stdout 'Call mom'

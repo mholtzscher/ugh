@@ -355,7 +355,6 @@ List tasks with optional filters.
 | `state` | string | Filter by state (`inbox`, `now`, `waiting`, `later`, `done`) |
 | `project` | string | Filter by project name |
 | `context` | string | Filter by context name |
-| `priority` | string | Filter by priority (A-Z) |
 | `search` | string | Search in description, projects, contexts, meta |
 
 **Response:**
@@ -365,7 +364,6 @@ List tasks with optional filters.
     {
       "id": 1,
       "state": "inbox",
-      "priority": "A",
       "completion_date": null,
       "creation_date": "2026-01-27",
       "description": "Buy milk",
@@ -388,7 +386,6 @@ Create a new task.
 {
   "title": "Buy milk",
   "state": "now",
-  "priority": "A",
   "dueOn": "2026-01-30",
   "projects": ["groceries"],
   "contexts": ["store"],
@@ -425,7 +422,6 @@ Replace a task (full update).
 ```json
 {
   "description": "Buy milk and eggs",
-  "priority": "A",
   "projects": ["groceries"],
   "contexts": ["store"],
   "meta": {"due": "2026-01-30"}
@@ -446,7 +442,6 @@ Partial update (only specified fields).
 **Request Body:**
 ```json
 {
-  "priority": "B"
 }
 ```
 

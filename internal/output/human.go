@@ -38,7 +38,6 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 		{"ID", fmt.Sprintf("%d", task.ID)},
 		{"State", string(task.State)},
 		{"Prev State", stateOrDash(task.PrevState)},
-		{"Priority", emptyDash(task.Priority)},
 		{"Created", dayFromTimeOrDash(task.CreatedAt)},
 		{"Updated", dayFromTimeOrDash(task.UpdatedAt)},
 		{"Completed", dateTimeOrDash(task.CompletedAt)},

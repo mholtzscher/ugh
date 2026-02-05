@@ -107,7 +107,6 @@ func (w Writer) WriteSummary(summary any) error {
 type TaskJSON struct {
 	ID          int64             `json:"id"`
 	State       string            `json:"state"`
-	Priority    string            `json:"priority,omitempty"`
 	Title       string            `json:"title"`
 	Notes       string            `json:"notes,omitempty"`
 	DueOn       string            `json:"dueOn,omitempty"`
@@ -136,7 +135,6 @@ func toTaskJSON(task *store.Task) TaskJSON {
 	return TaskJSON{
 		ID:          task.ID,
 		State:       string(task.State),
-		Priority:    task.Priority,
 		Title:       task.Title,
 		Notes:       task.Notes,
 		DueOn:       formatDate(task.DueOn),

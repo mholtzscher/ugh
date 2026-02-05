@@ -28,7 +28,6 @@ type Task struct {
 	ID          int64          `json:"id"`
 	State       string         `json:"state"`
 	PrevState   sql.NullString `json:"prev_state"`
-	Priority    sql.NullString `json:"priority"`
 	Title       string         `json:"title"`
 	Notes       string         `json:"notes"`
 	DueOn       sql.NullString `json:"due_on"`

@@ -128,7 +128,6 @@ type backupTask struct {
 	Title      string            `json:"title"`
 	Notes      string            `json:"notes,omitempty"`
 	State      string            `json:"state,omitempty"`
-	Priority   string            `json:"priority,omitempty"`
 	DueOn      string            `json:"dueOn,omitempty"`
 	WaitingFor string            `json:"waitingFor,omitempty"`
 	Projects   []string          `json:"projects,omitempty"`
@@ -146,7 +145,6 @@ func (t backupTask) toCreateRequest() service.CreateTaskRequest {
 		Title:      t.Title,
 		Notes:      t.Notes,
 		State:      state,
-		Priority:   t.Priority,
 		Projects:   t.Projects,
 		Contexts:   t.Contexts,
 		Meta:       meta,

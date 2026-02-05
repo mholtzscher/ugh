@@ -16,7 +16,6 @@ type Task struct {
 	ID          int64
 	State       State
 	PrevState   *State
-	Priority    string
 	Title       string
 	Notes       string
 	DueOn       *time.Time
@@ -36,7 +35,6 @@ type Filters struct {
 	State      string
 	Project    string
 	Context    string
-	Priority   string
 	Search     string
 	DueSetOnly bool
 }

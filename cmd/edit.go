@@ -27,12 +27,10 @@ Use flags for quick single-field changes without opening an editor.
 		  ugh edit 1                          # Open in editor (default)
 		  ugh edit 1 --state now              # Move to Now
 		  ugh edit 1 --due 2026-02-10         # Set due date
-		  ugh edit 1 -p A                     # Set priority to A
-		  ugh edit 1 --no-priority            # Remove priority
-	  ugh edit 1 --title "New title"      # Change title
-	  ugh edit 1 -P urgent                # Add project 'urgent'
-	  ugh edit 1 --remove-project old     # Remove project 'old'
-	  ugh edit 1 -c work -m key:val       # Add context and metadata`,
+		  ugh edit 1 --title "New title"      # Change title
+		  ugh edit 1 -P urgent                # Add project 'urgent'
+		  ugh edit 1 --remove-project old     # Remove project 'old'
+		  ugh edit 1 -c work -m key:val       # Add context and metadata`,
 	ArgsUsage: "<id>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -49,11 +47,6 @@ Use flags for quick single-field changes without opening an editor.
 			Usage: "set state (inbox|now|waiting|later|done)",
 		},
 		&cli.StringFlag{
-			Name:    flags.FlagPriority,
-			Aliases: []string{"p"},
-			Usage:   "set priority (A-Z)",
-		},
-		&cli.StringFlag{
 			Name:  flags.FlagDueOn,
 			Usage: "set due date (YYYY-MM-DD)",
 		},
@@ -68,10 +61,6 @@ Use flags for quick single-field changes without opening an editor.
 		&cli.BoolFlag{
 			Name:  flags.FlagNoWaitingFor,
 			Usage: "clear waiting-for value",
-		},
-		&cli.BoolFlag{
-			Name:  flags.FlagNoPriority,
-			Usage: "remove priority",
 		},
 		&cli.StringSliceFlag{
 			Name:    flags.FlagProject,
@@ -171,12 +160,10 @@ func hasFieldFlags(cmd *cli.Command) bool {
 	return cmd.String(flags.FlagTitle) != "" ||
 		cmd.String(flags.FlagNotes) != "" ||
 		cmd.String(flags.FlagState) != "" ||
-		cmd.String(flags.FlagPriority) != "" ||
 		cmd.String(flags.FlagDueOn) != "" ||
 		cmd.Bool(flags.FlagNoDue) ||
 		cmd.String(flags.FlagWaitingFor) != "" ||
 		cmd.Bool(flags.FlagNoWaitingFor) ||
-		cmd.Bool(flags.FlagNoPriority) ||
 		len(cmd.StringSlice(flags.FlagProject)) > 0 ||
 		len(cmd.StringSlice(flags.FlagContext)) > 0 ||
 		len(cmd.StringSlice(flags.FlagMeta)) > 0 ||
@@ -207,7 +194,6 @@ func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.T
 		Title:      edited.Title,
 		Notes:      edited.Notes,
 		State:      edited.State,
-		Priority:   edited.Priority,
 		DueOn:      edited.DueOn,
 		WaitingFor: edited.WaitingFor,
 		Projects:   edited.Projects,
@@ -217,16 +203,8 @@ func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.T
 }
 
 func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id int64) (*store.Task, error) {
-	priority := cmd.String(flags.FlagPriority)
 	if cmd.Bool(flags.FlagDone) && cmd.Bool(flags.FlagUndone) {
 		return nil, errors.New("cannot use both --done and --undone")
-	}
-	if priority != "" {
-		p := strings.ToUpper(strings.TrimSpace(priority))
-		if len(p) != 1 || p[0] < 'A' || p[0] > 'Z' {
-			return nil, fmt.Errorf("invalid priority %q: must be A-Z", priority)
-		}
-		priority = p
 	}
 
 	meta, err := parseMetaFlags(cmd.StringSlice(flags.FlagMeta))
@@ -242,7 +220,6 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 		RemoveProjects:  cmd.StringSlice(flags.FlagRemoveProject),
 		RemoveContexts:  cmd.StringSlice(flags.FlagRemoveContext),
 		RemoveMetaKeys:  cmd.StringSlice(flags.FlagRemoveMeta),
-		RemovePriority:  cmd.Bool(flags.FlagNoPriority),
 		ClearDueOn:      cmd.Bool(flags.FlagNoDue),
 		ClearWaitingFor: cmd.Bool(flags.FlagNoWaitingFor),
 	}
@@ -255,10 +232,6 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 	}
 	if state := cmd.String(flags.FlagState); state != "" {
 		req.State = &state
-	}
-
-	if priority != "" {
-		req.Priority = &priority
 	}
 
 	if due := cmd.String(flags.FlagDueOn); due != "" {

@@ -35,7 +35,6 @@ ugh list --state done
 ugh list --all
 ugh list --project groceries
 ugh list --context errands
-ugh list --priority A
 
 # List available projects/contexts
 ugh projects
@@ -48,7 +47,7 @@ ugh done 1 2 3
 ugh undo 1
 
 # Edit a task
-ugh edit 1 --priority B --project work
+ugh edit 1 --state now -P work
 
 # Show task details
 ugh show 1

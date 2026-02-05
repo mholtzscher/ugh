@@ -155,7 +155,6 @@ SELECT
   id,
   state,
   prev_state,
-  priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
@@ -171,7 +170,6 @@ type GetTaskRow struct {
 	ID          int64          `json:"id"`
 	State       string         `json:"state"`
 	PrevState   sql.NullString `json:"prev_state"`
-	Priority    sql.NullString `json:"priority"`
 	Title       string         `json:"title"`
 	Notes       string         `json:"notes"`
 	DueOn       sql.NullString `json:"due_on"`
@@ -188,7 +186,6 @@ func (q *Queries) GetTask(ctx context.Context, id int64) (GetTaskRow, error) {
 		&i.ID,
 		&i.State,
 		&i.PrevState,
-		&i.Priority,
 		&i.Title,
 		&i.Notes,
 		&i.DueOn,
@@ -219,7 +216,6 @@ const insertTask = `-- name: InsertTask :one
 INSERT INTO tasks (
   state,
   prev_state,
-  priority,
   title,
   notes,
   due_on,
@@ -228,13 +224,12 @@ INSERT INTO tasks (
   created_at,
   updated_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING
   id,
   state,
   prev_state,
-  priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
@@ -247,7 +242,6 @@ RETURNING
 type InsertTaskParams struct {
 	State       string         `json:"state"`
 	PrevState   sql.NullString `json:"prev_state"`
-	Priority    sql.NullString `json:"priority"`
 	Title       string         `json:"title"`
 	Notes       string         `json:"notes"`
 	DueOn       sql.NullString `json:"due_on"`
@@ -261,7 +255,6 @@ type InsertTaskRow struct {
 	ID          int64          `json:"id"`
 	State       string         `json:"state"`
 	PrevState   sql.NullString `json:"prev_state"`
-	Priority    sql.NullString `json:"priority"`
 	Title       string         `json:"title"`
 	Notes       string         `json:"notes"`
 	DueOn       sql.NullString `json:"due_on"`
@@ -275,7 +268,6 @@ func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) (InsertT
 	row := q.db.QueryRowContext(ctx, insertTask,
 		arg.State,
 		arg.PrevState,
-		arg.Priority,
 		arg.Title,
 		arg.Notes,
 		arg.DueOn,
@@ -289,7 +281,6 @@ func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) (InsertT
 		&i.ID,
 		&i.State,
 		&i.PrevState,
-		&i.Priority,
 		&i.Title,
 		&i.Notes,
 		&i.DueOn,
@@ -554,7 +545,6 @@ SELECT
   t.id,
   t.state,
   t.prev_state,
-  t.priority,
   CAST(t.title AS TEXT) AS title,
   CAST(t.notes AS TEXT) AS notes,
   t.due_on,
@@ -577,7 +567,6 @@ WHERE (? = 0 OR t.state != 'done')
     JOIN contexts c ON c.id = tcl.context_id
     WHERE tcl.task_id = t.id AND c.name = ?
   ))
-  AND (? IS NULL OR t.priority = ?)
   AND (? IS NULL OR (
     t.title LIKE '%' || ? || '%'
     OR t.notes LIKE '%' || ? || '%'
@@ -619,22 +608,19 @@ type ListTasksParams struct {
 	Column6  interface{}    `json:"column_6"`
 	Name_2   string         `json:"name_2"`
 	Column8  interface{}    `json:"column_8"`
-	Priority sql.NullString `json:"priority"`
-	Column10 interface{}    `json:"column_10"`
+	Column9  sql.NullString `json:"column_9"`
+	Column10 sql.NullString `json:"column_10"`
 	Column11 sql.NullString `json:"column_11"`
 	Column12 sql.NullString `json:"column_12"`
 	Column13 sql.NullString `json:"column_13"`
 	Column14 sql.NullString `json:"column_14"`
-	Column15 sql.NullString `json:"column_15"`
-	Column16 sql.NullString `json:"column_16"`
-	Column17 interface{}    `json:"column_17"`
+	Column15 interface{}    `json:"column_15"`
 }
 
 type ListTasksRow struct {
 	ID          int64          `json:"id"`
 	State       string         `json:"state"`
 	PrevState   sql.NullString `json:"prev_state"`
-	Priority    sql.NullString `json:"priority"`
 	Title       string         `json:"title"`
 	Notes       string         `json:"notes"`
 	DueOn       sql.NullString `json:"due_on"`
@@ -654,15 +640,13 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 		arg.Column6,
 		arg.Name_2,
 		arg.Column8,
-		arg.Priority,
+		arg.Column9,
 		arg.Column10,
 		arg.Column11,
 		arg.Column12,
 		arg.Column13,
 		arg.Column14,
 		arg.Column15,
-		arg.Column16,
-		arg.Column17,
 	)
 	if err != nil {
 		return nil, err
@@ -675,7 +659,6 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 			&i.ID,
 			&i.State,
 			&i.PrevState,
-			&i.Priority,
 			&i.Title,
 			&i.Notes,
 			&i.DueOn,
@@ -735,7 +718,6 @@ const updateTask = `-- name: UpdateTask :one
 UPDATE tasks
 SET state = ?,
   prev_state = ?,
-  priority = ?,
   title = ?,
   notes = ?,
   due_on = ?,
@@ -747,7 +729,6 @@ RETURNING
   id,
   state,
   prev_state,
-  priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
@@ -760,7 +741,6 @@ RETURNING
 type UpdateTaskParams struct {
 	State       string         `json:"state"`
 	PrevState   sql.NullString `json:"prev_state"`
-	Priority    sql.NullString `json:"priority"`
 	Title       string         `json:"title"`
 	Notes       string         `json:"notes"`
 	DueOn       sql.NullString `json:"due_on"`
@@ -774,7 +754,6 @@ type UpdateTaskRow struct {
 	ID          int64          `json:"id"`
 	State       string         `json:"state"`
 	PrevState   sql.NullString `json:"prev_state"`
-	Priority    sql.NullString `json:"priority"`
 	Title       string         `json:"title"`
 	Notes       string         `json:"notes"`
 	DueOn       sql.NullString `json:"due_on"`
@@ -788,7 +767,6 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (UpdateT
 	row := q.db.QueryRowContext(ctx, updateTask,
 		arg.State,
 		arg.PrevState,
-		arg.Priority,
 		arg.Title,
 		arg.Notes,
 		arg.DueOn,
@@ -802,7 +780,6 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (UpdateT
 		&i.ID,
 		&i.State,
 		&i.PrevState,
-		&i.Priority,
 		&i.Title,
 		&i.Notes,
 		&i.DueOn,

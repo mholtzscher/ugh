@@ -59,11 +59,6 @@ var exportCmd = &cli.Command{
 			Usage:   "filter by context",
 		},
 		&cli.StringFlag{
-			Name:    flags.FlagPriority,
-			Aliases: []string{"p"},
-			Usage:   "filter by priority",
-		},
-		&cli.StringFlag{
 			Name:    flags.FlagSearch,
 			Aliases: []string{"s"},
 			Usage:   "search text",
@@ -98,7 +93,6 @@ var exportCmd = &cli.Command{
 			State:    cmd.String(flags.FlagState),
 			Project:  cmd.String(flags.FlagProject),
 			Context:  cmd.String(flags.FlagContext),
-			Priority: cmd.String(flags.FlagPriority),
 			Search:   cmd.String(flags.FlagSearch),
 		})
 		if err != nil {
@@ -167,7 +161,6 @@ func outputTask(task *store.Task) any {
 	return map[string]any{
 		"id":          task.ID,
 		"state":       string(task.State),
-		"priority":    task.Priority,
 		"title":       task.Title,
 		"notes":       task.Notes,
 		"dueOn":       formatDay(task.DueOn),

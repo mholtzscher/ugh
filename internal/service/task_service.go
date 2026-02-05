@@ -23,7 +23,6 @@ type CreateTaskRequest struct {
 	Title      string
 	Notes      string
 	State      string
-	Priority   string
 	Projects   []string
 	Contexts   []string
 	Meta       []string
@@ -52,7 +51,6 @@ func (s *TaskService) CreateTask(ctx context.Context, req CreateTaskRequest) (*s
 	}
 	task := &store.Task{
 		State:      state,
-		Priority:   normalizePriority(req.Priority),
 		Title:      req.Title,
 		Notes:      req.Notes,
 		DueOn:      dueOn,
@@ -72,7 +70,6 @@ type ListTasksRequest struct {
 	State    string
 	Project  string
 	Context  string
-	Priority string
 	Search   string
 	DueOnly  bool
 }
@@ -85,7 +82,6 @@ func (s *TaskService) ListTasks(ctx context.Context, req ListTasksRequest) ([]*s
 		State:      strings.TrimSpace(req.State),
 		Project:    req.Project,
 		Context:    req.Context,
-		Priority:   req.Priority,
 		Search:     req.Search,
 		DueSetOnly: req.DueOnly,
 	}
@@ -150,7 +146,6 @@ type UpdateTaskRequest struct {
 	Title           *string
 	Notes           *string
 	State           *string
-	Priority        *string
 	DueOn           *string
 	WaitingFor      *string
 	AddProjects     []string
@@ -159,7 +154,6 @@ type UpdateTaskRequest struct {
 	RemoveProjects  []string
 	RemoveContexts  []string
 	RemoveMetaKeys  []string
-	RemovePriority  bool
 	ClearDueOn      bool
 	ClearWaitingFor bool
 }
@@ -174,7 +168,6 @@ func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*s
 		ID:          current.ID,
 		State:       current.State,
 		PrevState:   current.PrevState,
-		Priority:    current.Priority,
 		Title:       current.Title,
 		Notes:       current.Notes,
 		DueOn:       current.DueOn,
@@ -207,11 +200,6 @@ func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*s
 			updated.CompletedAt = nil
 		}
 		updated.State = state
-	}
-	if req.RemovePriority {
-		updated.Priority = ""
-	} else if req.Priority != nil {
-		updated.Priority = normalizePriority(*req.Priority)
 	}
 	// done is represented as state=done; completion toggles are handled by the done/undo commands.
 	if req.ClearDueOn {
@@ -267,7 +255,6 @@ type FullUpdateTaskRequest struct {
 	Title      string
 	Notes      string
 	State      string
-	Priority   string
 	Projects   []string
 	Contexts   []string
 	Meta       map[string]string
@@ -295,7 +282,6 @@ func (s *TaskService) FullUpdateTask(ctx context.Context, req FullUpdateTaskRequ
 	updated := &store.Task{
 		ID:          current.ID,
 		State:       state,
-		Priority:    normalizePriority(req.Priority),
 		Title:       req.Title,
 		Notes:       req.Notes,
 		DueOn:       dueOn,
@@ -355,10 +341,6 @@ func removeStrings(slice []string, toRemove []string) []string {
 		}
 	}
 	return result
-}
-
-func normalizePriority(p string) string {
-	return strings.ToUpper(strings.TrimSpace(p))
 }
 
 func parseMetaFlags(meta []string) (map[string]string, error) {

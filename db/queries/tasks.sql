@@ -2,7 +2,6 @@
 INSERT INTO tasks (
   state,
   prev_state,
-  priority,
   title,
   notes,
   due_on,
@@ -11,13 +10,12 @@ INSERT INTO tasks (
   created_at,
   updated_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING
   id,
   state,
   prev_state,
-  priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
@@ -30,7 +28,6 @@ RETURNING
 UPDATE tasks
 SET state = ?,
   prev_state = ?,
-  priority = ?,
   title = ?,
   notes = ?,
   due_on = ?,
@@ -42,7 +39,6 @@ RETURNING
   id,
   state,
   prev_state,
-  priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
@@ -56,7 +52,6 @@ SELECT
   id,
   state,
   prev_state,
-  priority,
   CAST(title AS TEXT) AS title,
   CAST(notes AS TEXT) AS notes,
   due_on,
@@ -72,7 +67,6 @@ SELECT
   t.id,
   t.state,
   t.prev_state,
-  t.priority,
   CAST(t.title AS TEXT) AS title,
   CAST(t.notes AS TEXT) AS notes,
   t.due_on,
@@ -95,7 +89,6 @@ WHERE (? = 0 OR t.state != 'done')
     JOIN contexts c ON c.id = tcl.context_id
     WHERE tcl.task_id = t.id AND c.name = ?
   ))
-  AND (? IS NULL OR t.priority = ?)
   AND (? IS NULL OR (
     t.title LIKE '%' || ? || '%'
     OR t.notes LIKE '%' || ? || '%'

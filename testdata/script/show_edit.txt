@@ -15,17 +15,10 @@ stdout '"projects":\["travel"\]'
 stdout '"contexts":\["home"\]'
 stdout '"note":"foo"'
 
-# Edit priority only
-exec ugh --db $WORK/db.sqlite edit 1 -p A
-exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"priority":"A"'
-stdout '"title":"Plan trip"'
-
 # Edit title only
 exec ugh --db $WORK/db.sqlite edit 1 --title Updated
 exec ugh --db $WORK/db.sqlite show 1 --json
 stdout '"title":"Updated"'
-stdout '"priority":"A"'
 
 # Add project (additive)
 exec ugh --db $WORK/db.sqlite edit 1 -P work
@@ -75,11 +68,6 @@ exec ugh --db $WORK/db.sqlite show 1 --json
 ! stdout '"note"'
 stdout '"key":"val"'
 
-# Remove priority
-exec ugh --db $WORK/db.sqlite edit 1 --no-priority
-exec ugh --db $WORK/db.sqlite show 1 --json
-! stdout '"priority"'
-
 # Mark done via edit
 exec ugh --db $WORK/db.sqlite edit 1 -x
 exec ugh --db $WORK/db.sqlite show 1 --json
@@ -99,33 +87,28 @@ stdout '"state":"waiting"'
 ! exec ugh --db $WORK/db.sqlite edit 1 -x --undone
 stderr 'cannot use both'
 
-# Error: invalid priority
-! exec ugh --db $WORK/db.sqlite edit 1 -p invalid
-stderr 'invalid priority'
-
 # Error: invalid meta format
 ! exec ugh --db $WORK/db.sqlite edit 1 -m badmeta
 stderr 'invalid meta format'
 
 # Error: editor flag with field flags
-! exec ugh --db $WORK/db.sqlite edit 1 -e -p A
+! exec ugh --db $WORK/db.sqlite edit 1 -e --title Noop
 stderr 'cannot combine field flags with --editor'
 
 # Error: non-existent task
-! exec ugh --db $WORK/db.sqlite edit 999 -p A
+! exec ugh --db $WORK/db.sqlite edit 999 --title Noop
 stderr 'no rows'
 
-# Priority normalization (lowercase to uppercase)
-exec ugh --db $WORK/db.sqlite edit 1 -p b
+# State normalization (case-insensitive)
+exec ugh --db $WORK/db.sqlite edit 1 --state LATER
 exec ugh --db $WORK/db.sqlite show 1 --json
-stdout '"priority":"B"'
+stdout '"state":"later"'
 
 # Multiple flags at once
 exec ugh --db $WORK/db.sqlite add Test multi-edit
-exec ugh --db $WORK/db.sqlite edit 2 --state now -p A -P proj1 -P proj2 -c ctx1 --due 2026-01-05 --waiting-for Alice --notes note -m key1:val1 -m key2:val2
+exec ugh --db $WORK/db.sqlite edit 2 --state now -P proj1 -P proj2 -c ctx1 --due 2026-01-05 --waiting-for Alice --notes note -m key1:val1 -m key2:val2
 exec ugh --db $WORK/db.sqlite show 2 --json
 stdout '"state":"now"'
-stdout '"priority":"A"'
 stdout '"projects":\["proj1","proj2"\]'
 stdout '"contexts":\["ctx1"\]'
 stdout '"dueOn":"2026-01-05"'

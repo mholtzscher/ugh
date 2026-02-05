@@ -44,11 +44,6 @@ var listCmd = &cli.Command{
 			Usage:   "filter by context",
 		},
 		&cli.StringFlag{
-			Name:    flags.FlagPriority,
-			Aliases: []string{"p"},
-			Usage:   "filter by priority",
-		},
-		&cli.StringFlag{
 			Name:    flags.FlagSearch,
 			Aliases: []string{"s"},
 			Usage:   "search text",
@@ -68,7 +63,6 @@ var listCmd = &cli.Command{
 			State:    cmd.String(flags.FlagState),
 			Project:  cmd.String(flags.FlagProject),
 			Context:  cmd.String(flags.FlagContext),
-			Priority: cmd.String(flags.FlagPriority),
 			Search:   cmd.String(flags.FlagSearch),
 		})
 		if err != nil {

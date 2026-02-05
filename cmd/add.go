@@ -24,11 +24,6 @@ var addCmd = &cli.Command{
 			Value: "inbox",
 		},
 		&cli.StringFlag{
-			Name:    flags.FlagPriority,
-			Aliases: []string{"p"},
-			Usage:   "priority letter",
-		},
-		&cli.StringFlag{
 			Name:  flags.FlagNotes,
 			Usage: "notes",
 		},
@@ -86,7 +81,6 @@ var addCmd = &cli.Command{
 			Title:      title,
 			Notes:      cmd.String(flags.FlagNotes),
 			State:      state,
-			Priority:   cmd.String(flags.FlagPriority),
 			Projects:   cmd.StringSlice(flags.FlagProject),
 			Contexts:   cmd.StringSlice(flags.FlagContext),
 			Meta:       cmd.StringSlice(flags.FlagMeta),

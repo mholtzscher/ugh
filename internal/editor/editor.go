@@ -17,7 +17,6 @@ type TaskTOML struct {
 	Title      string            `toml:"title"`
 	Notes      string            `toml:"notes,omitempty"`
 	State      string            `toml:"state"`
-	Priority   string            `toml:"priority,omitempty"`
 	DueOn      string            `toml:"due_on,omitempty"`
 	WaitingFor string            `toml:"waiting_for,omitempty"`
 	Projects   []string          `toml:"projects,omitempty"`
@@ -43,7 +42,6 @@ func TaskToTOML(task *store.Task) TaskTOML {
 		Title:      task.Title,
 		Notes:      task.Notes,
 		State:      string(task.State),
-		Priority:   task.Priority,
 		DueOn:      formatDay(task.DueOn),
 		WaitingFor: task.WaitingFor,
 		Projects:   projects,
@@ -59,7 +57,6 @@ const tomlHeader = `# Task %d - Edit and save to apply changes
 #   title        - The action title (required)
 #   notes        - Optional notes
 #   state        - inbox|now|waiting|later|done
-#   priority     - A-Z (or empty to remove)
 #   due_on       - YYYY-MM-DD
 #   waiting_for  - Optional string
 #   projects     - List of project names
@@ -154,13 +151,6 @@ func validate(t *TaskTOML) error {
 		// ok
 	default:
 		return fmt.Errorf("invalid state %q: must be inbox|now|waiting|later|done", t.State)
-	}
-
-	t.Priority = strings.ToUpper(strings.TrimSpace(t.Priority))
-	if t.Priority != "" {
-		if len(t.Priority) != 1 || t.Priority[0] < 'A' || t.Priority[0] > 'Z' {
-			return fmt.Errorf("invalid priority %q: must be A-Z", t.Priority)
-		}
 	}
 
 	t.DueOn = strings.TrimSpace(t.DueOn)

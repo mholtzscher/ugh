@@ -183,7 +183,6 @@ func (s *Store) CreateTask(ctx context.Context, task *Task) (*Task, error) {
 	params := sqlc.InsertTaskParams{
 		State:       string(task.State),
 		PrevState:   prevStateNull,
-		Priority:    nullString(task.Priority),
 		Title:       task.Title,
 		Notes:       task.Notes,
 		DueOn:       nullDate(task.DueOn),
@@ -241,7 +240,6 @@ func (s *Store) UpdateTask(ctx context.Context, task *Task) (*Task, error) {
 	params := sqlc.UpdateTaskParams{
 		State:       string(task.State),
 		PrevState:   prevStateNull,
-		Priority:    nullString(task.Priority),
 		Title:       task.Title,
 		Notes:       task.Notes,
 		DueOn:       nullDate(task.DueOn),
@@ -294,12 +292,6 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 		searchNull = sql.NullString{String: filters.Search, Valid: true}
 	}
 
-	// Build priority filter as sql.NullString
-	priorityNull := sql.NullString{}
-	if filters.Priority != "" {
-		priorityNull = sql.NullString{String: filters.Priority, Valid: true}
-	}
-
 	dueSet := int64(0)
 	if filters.DueSetOnly {
 		dueSet = 1
@@ -312,22 +304,20 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 		Column2: nullAny(state),
 		State:   state,
 
-		Column4:  nullAny(filters.Project),
-		Name:     filters.Project,
-		Column6:  nullAny(filters.Context),
-		Name_2:   filters.Context,
-		Column8:  nullAny(filters.Priority),
-		Priority: priorityNull,
+		Column4: nullAny(filters.Project),
+		Name:    filters.Project,
+		Column6: nullAny(filters.Context),
+		Name_2:  filters.Context,
 
-		Column10: nullAny(filters.Search),
+		Column8:  nullAny(filters.Search),
+		Column9:  searchNull,
+		Column10: searchNull,
 		Column11: searchNull,
 		Column12: searchNull,
 		Column13: searchNull,
 		Column14: searchNull,
-		Column15: searchNull,
-		Column16: searchNull,
 
-		Column17: dueSet,
+		Column15: dueSet,
 	}
 	rows, err := s.queries.ListTasks(ctx, params)
 	if err != nil {
@@ -510,7 +500,6 @@ func fromGetRow(row sqlc.GetTaskRow) *Task {
 		ID:          row.ID,
 		State:       State(row.State),
 		PrevState:   parseStatePtr(row.PrevState),
-		Priority:    row.Priority.String,
 		Title:       row.Title,
 		Notes:       row.Notes,
 		DueOn:       parseDate(row.DueOn),
@@ -526,7 +515,6 @@ func fromListRow(row sqlc.ListTasksRow) *Task {
 		ID:          row.ID,
 		State:       State(row.State),
 		PrevState:   parseStatePtr(row.PrevState),
-		Priority:    row.Priority.String,
 		Title:       row.Title,
 		Notes:       row.Notes,
 		DueOn:       parseDate(row.DueOn),
