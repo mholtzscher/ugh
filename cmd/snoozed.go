@@ -7,10 +7,10 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var ticklerCmd = &cli.Command{
-	Name:     "tickler",
-	Aliases:  []string{"t"},
-	Usage:    "List deferred items (tickler)",
+var snoozedCmd = &cli.Command{
+	Name:     "snoozed",
+	Aliases:  []string{"sz"},
+	Usage:    "List snoozed items (deferred until later)",
 	Category: "GTD Lists",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		svc, err := newService(ctx)

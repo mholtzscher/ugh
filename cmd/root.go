@@ -151,7 +151,7 @@ func init() {
 		nextCmd,
 		waitingCmd,
 		somedayCmd,
-		ticklerCmd,
+		snoozedCmd,
 		calendarCmd,
 		listCmd,
 		showCmd,

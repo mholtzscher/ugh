@@ -21,13 +21,13 @@ nix build
 ugh add -P groceries -c errands Buy milk
 ugh add --status next -p A -P family -c phone --due 2026-01-20 Call mom
 
-# GTD lists
-ugh inbox
-ugh next
-ugh waiting
-ugh someday
-ugh tickler
-ugh calendar
+	# GTD lists
+	ugh inbox
+	ugh next
+	ugh waiting
+	ugh someday
+	ugh snoozed
+	ugh calendar
 
 # Advanced listing
 ugh list --status next
