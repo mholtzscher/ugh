@@ -164,8 +164,6 @@ func init() {
 		doneCmd,
 		undoCmd,
 		rmCmd,
-		importCmd,
-		exportCmd,
 		projectsCmd,
 		contextsCmd,
 		syncCmd,

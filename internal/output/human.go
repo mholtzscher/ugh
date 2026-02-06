@@ -18,19 +18,6 @@ type Summary struct {
 	File   string  `json:"file,omitempty"`
 }
 
-type ImportSummary struct {
-	Action  string `json:"action"`
-	Added   int64  `json:"added"`
-	Skipped int64  `json:"skipped"`
-	File    string `json:"file,omitempty"`
-}
-
-type ExportSummary struct {
-	Action string `json:"action"`
-	Count  int64  `json:"count"`
-	File   string `json:"file,omitempty"`
-}
-
 func writeHumanTask(out io.Writer, task *store.Task) error {
 	table := tablewriter.NewWriter(out)
 	table.Header("Field", "Value")
@@ -88,22 +75,6 @@ func writeHumanSummary(out io.Writer, summary any) error {
 			return err
 		}
 		return table.Render()
-	case ImportSummary:
-		table := tablewriter.NewWriter(out)
-		table.Header("Action", "Added", "Skipped", "File")
-		file := emptyDash(value.File)
-		if err := table.Append(value.Action, fmt.Sprintf("%d", value.Added), fmt.Sprintf("%d", value.Skipped), file); err != nil {
-			return err
-		}
-		return table.Render()
-	case ExportSummary:
-		table := tablewriter.NewWriter(out)
-		table.Header("Action", "Count", "File")
-		file := emptyDash(value.File)
-		if err := table.Append(value.Action, fmt.Sprintf("%d", value.Count), file); err != nil {
-			return err
-		}
-		return table.Render()
 	default:
 		_, err := fmt.Fprintf(out, "%v\n", value)
 		return err
@@ -119,20 +90,6 @@ func writePlainSummary(out io.Writer, summary any) error {
 		}
 		if len(value.IDs) > 0 {
 			line += " ids=" + joinIDs(value.IDs)
-		}
-		_, err := fmt.Fprintln(out, line)
-		return err
-	case ImportSummary:
-		line := fmt.Sprintf("%s: added %d, skipped %d", value.Action, value.Added, value.Skipped)
-		if value.File != "" {
-			line += " (" + value.File + ")"
-		}
-		_, err := fmt.Fprintln(out, line)
-		return err
-	case ExportSummary:
-		line := fmt.Sprintf("%s: %d", value.Action, value.Count)
-		if value.File != "" {
-			line += " (" + value.File + ")"
 		}
 		_, err := fmt.Fprintln(out, line)
 		return err
