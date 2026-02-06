@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/mholtzscher/templates.git",
-  "commit": "23635ae6a075af7d9d2ed70fe14212f64984c0dc",
+  "commit": "858faeba50f11c28a1e985e9c1e2d4179bb5625a",
   "context": {
     "cookiecutter": {
       "project_name": "ugh",
@@ -17,7 +17,7 @@
       "use_sqlc": "yes",
       "go_version": "1.25",
       "_template": "https://github.com/mholtzscher/templates.git",
-      "_commit": "23635ae6a075af7d9d2ed70fe14212f64984c0dc",
+      "_commit": "858faeba50f11c28a1e985e9c1e2d4179bb5625a",
       "_copy_without_render": [
         "test/testscript/scripts/*.txtar",
         "db/*.sql"

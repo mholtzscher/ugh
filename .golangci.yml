@@ -18,6 +18,18 @@ issues:
   # Default: 3
   max-same-issues: 50
 
+output:
+  sort-order:
+    - file
+    - linter
+    - severity
+  formats:
+    text:
+      colors: false
+      print-issued-lines: false
+      print-linter-name: true
+  show-stats: false
+
 formatters:
   enable:
     - goimports # checks if the code and import statements are formatted according to the 'goimports' command
