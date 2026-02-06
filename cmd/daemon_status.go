@@ -1,4 +1,4 @@
-package daemon
+package cmd
 
 import (
 	"context"
@@ -8,15 +8,15 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// StatusOutput represents the status information for JSON output.
-type StatusOutput struct {
+// daemonStatusOutput represents the status information for JSON output.
+type daemonStatusOutput struct {
 	Installed   bool   `json:"installed"`
 	Running     bool   `json:"running"`
 	PID         int    `json:"pid,omitempty"`
 	ServicePath string `json:"servicePath,omitempty"`
 }
 
-var statusCmd = &cli.Command{
+var daemonStatusCmd = &cli.Command{
 	Name:  "status",
 	Usage: "Show daemon service status",
 	Description: `Show the status of the daemon service.
@@ -34,9 +34,9 @@ shows uptime and sync status from the daemon's health endpoint.`,
 			return fmt.Errorf("get status: %w", err)
 		}
 
-		w := deps.OutputWriter()
+		w := outputWriter()
 		if w.JSON {
-			output := StatusOutput{
+			output := daemonStatusOutput{
 				Installed:   status.Installed,
 				Running:     status.Running,
 				PID:         status.PID,

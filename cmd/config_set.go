@@ -1,4 +1,4 @@
-package config
+package cmd
 
 import (
 	"context"
@@ -12,14 +12,14 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-type setResult struct {
+type configSetResult struct {
 	Action string `json:"action"`
 	Key    string `json:"key"`
 	Value  string `json:"value"`
 	File   string `json:"file"`
 }
 
-var setCmd = &cli.Command{
+var configSetCmd = &cli.Command{
 	Name:      "set",
 	Usage:     "Set a configuration value",
 	ArgsUsage: "<key> <value>",
@@ -27,14 +27,14 @@ var setCmd = &cli.Command{
 		if cmd.Args().Len() != 2 {
 			return errors.New("set requires a key and value")
 		}
-		cfg := deps.Config()
+		cfg := loadedConfig
 		if cfg == nil {
 			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
 		key := cmd.Args().Get(0)
 		value := cmd.Args().Get(1)
-		if err := setValue(cfg, key, value); err != nil {
+		if err := setConfigValue(cfg, key, value); err != nil {
 			return err
 		}
 
@@ -45,20 +45,20 @@ var setCmd = &cli.Command{
 		if err := config.Save(cfgPath, *cfg); err != nil {
 			return err
 		}
-		deps.SetConfig(cfg)
-		deps.SetConfigWasLoaded(true)
+		loadedConfig = cfg
+		loadedConfigWas = true
 
-		writer := deps.OutputWriter()
+		writer := outputWriter()
 		if writer.JSON {
 			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(setResult{Action: "set", Key: key, Value: value, File: cfgPath})
+			return enc.Encode(configSetResult{Action: "set", Key: key, Value: value, File: cfgPath})
 		}
 		_, err = fmt.Fprintf(writer.Out, "set %s\n", key)
 		return err
 	},
 }
 
-func setValue(cfg *config.Config, key string, value string) error {
+func setConfigValue(cfg *config.Config, key string, value string) error {
 	switch key {
 	case "db.path":
 		cfg.DB.Path = value

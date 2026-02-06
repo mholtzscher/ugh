@@ -1,4 +1,4 @@
-package daemon
+package cmd
 
 import (
 	"context"
@@ -7,10 +7,11 @@ import (
 	"os/signal"
 
 	"github.com/mholtzscher/ugh/internal/flags"
+
 	"github.com/urfave/cli/v3"
 )
 
-var logsCmd = &cli.Command{
+var daemonLogsCmd = &cli.Command{
 	Name:  "logs",
 	Usage: "Show daemon logs",
 	Description: `Show logs from the daemon service.
@@ -35,7 +36,7 @@ On macOS: Tails the log file specified in config.`,
 			return fmt.Errorf("detect service manager: %w", err)
 		}
 
-		w := deps.OutputWriter()
+		w := outputWriter()
 
 		// Create a context that can be cancelled
 		ctx, cancel := context.WithCancel(ctx)

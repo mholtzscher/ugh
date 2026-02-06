@@ -1,4 +1,4 @@
-package daemon
+package cmd
 
 import (
 	"context"
@@ -10,17 +10,17 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var restartCmd = &cli.Command{
-	Name:  "restart",
-	Usage: "Restart the daemon service",
+var daemonStartCmd = &cli.Command{
+	Name:  "start",
+	Usage: "Start the daemon service",
+	Description: `Start the daemon via the system service manager.
+
+The service must be installed first with 'ugh daemon install'.`,
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		mgr, err := getServiceManager()
 		if err != nil {
 			return fmt.Errorf("detect service manager: %w", err)
 		}
-
-		// Stop first (ignore error if not running)
-		_ = mgr.Stop()
 
 		if err := mgr.Start(); err != nil {
 			if errors.Is(err, service.ErrNotInstalled) {
@@ -29,8 +29,8 @@ var restartCmd = &cli.Command{
 			return fmt.Errorf("start service: %w", err)
 		}
 
-		w := deps.OutputWriter()
-		_, _ = fmt.Fprintln(w.Out, "Daemon restarted")
+		w := outputWriter()
+		_, _ = fmt.Fprintln(w.Out, "Daemon started")
 		return nil
 	},
 }
