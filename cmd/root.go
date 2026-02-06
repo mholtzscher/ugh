@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -71,19 +70,43 @@ func loadConfig(cmd *cli.Command) error {
 	}
 
 	configPath := rootConfigPath
-	allowMissing := configPath == "" || allowMissingConfig(cmd)
-
-	result, err := config.Load(configPath, allowMissing)
+	result, err := config.Load(configPath, true)
 	if err != nil {
-		if errors.Is(err, config.ErrNotFound) && allowMissing {
-			loadedConfig = &config.Config{Version: config.DefaultVersion}
-			loadedConfigWas = false
-			return nil
-		}
-		if errors.Is(err, config.ErrNotFound) && !allowMissing {
-			return fmt.Errorf("config file not found: %s", configPath)
-		}
 		return fmt.Errorf("load config: %w", err)
+	}
+
+	if !result.WasLoaded {
+		if shouldAutoInitConfig() {
+			cfgPath := configPath
+			if cfgPath == "" {
+				defaultPath, err := config.DefaultPath()
+				if err != nil {
+					return fmt.Errorf("get default config path: %w", err)
+				}
+				cfgPath = defaultPath
+			}
+
+			dbPath, err := defaultDBPath()
+			if err != nil {
+				return err
+			}
+
+			result.Config = config.Config{
+				Version: config.DefaultVersion,
+				DB:      config.DB{Path: dbPath},
+				Daemon: config.Daemon{
+					PeriodicSync:     "5m",
+					LogLevel:         "info",
+					SyncRetryMax:     3,
+					SyncRetryBackoff: "1s",
+				},
+			}
+
+			if err := config.Save(cfgPath, result.Config); err != nil {
+				return fmt.Errorf("save config: %w", err)
+			}
+			result.WasLoaded = true
+		}
 	}
 
 	loadedConfig = &result.Config
@@ -91,26 +114,11 @@ func loadConfig(cmd *cli.Command) error {
 	return nil
 }
 
-func allowMissingConfig(cmd *cli.Command) bool {
-	if cmd == nil {
-		return false
+func shouldAutoInitConfig() bool {
+	if rootConfigPath != "" {
+		return true
 	}
-	if !cmd.HasName("set") && !cmd.HasName("init") {
-		if cmd.Root() != cmd {
-			return false
-		}
-		args := cmd.Args()
-		if args.Len() < 2 || args.Get(0) != "config" {
-			return false
-		}
-		return args.Get(1) == "set" || args.Get(1) == "init"
-	}
-	lineage := cmd.Lineage()
-	if len(lineage) < 2 {
-		return false
-	}
-	parent := lineage[len(lineage)-2]
-	return parent != nil && parent.HasName("config")
+	return rootDBPath == ""
 }
 
 func effectiveDBPath() (string, error) {
@@ -173,7 +181,6 @@ func init() {
 		SetConfigWasLoaded: func(b bool) { loadedConfigWas = b },
 		OutputWriter:       outputWriter,
 		ConfigPath:         func() string { return rootConfigPath },
-		DefaultDBPath:      defaultDBPath,
 	})
 
 	daemoncmd.Register(rootCmd, daemoncmd.Deps{
@@ -206,7 +213,7 @@ func openStore(ctx context.Context) (*store.Store, error) {
 	var st *store.Store
 	maxRetries := 5
 	backoff := 100 * time.Millisecond
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		st, err = store.Open(ctx, opts)
 		if err == nil {
 			return st, nil

@@ -126,7 +126,6 @@ cmd/
 ├── add.go, list.go ... # Simple commands (no subcommands)
 ├── config/             # Config subcommand group
 │   ├── config.go       # Parent command + Register()
-│   ├── init.go         # ugh config init
 │   ├── show.go         # ugh config show
 │   ├── get.go          # ugh config get
 │   └── set.go          # ugh config set

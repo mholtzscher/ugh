@@ -1,5 +1,3 @@
-exec ugh --config $WORK/config.toml config init
-
 exec ugh --config $WORK/config.toml config set db.path $WORK/db.sqlite
 exec ugh --config $WORK/config.toml config set db.sync_url libsql://test.turso.io
 exec ugh --config $WORK/config.toml config get db.sync_url

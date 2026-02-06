@@ -22,8 +22,6 @@ type Deps struct {
 	OutputWriter func() output.Writer
 	// ConfigPath returns the user-specified config path (may be empty).
 	ConfigPath func() string
-	// DefaultDBPath returns the default database path.
-	DefaultDBPath func() (string, error)
 }
 
 var deps Deps
@@ -39,7 +37,7 @@ var Cmd = &cli.Command{
 // Must be called with valid Deps before the command tree is executed.
 func Register(parent *cli.Command, d Deps) {
 	deps = d
-	Cmd.Commands = []*cli.Command{initCmd, showCmd, getCmd, setCmd}
+	Cmd.Commands = []*cli.Command{showCmd, getCmd, setCmd}
 	parent.Commands = append(parent.Commands, Cmd)
 }
 

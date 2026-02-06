@@ -17,9 +17,10 @@ version = 1
 exec ugh --config config-no-db.toml add -c work Test task
 stdout 'Test task'
 
-# Config file missing should fail
-! exec ugh --config $WORK/missing-config.toml add Test task
-stderr 'config file not found'
+# Missing config file should be auto-created
+exec ugh --config $WORK/missing-config.toml --db $WORK/missing-config.sqlite add Test task
+stdout 'Test task'
+exists $WORK/missing-config.toml
 
 # Config file with empty db.path should use default
 -- config-empty-path.toml --

@@ -1,10 +1,7 @@
 # Config command flows
-exec ugh --config $WORK/config.toml config init
 exec ugh --config $WORK/config.toml config show
 stdout 'ugh.sqlite'
-
-! exec ugh --config $WORK/config.toml config init
-stderr 'config file already exists'
+exists $WORK/config.toml
 
 exec ugh --config $WORK/config.toml config set db.path data/ugh.sqlite
 exec ugh --config $WORK/config.toml config get db.path
