@@ -10,31 +10,33 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var uninstallCmd = &cli.Command{
-	Name:  "uninstall",
-	Usage: "Uninstall the daemon system service",
-	Description: `Uninstall the daemon system service.
+func newUninstallCmd(d Deps) *cli.Command {
+	return &cli.Command{
+		Name:  "uninstall",
+		Usage: "Uninstall the daemon system service",
+		Description: `Uninstall the daemon system service.
 
 Stops the service if running, then removes the service configuration.`,
-	Action: func(ctx context.Context, cmd *cli.Command) error {
-		mgr, err := getServiceManager()
-		if err != nil {
-			return fmt.Errorf("detect service manager: %w", err)
-		}
-
-		// Get the service path before uninstalling
-		status, _ := mgr.Status()
-		servicePath := status.ServicePath
-
-		if err := mgr.Uninstall(); err != nil {
-			if errors.Is(err, service.ErrNotInstalled) {
-				return errors.New("service is not installed")
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			mgr, err := getServiceManager()
+			if err != nil {
+				return fmt.Errorf("detect service manager: %w", err)
 			}
-			return fmt.Errorf("uninstall service: %w", err)
-		}
 
-		w := deps.OutputWriter()
-		_, _ = fmt.Fprintln(w.Out, "Service uninstalled from", servicePath)
-		return nil
-	},
+			// Get the service path before uninstalling
+			status, _ := mgr.Status()
+			servicePath := status.ServicePath
+
+			if err := mgr.Uninstall(); err != nil {
+				if errors.Is(err, service.ErrNotInstalled) {
+					return errors.New("service is not installed")
+				}
+				return fmt.Errorf("uninstall service: %w", err)
+			}
+
+			w := d.OutputWriter()
+			_, _ = fmt.Fprintln(w.Out, "Service uninstalled from", servicePath)
+			return nil
+		},
+	}
 }

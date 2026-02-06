@@ -1,6 +1,8 @@
 package config
 
 import (
+	"github.com/mholtzscher/ugh/cmd/meta"
+	"github.com/mholtzscher/ugh/cmd/registry"
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/output"
 
@@ -14,8 +16,6 @@ type Deps struct {
 	Config func() *config.Config
 	// SetConfig updates the loaded config.
 	SetConfig func(*config.Config)
-	// ConfigWasLoaded returns true if config was loaded from a file.
-	ConfigWasLoaded func() bool
 	// SetConfigWasLoaded updates the loaded-from-file flag.
 	SetConfigWasLoaded func(bool)
 	// OutputWriter returns the configured output writer.
@@ -24,27 +24,35 @@ type Deps struct {
 	ConfigPath func() string
 }
 
-var deps Deps
+const (
+	configID   registry.ID = "config"
+	configShow registry.ID = "config.show"
+	configGet  registry.ID = "config.get"
+	configSet  registry.ID = "config.set"
+)
 
-// Cmd is the parent command for all config subcommands.
-var Cmd = &cli.Command{
-	Name:     "config",
-	Usage:    "Manage configuration",
-	Category: "System",
+// Register adds config command specs to the registry.
+func Register(r *registry.Registry, d Deps) error {
+	return r.AddAll(
+		registry.Spec{ID: configID, Source: "cmd/config", Build: newConfigCmd},
+		registry.Spec{ID: configShow, ParentID: configID, Source: "cmd/config", Build: func() *cli.Command { return newShowCmd(d) }},
+		registry.Spec{ID: configGet, ParentID: configID, Source: "cmd/config", Build: func() *cli.Command { return newGetCmd(d) }},
+		registry.Spec{ID: configSet, ParentID: configID, Source: "cmd/config", Build: func() *cli.Command { return newSetCmd(d) }},
+	)
 }
 
-// Register adds the config command and its subcommands to the parent command.
-// Must be called with valid Deps before the command tree is executed.
-func Register(parent *cli.Command, d Deps) {
-	deps = d
-	Cmd.Commands = []*cli.Command{showCmd, getCmd, setCmd}
-	parent.Commands = append(parent.Commands, Cmd)
+func newConfigCmd() *cli.Command {
+	return &cli.Command{
+		Name:     "config",
+		Usage:    "Manage configuration",
+		Category: meta.SystemCategory.String(),
+	}
 }
 
 // configPathForWrite returns the path to write config to.
 // Uses the user-specified path if set, otherwise the default.
-func configPathForWrite() (string, error) {
-	if path := deps.ConfigPath(); path != "" {
+func configPathForWrite(d Deps) (string, error) {
+	if path := d.ConfigPath(); path != "" {
 		return path, nil
 	}
 	return config.DefaultPath()

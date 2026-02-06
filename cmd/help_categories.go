@@ -4,7 +4,9 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync"
 
+	"github.com/mholtzscher/ugh/cmd/meta"
 	"github.com/urfave/cli/v3"
 )
 
@@ -39,12 +41,12 @@ COPYRIGHT:
 `
 
 var helpCategoryOrder = []string{
-	"Lists",
-	"Tasks",
-	"Projects & Contexts",
-	"Backup",
-	"Sync",
-	"System",
+	meta.ListsCategory.String(),
+	meta.TasksCategory.String(),
+	meta.ProjectsCategory.String(),
+	meta.BackupCategory.String(),
+	meta.SyncCategory.String(),
+	meta.SystemCategory.String(),
 }
 
 func orderedCategories(categories []cli.CommandCategory) []cli.CommandCategory {
@@ -101,17 +103,20 @@ func orderedCategories(categories []cli.CommandCategory) []cli.CommandCategory {
 	return result
 }
 
-func init() {
-	// Inject custom template funcs so our custom root template can reorder categories.
-	old := cli.HelpPrinterCustom
-	cli.HelpPrinterCustom = func(w io.Writer, templ string, data any, customFuncs map[string]any) {
-		if customFuncs == nil {
-			customFuncs = map[string]any{}
-		}
-		customFuncs["orderedCategories"] = orderedCategories
-		old(w, templ, data, customFuncs)
-	}
+var helpPrinterOnce sync.Once
 
-	// Use the custom root template.
-	rootCmd.CustomRootCommandHelpTemplate = customRootHelpTemplate
+func applyRootHelpCustomization(root *cli.Command) {
+	helpPrinterOnce.Do(func() {
+		// Inject custom template funcs so our custom root template can reorder categories.
+		old := cli.HelpPrinterCustom
+		cli.HelpPrinterCustom = func(w io.Writer, templ string, data any, customFuncs map[string]any) {
+			if customFuncs == nil {
+				customFuncs = map[string]any{}
+			}
+			customFuncs["orderedCategories"] = orderedCategories
+			old(w, templ, data, customFuncs)
+		}
+	})
+
+	root.CustomRootCommandHelpTemplate = customRootHelpTemplate
 }

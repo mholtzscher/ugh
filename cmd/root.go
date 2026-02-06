@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"time"
 
+	backupcmd "github.com/mholtzscher/ugh/cmd/backup"
 	configcmd "github.com/mholtzscher/ugh/cmd/config"
 	daemoncmd "github.com/mholtzscher/ugh/cmd/daemon"
+	listscmd "github.com/mholtzscher/ugh/cmd/lists"
+	"github.com/mholtzscher/ugh/cmd/registry"
+	synccmd "github.com/mholtzscher/ugh/cmd/sync"
+	tagscmd "github.com/mholtzscher/ugh/cmd/tags"
+	taskscmd "github.com/mholtzscher/ugh/cmd/tasks"
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
+	appruntime "github.com/mholtzscher/ugh/internal/runtime"
 	"github.com/mholtzscher/ugh/internal/store"
 
 	"github.com/urfave/cli/v3"
@@ -22,261 +25,164 @@ import (
 // Version is set at build time.
 var Version = "0.1.1" // x-release-please-version
 
-var (
-	rootConfigPath  string
-	rootDBPath      string
-	rootJSON        bool
-	rootNoColor     bool
-	loadedConfig    *config.Config
-	loadedConfigWas bool
-)
-
-var rootCmd = &cli.Command{
-	Name:        "ugh",
-	Usage:       "ugh is a task CLI",
-	Description: "ugh is a task CLI with SQLite storage.",
-	Version:     Version,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  flags.FlagConfigPath,
-			Usage: "path to config file",
-		},
-		&cli.StringFlag{
-			Name:    flags.FlagDBPath,
-			Aliases: []string{"d"},
-			Usage:   "path to sqlite database (overrides config)",
-		},
-		&cli.BoolFlag{
-			Name:    flags.FlagJSON,
-			Aliases: []string{"j"},
-			Usage:   "output json",
-		},
-		&cli.BoolFlag{
-			Name:  flags.FlagNoColor,
-			Usage: "disable color output",
-		},
-	},
-	Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-		return ctx, loadConfig(cmd)
-	},
+type App struct {
+	runtime *appruntime.Runtime
 }
 
-func loadConfig(cmd *cli.Command) error {
-	if cmd != nil {
-		rootConfigPath = cmd.String(flags.FlagConfigPath)
-		rootDBPath = cmd.String(flags.FlagDBPath)
-		rootJSON = cmd.Bool(flags.FlagJSON)
-		rootNoColor = cmd.Bool(flags.FlagNoColor)
-	}
-
-	configPath := rootConfigPath
-	result, err := config.Load(configPath, true)
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-
-	if !result.WasLoaded {
-		if shouldAutoInitConfig() {
-			cfgPath := configPath
-			if cfgPath == "" {
-				defaultPath, err := config.DefaultPath()
-				if err != nil {
-					return fmt.Errorf("get default config path: %w", err)
-				}
-				cfgPath = defaultPath
-			}
-
-			dbPath, err := defaultDBPath()
-			if err != nil {
-				return err
-			}
-
-			result.Config = config.Config{
-				Version: config.DefaultVersion,
-				DB:      config.DB{Path: dbPath},
-				Daemon: config.Daemon{
-					PeriodicSync:     "5m",
-					LogLevel:         "info",
-					SyncRetryMax:     3,
-					SyncRetryBackoff: "1s",
-				},
-			}
-
-			if err := config.Save(cfgPath, result.Config); err != nil {
-				return fmt.Errorf("save config: %w", err)
-			}
-			result.WasLoaded = true
-		}
-	}
-
-	loadedConfig = &result.Config
-	loadedConfigWas = result.WasLoaded
-	return nil
-}
-
-func shouldAutoInitConfig() bool {
-	if rootConfigPath != "" {
-		return true
-	}
-	return rootDBPath == ""
-}
-
-func effectiveDBPath() (string, error) {
-	if rootDBPath != "" {
-		return rootDBPath, nil
-	}
-	if loadedConfig != nil && loadedConfig.DB.Path != "" {
-		var cfgPath string
-		if rootConfigPath != "" {
-			cfgPath = rootConfigPath
-		} else if loadedConfigWas {
-			defaultPath, err := config.DefaultPath()
-			if err != nil {
-				return "", fmt.Errorf("get default config path: %w", err)
-			}
-			cfgPath = defaultPath
-		}
-		dbPath, err := config.ResolveDBPath(cfgPath, loadedConfig.DB.Path)
-		if err != nil {
-			return "", fmt.Errorf("resolve db path from config: %w", err)
-		}
-		return dbPath, nil
-	}
-	return defaultDBPath()
+func NewApp() *App {
+	return &App{runtime: appruntime.New()}
 }
 
 func Execute() {
+	app := NewApp()
+	rootCmd, err := app.RootCommand()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
 	if err := rootCmd.Run(context.Background(), os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
 
-func init() {
-	rootCmd.Commands = []*cli.Command{
-		addCmd,
-		inboxCmd,
-		nowCmd,
-		waitingCmd,
-		laterCmd,
-		calendarCmd,
-		listCmd,
-		showCmd,
-		editCmd,
-		doneCmd,
-		undoCmd,
-		rmCmd,
-		importCmd,
-		exportCmd,
-		projectsCmd,
-		contextsCmd,
-		syncCmd,
+func (a *App) RootCommand() (*cli.Command, error) {
+	rootCmd := &cli.Command{
+		Name:        "ugh",
+		Usage:       "ugh is a task CLI",
+		Description: "ugh is a task CLI with SQLite storage.",
+		Version:     Version,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  flags.FlagConfigPath,
+				Usage: "path to config file",
+			},
+			&cli.StringFlag{
+				Name:    flags.FlagDBPath,
+				Aliases: []string{"d"},
+				Usage:   "path to sqlite database (overrides config)",
+			},
+			&cli.BoolFlag{
+				Name:    flags.FlagJSON,
+				Aliases: []string{"j"},
+				Usage:   "output json",
+			},
+			&cli.BoolFlag{
+				Name:  flags.FlagNoColor,
+				Usage: "disable color output",
+			},
+		},
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			return ctx, a.loadConfig(cmd)
+		},
 	}
 
-	// Register subcommand packages
-	configcmd.Register(rootCmd, configcmd.Deps{
-		Config:             func() *config.Config { return loadedConfig },
-		SetConfig:          func(c *config.Config) { loadedConfig = c },
-		ConfigWasLoaded:    func() bool { return loadedConfigWas },
-		SetConfigWasLoaded: func(b bool) { loadedConfigWas = b },
-		OutputWriter:       outputWriter,
-		ConfigPath:         func() string { return rootConfigPath },
-	})
-
-	daemoncmd.Register(rootCmd, daemoncmd.Deps{
-		Config:       func() *config.Config { return loadedConfig },
-		OutputWriter: outputWriter,
-	})
-}
-
-func openStore(ctx context.Context) (*store.Store, error) {
-	path, err := effectiveDBPath()
+	cmdRegistry := registry.New()
+	if err := a.registerCommands(cmdRegistry); err != nil {
+		return nil, err
+	}
+	commands, err := cmdRegistry.Build()
 	if err != nil {
 		return nil, err
 	}
-	dbDir := filepath.Dir(path)
-	if err := os.MkdirAll(dbDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create db dir: %w", err)
-	}
-	cacheDir := filepath.Join(dbDir, ".cache")
-	if os.Getenv("TURSO_GO_CACHE_DIR") == "" {
-		_ = os.Setenv("TURSO_GO_CACHE_DIR", cacheDir)
-	}
+	rootCmd.Commands = commands
 
-	opts := store.Options{Path: path}
-	if loadedConfig != nil {
-		opts.SyncURL = loadedConfig.DB.SyncURL
-		opts.AuthToken = loadedConfig.DB.AuthToken
-	}
-
-	// Retry with backoff if database is locked (e.g., daemon is running)
-	var st *store.Store
-	maxRetries := 5
-	backoff := 100 * time.Millisecond
-	for i := range maxRetries {
-		st, err = store.Open(ctx, opts)
-		if err == nil {
-			return st, nil
-		}
-		// Check if it's a locking error
-		if !isLockingError(err) {
-			return nil, err
-		}
-		if i < maxRetries-1 {
-			time.Sleep(backoff)
-			backoff *= 2 // Exponential backoff
-		}
-	}
-	return nil, fmt.Errorf("%w (is the daemon running? try 'ugh daemon stop' or use the HTTP API)", err)
+	applyRootHelpCustomization(rootCmd)
+	return rootCmd, nil
 }
 
-// isLockingError checks if the error is a database locking error.
-func isLockingError(err error) bool {
-	if err == nil {
-		return false
+func (a *App) registerCommands(cmdRegistry *registry.Registry) error {
+	if err := taskscmd.Register(cmdRegistry, taskscmd.Deps{
+		NewService:           a.newService,
+		MaybeSyncBeforeWrite: a.maybeSyncBeforeWrite,
+		MaybeSyncAfterWrite:  a.maybeSyncAfterWrite,
+		OutputWriter:         a.outputWriter,
+	}); err != nil {
+		return fmt.Errorf("register task commands: %w", err)
 	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "locked") || strings.Contains(errStr, "Locking")
+
+	if err := listscmd.Register(cmdRegistry, listscmd.Deps{
+		NewService:   a.newService,
+		OutputWriter: a.outputWriter,
+	}); err != nil {
+		return fmt.Errorf("register list commands: %w", err)
+	}
+
+	if err := backupcmd.Register(cmdRegistry, backupcmd.Deps{
+		NewService:           a.newService,
+		MaybeSyncBeforeWrite: a.maybeSyncBeforeWrite,
+		MaybeSyncAfterWrite:  a.maybeSyncAfterWrite,
+		OutputWriter:         a.outputWriter,
+	}); err != nil {
+		return fmt.Errorf("register backup commands: %w", err)
+	}
+
+	if err := tagscmd.Register(cmdRegistry, tagscmd.Deps{
+		NewService:   a.newService,
+		OutputWriter: a.outputWriter,
+	}); err != nil {
+		return fmt.Errorf("register projects/contexts commands: %w", err)
+	}
+
+	if err := synccmd.Register(cmdRegistry, synccmd.Deps{
+		OpenStore:    a.openStore,
+		OutputWriter: a.outputWriter,
+	}); err != nil {
+		return fmt.Errorf("register sync commands: %w", err)
+	}
+
+	if err := configcmd.Register(cmdRegistry, configcmd.Deps{
+		Config:             a.getConfig,
+		SetConfig:          a.setConfig,
+		SetConfigWasLoaded: a.setConfigWasLoaded,
+		OutputWriter:       a.outputWriter,
+		ConfigPath:         a.getConfigPath,
+	}); err != nil {
+		return fmt.Errorf("register config commands: %w", err)
+	}
+
+	if err := daemoncmd.Register(cmdRegistry, daemoncmd.Deps{
+		Config:       a.getConfig,
+		OutputWriter: a.outputWriter,
+	}); err != nil {
+		return fmt.Errorf("register daemon commands: %w", err)
+	}
+
+	return nil
 }
 
-func defaultDBPath() (string, error) {
-	dataDir, err := userDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "ugh", "ugh.sqlite"), nil
+func (a *App) getConfig() *config.Config {
+	return a.runtime.Config()
 }
 
-func userDataDir() (string, error) {
-	switch runtime.GOOS {
-	case "darwin":
-		// macOS's "config" dir is ~/Library/Application Support.
-		configDir, err := os.UserConfigDir()
-		if err != nil {
-			return "", fmt.Errorf("user config dir: %w", err)
-		}
-		return configDir, nil
-	case "windows":
-		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			return localAppData, nil
-		}
-		configDir, err := os.UserConfigDir()
-		if err != nil {
-			return "", fmt.Errorf("user config dir: %w", err)
-		}
-		return configDir, nil
-	default:
-		if xdgDataHome := os.Getenv("XDG_DATA_HOME"); xdgDataHome != "" {
-			return xdgDataHome, nil
-		}
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("home dir: %w", err)
-		}
-		return filepath.Join(homeDir, ".local", "share"), nil
-	}
+func (a *App) setConfig(cfg *config.Config) {
+	a.runtime.SetConfig(cfg)
 }
 
-func outputWriter() output.Writer {
-	return output.NewWriter(rootJSON, rootNoColor)
+func (a *App) setConfigWasLoaded(wasLoaded bool) {
+	a.runtime.SetConfigWasLoaded(wasLoaded)
+}
+
+func (a *App) getConfigPath() string {
+	return a.runtime.ConfigPath()
+}
+
+func (a *App) loadConfig(cmd *cli.Command) error {
+	if cmd != nil {
+		a.runtime.SetGlobalOptions(
+			cmd.String(flags.FlagConfigPath),
+			cmd.String(flags.FlagDBPath),
+			cmd.Bool(flags.FlagJSON),
+			cmd.Bool(flags.FlagNoColor),
+		)
+	}
+	return a.runtime.LoadConfig()
+}
+
+func (a *App) openStore(ctx context.Context) (*store.Store, error) {
+	return a.runtime.OpenStore(ctx)
+}
+
+func (a *App) outputWriter() output.Writer {
+	return a.runtime.OutputWriter()
 }

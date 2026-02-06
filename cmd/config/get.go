@@ -16,33 +16,35 @@ type getResult struct {
 	Value string `json:"value"`
 }
 
-var getCmd = &cli.Command{
-	Name:      "get",
-	Usage:     "Get a configuration value",
-	ArgsUsage: "<key>",
-	Action: func(ctx context.Context, cmd *cli.Command) error {
-		if cmd.Args().Len() != 1 {
-			return errors.New("get requires a key")
-		}
-		cfg := deps.Config()
-		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion}
-		}
+func newGetCmd(d Deps) *cli.Command {
+	return &cli.Command{
+		Name:      "get",
+		Usage:     "Get a configuration value",
+		ArgsUsage: "<key>",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if cmd.Args().Len() != 1 {
+				return errors.New("get requires a key")
+			}
+			cfg := d.Config()
+			if cfg == nil {
+				cfg = &config.Config{Version: config.DefaultVersion}
+			}
 
-		key := cmd.Args().Get(0)
-		value, err := getValue(cfg, key)
-		if err != nil {
+			key := cmd.Args().Get(0)
+			value, err := getValue(cfg, key)
+			if err != nil {
+				return err
+			}
+
+			writer := d.OutputWriter()
+			if writer.JSON {
+				enc := json.NewEncoder(writer.Out)
+				return enc.Encode(getResult{Key: key, Value: value})
+			}
+			_, err = fmt.Fprintln(writer.Out, value)
 			return err
-		}
-
-		writer := deps.OutputWriter()
-		if writer.JSON {
-			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(getResult{Key: key, Value: value})
-		}
-		_, err = fmt.Fprintln(writer.Out, value)
-		return err
-	},
+		},
+	}
 }
 
 func getValue(cfg *config.Config, key string) (string, error) {

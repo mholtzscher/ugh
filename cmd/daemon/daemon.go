@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mholtzscher/ugh/cmd/meta"
+	"github.com/mholtzscher/ugh/cmd/registry"
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/daemon/service"
 	"github.com/mholtzscher/ugh/internal/output"
@@ -19,8 +21,6 @@ type Deps struct {
 	// OutputWriter returns the configured output writer.
 	OutputWriter func() output.Writer
 }
-
-var deps Deps
 
 // getServiceManager returns the appropriate service manager for the current platform.
 func getServiceManager() (service.Manager, error) {
@@ -38,9 +38,9 @@ func getBinaryPath() (string, error) {
 
 // getConfigPath returns the config path to use for the daemon.
 // Returns the path if config was explicitly set or loaded from default location.
-func getConfigPath() string {
+func getConfigPath(d Deps) string {
 	// Check if config was loaded
-	cfg := deps.Config()
+	cfg := d.Config()
 	if cfg == nil {
 		return ""
 	}
@@ -60,16 +60,43 @@ func getConfigPath() string {
 }
 
 // getConfig returns the loaded config, or nil if not loaded.
-func getConfig() *config.Config {
-	return deps.Config()
+func getConfig(d Deps) *config.Config {
+	return d.Config()
 }
 
-// Cmd is the parent command for all daemon subcommands.
-var Cmd = &cli.Command{
-	Name:     "daemon",
-	Usage:    "Manage the background daemon",
-	Category: "System",
-	Description: `Manage the ugh background daemon for HTTP API and Turso sync.
+const (
+	daemonID          registry.ID = "daemon"
+	daemonInstallID   registry.ID = "daemon.install"
+	daemonUninstallID registry.ID = "daemon.uninstall"
+	daemonStartID     registry.ID = "daemon.start"
+	daemonStopID      registry.ID = "daemon.stop"
+	daemonRestartID   registry.ID = "daemon.restart"
+	daemonStatusID    registry.ID = "daemon.status"
+	daemonLogsID      registry.ID = "daemon.logs"
+	daemonRunID       registry.ID = "daemon.run"
+)
+
+// Register adds daemon command specs to the registry.
+func Register(r *registry.Registry, d Deps) error {
+	return r.AddAll(
+		registry.Spec{ID: daemonID, Source: "cmd/daemon", Build: newDaemonCmd},
+		registry.Spec{ID: daemonInstallID, ParentID: daemonID, Source: "cmd/daemon", Build: func() *cli.Command { return newInstallCmd(d) }},
+		registry.Spec{ID: daemonUninstallID, ParentID: daemonID, Source: "cmd/daemon", Build: func() *cli.Command { return newUninstallCmd(d) }},
+		registry.Spec{ID: daemonStartID, ParentID: daemonID, Source: "cmd/daemon", Build: func() *cli.Command { return newStartCmd(d) }},
+		registry.Spec{ID: daemonStopID, ParentID: daemonID, Source: "cmd/daemon", Build: func() *cli.Command { return newStopCmd(d) }},
+		registry.Spec{ID: daemonRestartID, ParentID: daemonID, Source: "cmd/daemon", Build: func() *cli.Command { return newRestartCmd(d) }},
+		registry.Spec{ID: daemonStatusID, ParentID: daemonID, Source: "cmd/daemon", Build: func() *cli.Command { return newStatusCmd(d) }},
+		registry.Spec{ID: daemonLogsID, ParentID: daemonID, Source: "cmd/daemon", Build: func() *cli.Command { return newLogsCmd(d) }},
+		registry.Spec{ID: daemonRunID, ParentID: daemonID, Source: "cmd/daemon", Build: func() *cli.Command { return newRunCmd(d) }},
+	)
+}
+
+func newDaemonCmd() *cli.Command {
+	return &cli.Command{
+		Name:     "daemon",
+		Usage:    "Manage the background daemon",
+		Category: meta.SystemCategory.String(),
+		Description: `Manage the ugh background daemon for HTTP API and Turso sync.
 
 The daemon provides:
   - HTTP API for external integrations (Raycast, scripts, etc.)
@@ -77,21 +104,5 @@ The daemon provides:
 
 Use 'ugh daemon install' to set up the system service, then
 'ugh daemon start' to start it.`,
-}
-
-// Register adds the daemon command and its subcommands to the parent command.
-// Must be called with valid Deps before the command tree is executed.
-func Register(parent *cli.Command, d Deps) {
-	deps = d
-	Cmd.Commands = []*cli.Command{
-		installCmd,
-		uninstallCmd,
-		startCmd,
-		stopCmd,
-		restartCmd,
-		statusCmd,
-		logsCmd,
-		runCmd,
 	}
-	parent.Commands = append(parent.Commands, Cmd)
 }

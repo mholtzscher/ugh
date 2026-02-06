@@ -1,0 +1,12 @@
+# Global flag placement and propagation
+exec ugh --db $WORK/db.sqlite --json add From global json
+stdout '"title":"From global json"'
+
+exec ugh --db $WORK/db.sqlite --json list
+stdout '"title":"From global json"'
+
+exec ugh --config $WORK/custom.toml config set db.path relative/ugh.sqlite
+exists $WORK/custom.toml
+
+exec ugh --config $WORK/custom.toml config get db.path
+stdout 'relative/ugh.sqlite'

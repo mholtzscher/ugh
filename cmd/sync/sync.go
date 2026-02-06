@@ -1,4 +1,4 @@
-package cmd
+package sync
 
 import (
 	"context"
@@ -6,44 +6,77 @@ import (
 	"fmt"
 	"text/tabwriter"
 
+	"github.com/mholtzscher/ugh/cmd/meta"
+	"github.com/mholtzscher/ugh/cmd/registry"
+	"github.com/mholtzscher/ugh/internal/output"
+	"github.com/mholtzscher/ugh/internal/store"
+
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	syncPullCmd = &cli.Command{
+// Deps holds dependencies injected from the parent cmd package.
+type Deps struct {
+	OpenStore    func(context.Context) (*store.Store, error)
+	OutputWriter func() output.Writer
+}
+
+const (
+	syncID       registry.ID = "sync"
+	syncPullID   registry.ID = "sync.pull"
+	syncPushID   registry.ID = "sync.push"
+	syncStatusID registry.ID = "sync.status"
+)
+
+// Register adds sync command specs to the registry.
+func Register(r *registry.Registry, d Deps) error {
+	return r.AddAll(
+		registry.Spec{ID: syncID, Source: "cmd/sync", Build: func() *cli.Command { return newSyncCmd(d) }},
+		registry.Spec{ID: syncPullID, ParentID: syncID, Source: "cmd/sync", Build: func() *cli.Command { return newSyncPullCmd(d) }},
+		registry.Spec{ID: syncPushID, ParentID: syncID, Source: "cmd/sync", Build: func() *cli.Command { return newSyncPushCmd(d) }},
+		registry.Spec{ID: syncStatusID, ParentID: syncID, Source: "cmd/sync", Build: func() *cli.Command { return newSyncStatusCmd(d) }},
+	)
+}
+
+func newSyncCmd(d Deps) *cli.Command {
+	return &cli.Command{
+		Name:     "sync",
+		Usage:    "Sync database with remote server",
+		Category: meta.SyncCategory.String(),
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runSync(ctx, d)
+		},
+	}
+}
+
+func newSyncPullCmd(d Deps) *cli.Command {
+	return &cli.Command{
 		Name:  "pull",
 		Usage: "Pull changes from remote server",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runSyncPull(ctx)
+			return runSyncPull(ctx, d)
 		},
 	}
+}
 
-	syncPushCmd = &cli.Command{
+func newSyncPushCmd(d Deps) *cli.Command {
+	return &cli.Command{
 		Name:  "push",
 		Usage: "Push local changes to remote server",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runSyncPush(ctx)
+			return runSyncPush(ctx, d)
 		},
 	}
+}
 
-	syncStatusCmd = &cli.Command{
+func newSyncStatusCmd(d Deps) *cli.Command {
+	return &cli.Command{
 		Name:  "status",
 		Usage: "Show sync status",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runSyncStatus(ctx)
+			return runSyncStatus(ctx, d)
 		},
 	}
-
-	syncCmd = &cli.Command{
-		Name:     "sync",
-		Usage:    "Sync database with remote server",
-		Category: "Sync",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runSync(ctx)
-		},
-		Commands: []*cli.Command{syncPullCmd, syncPushCmd, syncStatusCmd},
-	}
-)
+}
 
 type syncStatusResult struct {
 	Action          string `json:"action"`
@@ -60,8 +93,8 @@ type syncResult struct {
 	Message string `json:"message"`
 }
 
-func runSync(ctx context.Context) error {
-	st, err := openStore(ctx)
+func runSync(ctx context.Context, d Deps) error {
+	st, err := d.OpenStore(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,7 +107,7 @@ func runSync(ctx context.Context) error {
 		return fmt.Errorf("sync: %w", err)
 	}
 
-	writer := outputWriter()
+	writer := d.OutputWriter()
 	if writer.JSON {
 		enc := json.NewEncoder(writer.Out)
 		return enc.Encode(syncResult{Action: "sync", Message: "synced with remote"})
@@ -83,19 +116,18 @@ func runSync(ctx context.Context) error {
 	return err
 }
 
-func runSyncPull(ctx context.Context) error {
-	st, err := openStore(ctx)
+func runSyncPull(ctx context.Context, d Deps) error {
+	st, err := d.OpenStore(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = st.Close() }()
 
-	err = st.Sync(ctx)
-	if err != nil {
+	if err := st.Sync(ctx); err != nil {
 		return fmt.Errorf("sync pull: %w", err)
 	}
 
-	writer := outputWriter()
+	writer := d.OutputWriter()
 	if writer.JSON {
 		enc := json.NewEncoder(writer.Out)
 		return enc.Encode(syncResult{Action: "pull", Message: "pulled changes from remote"})
@@ -104,8 +136,8 @@ func runSyncPull(ctx context.Context) error {
 	return err
 }
 
-func runSyncPush(ctx context.Context) error {
-	st, err := openStore(ctx)
+func runSyncPush(ctx context.Context, d Deps) error {
+	st, err := d.OpenStore(ctx)
 	if err != nil {
 		return err
 	}
@@ -115,7 +147,7 @@ func runSyncPush(ctx context.Context) error {
 		return fmt.Errorf("sync push: %w", err)
 	}
 
-	writer := outputWriter()
+	writer := d.OutputWriter()
 	if writer.JSON {
 		enc := json.NewEncoder(writer.Out)
 		return enc.Encode(syncResult{Action: "push", Message: "pushed changes to remote"})
@@ -124,8 +156,8 @@ func runSyncPush(ctx context.Context) error {
 	return err
 }
 
-func runSyncStatus(ctx context.Context) error {
-	st, err := openStore(ctx)
+func runSyncStatus(ctx context.Context, d Deps) error {
+	st, err := d.OpenStore(ctx)
 	if err != nil {
 		return err
 	}
@@ -136,7 +168,7 @@ func runSyncStatus(ctx context.Context) error {
 		return fmt.Errorf("sync status: %w", err)
 	}
 
-	writer := outputWriter()
+	writer := d.OutputWriter()
 	if writer.JSON {
 		enc := json.NewEncoder(writer.Out)
 		return enc.Encode(syncStatusResult{

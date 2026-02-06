@@ -10,24 +10,26 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var stopCmd = &cli.Command{
-	Name:  "stop",
-	Usage: "Stop the daemon service",
-	Action: func(ctx context.Context, cmd *cli.Command) error {
-		mgr, err := getServiceManager()
-		if err != nil {
-			return fmt.Errorf("detect service manager: %w", err)
-		}
-
-		if err := mgr.Stop(); err != nil {
-			if errors.Is(err, service.ErrNotRunning) {
-				return errors.New("daemon is not running")
+func newStopCmd(d Deps) *cli.Command {
+	return &cli.Command{
+		Name:  "stop",
+		Usage: "Stop the daemon service",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			mgr, err := getServiceManager()
+			if err != nil {
+				return fmt.Errorf("detect service manager: %w", err)
 			}
-			return fmt.Errorf("stop service: %w", err)
-		}
 
-		w := deps.OutputWriter()
-		_, _ = fmt.Fprintln(w.Out, "Daemon stopped")
-		return nil
-	},
+			if err := mgr.Stop(); err != nil {
+				if errors.Is(err, service.ErrNotRunning) {
+					return errors.New("daemon is not running")
+				}
+				return fmt.Errorf("stop service: %w", err)
+			}
+
+			w := d.OutputWriter()
+			_, _ = fmt.Fprintln(w.Out, "Daemon stopped")
+			return nil
+		},
+	}
 }

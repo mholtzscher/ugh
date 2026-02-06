@@ -19,43 +19,45 @@ type setResult struct {
 	File   string `json:"file"`
 }
 
-var setCmd = &cli.Command{
-	Name:      "set",
-	Usage:     "Set a configuration value",
-	ArgsUsage: "<key> <value>",
-	Action: func(ctx context.Context, cmd *cli.Command) error {
-		if cmd.Args().Len() != 2 {
-			return errors.New("set requires a key and value")
-		}
-		cfg := deps.Config()
-		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion}
-		}
+func newSetCmd(d Deps) *cli.Command {
+	return &cli.Command{
+		Name:      "set",
+		Usage:     "Set a configuration value",
+		ArgsUsage: "<key> <value>",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if cmd.Args().Len() != 2 {
+				return errors.New("set requires a key and value")
+			}
+			cfg := d.Config()
+			if cfg == nil {
+				cfg = &config.Config{Version: config.DefaultVersion}
+			}
 
-		key := cmd.Args().Get(0)
-		value := cmd.Args().Get(1)
-		if err := setValue(cfg, key, value); err != nil {
-			return err
-		}
+			key := cmd.Args().Get(0)
+			value := cmd.Args().Get(1)
+			if err := setValue(cfg, key, value); err != nil {
+				return err
+			}
 
-		cfgPath, err := configPathForWrite()
-		if err != nil {
-			return err
-		}
-		if err := config.Save(cfgPath, *cfg); err != nil {
-			return err
-		}
-		deps.SetConfig(cfg)
-		deps.SetConfigWasLoaded(true)
+			cfgPath, err := configPathForWrite(d)
+			if err != nil {
+				return err
+			}
+			if err := config.Save(cfgPath, *cfg); err != nil {
+				return err
+			}
+			d.SetConfig(cfg)
+			d.SetConfigWasLoaded(true)
 
-		writer := deps.OutputWriter()
-		if writer.JSON {
-			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(setResult{Action: "set", Key: key, Value: value, File: cfgPath})
-		}
-		_, err = fmt.Fprintf(writer.Out, "set %s\n", key)
-		return err
-	},
+			writer := d.OutputWriter()
+			if writer.JSON {
+				enc := json.NewEncoder(writer.Out)
+				return enc.Encode(setResult{Action: "set", Key: key, Value: value, File: cfgPath})
+			}
+			_, err = fmt.Fprintf(writer.Out, "set %s\n", key)
+			return err
+		},
+	}
 }
 
 func setValue(cfg *config.Config, key string, value string) error {

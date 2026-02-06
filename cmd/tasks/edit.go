@@ -1,4 +1,4 @@
-package cmd
+package tasks
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mholtzscher/ugh/cmd/cmdutil"
+	"github.com/mholtzscher/ugh/cmd/meta"
 	"github.com/mholtzscher/ugh/internal/editor"
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
@@ -13,12 +15,13 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var editCmd = &cli.Command{
-	Name:     "edit",
-	Aliases:  []string{"e"},
-	Usage:    "Edit a task",
-	Category: "Tasks",
-	Description: `Edit a task by ID.
+func newEditCmd(d Deps) *cli.Command {
+	return &cli.Command{
+		Name:     "edit",
+		Aliases:  []string{"e"},
+		Usage:    "Edit a task",
+		Category: meta.TasksCategory.String(),
+		Description: `Edit a task by ID.
 
 Opens the task in your editor ($VISUAL or $EDITOR) by default.
 Use flags for quick single-field changes without opening an editor.
@@ -31,145 +34,140 @@ Use flags for quick single-field changes without opening an editor.
 		  ugh edit 1 -p urgent                # Add project 'urgent'
 		  ugh edit 1 --remove-project old     # Remove project 'old'
 		  ugh edit 1 -c work -m key:val       # Add context and metadata`,
-	ArgsUsage: "<id>",
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    flags.FlagTitle,
-			Aliases: []string{flags.FlagDescription},
-			Usage:   "update title",
+		ArgsUsage: "<id>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    flags.FlagTitle,
+				Aliases: []string{flags.FlagDescription},
+				Usage:   "update title",
+			},
+			&cli.StringFlag{
+				Name:  flags.FlagNotes,
+				Usage: "update notes",
+			},
+			&cli.StringFlag{
+				Name:  flags.FlagState,
+				Usage: "set state (" + flags.TaskStatesUsage + ")",
+				Action: flags.StringAction(
+					flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
+				),
+			},
+			&cli.StringFlag{
+				Name:  flags.FlagDueOn,
+				Usage: "set due date (" + flags.DateTextYYYYMMDD + ")",
+				Action: flags.StringAction(
+					flags.DateLayoutRule(flags.FieldDate, flags.DateLayoutYYYYMMDD, flags.DateTextYYYYMMDD),
+				),
+			},
+			&cli.BoolFlag{
+				Name:  flags.FlagNoDue,
+				Usage: "clear due date",
+			},
+			&cli.StringFlag{
+				Name:  flags.FlagWaitingFor,
+				Usage: "set waiting-for value",
+			},
+			&cli.BoolFlag{
+				Name:  flags.FlagNoWaitingFor,
+				Usage: "clear waiting-for value",
+			},
+			&cli.StringSliceFlag{
+				Name:    flags.FlagProject,
+				Aliases: []string{"p"},
+				Usage:   "add project (repeatable)",
+			},
+			&cli.StringSliceFlag{
+				Name:    flags.FlagContext,
+				Aliases: []string{"c"},
+				Usage:   "add context (repeatable)",
+			},
+			&cli.StringSliceFlag{
+				Name:    flags.FlagMeta,
+				Aliases: []string{"m"},
+				Usage:   "set metadata " + flags.MetaTextKeyValue + " (repeatable)",
+				Action: flags.StringSliceAction(
+					flags.EachContainsSeparatorRule(flags.FieldMeta, flags.MetaSeparatorColon, flags.MetaTextKeyValue),
+				),
+			},
+			&cli.BoolFlag{
+				Name:    flags.FlagDone,
+				Aliases: []string{"x"},
+				Usage:   "mark as done (state=done)",
+				Action: flags.BoolAction(
+					flags.MutuallyExclusiveBoolFlagsRule(flags.FlagDone, flags.FlagUndone),
+					flags.BoolRequiresStringOneOfCaseInsensitiveRule(flags.FlagDone, flags.FlagState, flags.TaskStateDone),
+				),
+			},
+			&cli.BoolFlag{
+				Name:  flags.FlagUndone,
+				Usage: "reopen (undo done)",
+				Action: flags.BoolAction(
+					flags.MutuallyExclusiveBoolFlagsRule(flags.FlagDone, flags.FlagUndone),
+				),
+			},
+			&cli.StringSliceFlag{
+				Name:  flags.FlagRemoveProject,
+				Usage: "remove project (repeatable)",
+			},
+			&cli.StringSliceFlag{
+				Name:  flags.FlagRemoveContext,
+				Usage: "remove context (repeatable)",
+			},
+			&cli.StringSliceFlag{
+				Name:  flags.FlagRemoveMeta,
+				Usage: "remove metadata key (repeatable)",
+			},
+			&cli.BoolFlag{
+				Name:    flags.FlagEditor,
+				Aliases: []string{"e"},
+				Usage:   "open in $VISUAL/$EDITOR",
+			},
 		},
-		&cli.StringFlag{
-			Name:  flags.FlagNotes,
-			Usage: "update notes",
-		},
-		&cli.StringFlag{
-			Name:  flags.FlagState,
-			Usage: "set state (" + flags.TaskStatesUsage + ")",
-			Action: flags.StringAction(
-				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
-			),
-		},
-		&cli.StringFlag{
-			Name:  flags.FlagDueOn,
-			Usage: "set due date (" + flags.DateTextYYYYMMDD + ")",
-			Action: flags.StringAction(
-				flags.DateLayoutRule(flags.FieldDate, flags.DateLayoutYYYYMMDD, flags.DateTextYYYYMMDD),
-			),
-		},
-		&cli.BoolFlag{
-			Name:  flags.FlagNoDue,
-			Usage: "clear due date",
-		},
-		&cli.StringFlag{
-			Name:  flags.FlagWaitingFor,
-			Usage: "set waiting-for value",
-		},
-		&cli.BoolFlag{
-			Name:  flags.FlagNoWaitingFor,
-			Usage: "clear waiting-for value",
-		},
-		&cli.StringSliceFlag{
-			Name:    flags.FlagProject,
-			Aliases: []string{"p"},
-			Usage:   "add project (repeatable)",
-		},
-		&cli.StringSliceFlag{
-			Name:    flags.FlagContext,
-			Aliases: []string{"c"},
-			Usage:   "add context (repeatable)",
-		},
-		&cli.StringSliceFlag{
-			Name:    flags.FlagMeta,
-			Aliases: []string{"m"},
-			Usage:   "set metadata " + flags.MetaTextKeyValue + " (repeatable)",
-			Action: flags.StringSliceAction(
-				flags.EachContainsSeparatorRule(flags.FieldMeta, flags.MetaSeparatorColon, flags.MetaTextKeyValue),
-			),
-		},
-		&cli.BoolFlag{
-			Name:    flags.FlagDone,
-			Aliases: []string{"x"},
-			Usage:   "mark as done (state=done)",
-			Action: flags.BoolAction(
-				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagDone, flags.FlagUndone),
-				flags.BoolRequiresStringOneOfCaseInsensitiveRule(flags.FlagDone, flags.FlagState, flags.TaskStateDone),
-			),
-		},
-		&cli.BoolFlag{
-			Name:  flags.FlagUndone,
-			Usage: "reopen (undo done)",
-			Action: flags.BoolAction(
-				flags.MutuallyExclusiveBoolFlagsRule(flags.FlagDone, flags.FlagUndone),
-			),
-		},
-		&cli.StringSliceFlag{
-			Name:  flags.FlagRemoveProject,
-			Usage: "remove project (repeatable)",
-		},
-		&cli.StringSliceFlag{
-			Name:  flags.FlagRemoveContext,
-			Usage: "remove context (repeatable)",
-		},
-		&cli.StringSliceFlag{
-			Name:  flags.FlagRemoveMeta,
-			Usage: "remove metadata key (repeatable)",
-		},
-		&cli.BoolFlag{
-			Name:    flags.FlagEditor,
-			Aliases: []string{"e"},
-			Usage:   "open in $VISUAL/$EDITOR",
-		},
-	},
-	Action: func(ctx context.Context, cmd *cli.Command) error {
-		if cmd.Args().Len() != 1 {
-			return errors.New("edit requires a task id")
-		}
-		ids, err := parseIDs(commandArgs(cmd))
-		if err != nil {
-			return err
-		}
-		id := ids[0]
-
-		svc, err := newService(ctx)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = svc.Close() }()
-
-		if err := maybeSyncBeforeWrite(ctx, svc); err != nil {
-			return fmt.Errorf("sync pull: %w", err)
-		}
-
-		var saved *store.Task
-		hasFields := hasFieldFlags(cmd)
-		if cmd.Bool(flags.FlagEditor) && hasFields {
-			return errors.New("cannot combine field flags with --editor")
-		}
-
-		if cmd.Bool(flags.FlagEditor) || !hasFields {
-			saved, err = runEditorMode(ctx, svc, id)
+		Action: cmdutil.WithService(d.NewService, func(ctx context.Context, cmd *cli.Command, svc service.Service) error {
+			if cmd.Args().Len() != 1 {
+				return errors.New("edit requires a task id")
+			}
+			ids, err := parseIDs(commandArgs(cmd))
 			if err != nil {
 				return err
 			}
-		} else {
-			saved, err = runFlagsMode(ctx, cmd, svc, id)
-			if err != nil {
-				return err
+			id := ids[0]
+
+			if err := d.MaybeSyncBeforeWrite(ctx, svc); err != nil {
+				return fmt.Errorf("sync pull: %w", err)
 			}
-		}
 
-		if saved == nil {
-			fmt.Println("No changes made")
-			return nil
-		}
+			var saved *store.Task
+			hasFields := hasFieldFlags(cmd)
+			if cmd.Bool(flags.FlagEditor) && hasFields {
+				return errors.New("cannot combine field flags with --editor")
+			}
 
-		if err := maybeSyncAfterWrite(ctx, svc); err != nil {
-			return fmt.Errorf("sync push: %w", err)
-		}
+			if cmd.Bool(flags.FlagEditor) || !hasFields {
+				saved, err = runEditorMode(ctx, svc, id)
+				if err != nil {
+					return err
+				}
+			} else {
+				saved, err = runFlagsMode(ctx, cmd, svc, id)
+				if err != nil {
+					return err
+				}
+			}
 
-		writer := outputWriter()
-		return writer.WriteTask(saved)
-	},
+			if saved == nil {
+				fmt.Println("No changes made")
+				return nil
+			}
+
+			if err := d.MaybeSyncAfterWrite(ctx, svc); err != nil {
+				return fmt.Errorf("sync push: %w", err)
+			}
+
+			writer := d.OutputWriter()
+			return writer.WriteTask(saved)
+		}),
+	}
 }
 
 func hasFieldFlags(cmd *cli.Command) bool {

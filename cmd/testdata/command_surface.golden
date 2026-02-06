@@ -1,0 +1,33 @@
+add|aliases=a|category=Tasks
+list|aliases=ls,l|category=Tasks
+show|aliases=s|category=Tasks
+edit|aliases=e|category=Tasks
+done|aliases=d|category=Tasks
+undo|aliases=u|category=Tasks
+rm|aliases=-|category=Tasks
+inbox|aliases=i|category=Lists
+now|aliases=n|category=Lists
+waiting|aliases=w|category=Lists
+later|aliases=sd|category=Lists
+calendar|aliases=cal|category=Lists
+import|aliases=in|category=Backup
+export|aliases=ex|category=Backup
+projects|aliases=proj|category=Projects & Contexts
+contexts|aliases=ctx|category=Projects & Contexts
+sync|aliases=-|category=Sync
+sync pull|aliases=-|category=-
+sync push|aliases=-|category=-
+sync status|aliases=-|category=-
+config|aliases=-|category=System
+config show|aliases=-|category=-
+config get|aliases=-|category=-
+config set|aliases=-|category=-
+daemon|aliases=-|category=System
+daemon install|aliases=-|category=-
+daemon uninstall|aliases=-|category=-
+daemon start|aliases=-|category=-
+daemon stop|aliases=-|category=-
+daemon restart|aliases=-|category=-
+daemon status|aliases=-|category=-
+daemon logs|aliases=-|category=-
+daemon run|aliases=-|category=-
