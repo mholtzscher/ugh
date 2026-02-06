@@ -1,4 +1,4 @@
-package daemon
+package cmd
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var uninstallCmd = &cli.Command{
+var daemonUninstallCmd = &cli.Command{
 	Name:  "uninstall",
 	Usage: "Uninstall the daemon system service",
 	Description: `Uninstall the daemon system service.
@@ -33,7 +33,7 @@ Stops the service if running, then removes the service configuration.`,
 			return fmt.Errorf("uninstall service: %w", err)
 		}
 
-		w := deps.OutputWriter()
+		w := outputWriter()
 		_, _ = fmt.Fprintln(w.Out, "Service uninstalled from", servicePath)
 		return nil
 	},

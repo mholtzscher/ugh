@@ -1,4 +1,4 @@
-package daemon
+package cmd
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var installCmd = &cli.Command{
+var daemonInstallCmd = &cli.Command{
 	Name:  "install",
 	Usage: "Install the daemon as a system service",
 	Description: `Install the daemon as a user-level system service.
@@ -35,7 +35,7 @@ After installation, use 'ugh daemon start' to start the service.`,
 
 		cfg := service.InstallConfig{
 			BinaryPath: binaryPath,
-			ConfigPath: getConfigPath(),
+			ConfigPath: getDaemonConfigPath(),
 		}
 
 		if err := mgr.Install(cfg); err != nil {
@@ -45,7 +45,7 @@ After installation, use 'ugh daemon start' to start the service.`,
 			return fmt.Errorf("install service: %w", err)
 		}
 
-		w := deps.OutputWriter()
+		w := outputWriter()
 		status, _ := mgr.Status()
 		_, _ = fmt.Fprintln(w.Out, "Service installed at", status.ServicePath)
 		_, _ = fmt.Fprintln(w.Out, "Run 'ugh daemon start' to start the daemon")

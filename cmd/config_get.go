@@ -1,4 +1,4 @@
-package config
+package cmd
 
 import (
 	"context"
@@ -11,12 +11,12 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-type getResult struct {
+type configGetResult struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 
-var getCmd = &cli.Command{
+var configGetCmd = &cli.Command{
 	Name:      "get",
 	Usage:     "Get a configuration value",
 	ArgsUsage: "<key>",
@@ -24,28 +24,28 @@ var getCmd = &cli.Command{
 		if cmd.Args().Len() != 1 {
 			return errors.New("get requires a key")
 		}
-		cfg := deps.Config()
+		cfg := loadedConfig
 		if cfg == nil {
 			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
 		key := cmd.Args().Get(0)
-		value, err := getValue(cfg, key)
+		value, err := getConfigValue(cfg, key)
 		if err != nil {
 			return err
 		}
 
-		writer := deps.OutputWriter()
+		writer := outputWriter()
 		if writer.JSON {
 			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(getResult{Key: key, Value: value})
+			return enc.Encode(configGetResult{Key: key, Value: value})
 		}
 		_, err = fmt.Fprintln(writer.Out, value)
 		return err
 	},
 }
 
-func getValue(cfg *config.Config, key string) (string, error) {
+func getConfigValue(cfg *config.Config, key string) (string, error) {
 	switch key {
 	case "db.path":
 		if cfg.DB.Path == "" {

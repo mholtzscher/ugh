@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	configcmd "github.com/mholtzscher/ugh/cmd/config"
-	daemoncmd "github.com/mholtzscher/ugh/cmd/daemon"
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
@@ -171,22 +169,9 @@ func init() {
 		projectsCmd,
 		contextsCmd,
 		syncCmd,
+		configCmd,
+		daemonCmd,
 	}
-
-	// Register subcommand packages
-	configcmd.Register(rootCmd, configcmd.Deps{
-		Config:             func() *config.Config { return loadedConfig },
-		SetConfig:          func(c *config.Config) { loadedConfig = c },
-		ConfigWasLoaded:    func() bool { return loadedConfigWas },
-		SetConfigWasLoaded: func(b bool) { loadedConfigWas = b },
-		OutputWriter:       outputWriter,
-		ConfigPath:         func() string { return rootConfigPath },
-	})
-
-	daemoncmd.Register(rootCmd, daemoncmd.Deps{
-		Config:       func() *config.Config { return loadedConfig },
-		OutputWriter: outputWriter,
-	})
 }
 
 func openStore(ctx context.Context) (*store.Store, error) {

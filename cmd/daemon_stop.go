@@ -1,4 +1,4 @@
-package daemon
+package cmd
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var stopCmd = &cli.Command{
+var daemonStopCmd = &cli.Command{
 	Name:  "stop",
 	Usage: "Stop the daemon service",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -26,7 +26,7 @@ var stopCmd = &cli.Command{
 			return fmt.Errorf("stop service: %w", err)
 		}
 
-		w := deps.OutputWriter()
+		w := outputWriter()
 		_, _ = fmt.Fprintln(w.Out, "Daemon stopped")
 		return nil
 	},

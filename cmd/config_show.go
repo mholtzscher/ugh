@@ -1,4 +1,4 @@
-package config
+package cmd
 
 import (
 	"context"
@@ -10,16 +10,16 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var showCmd = &cli.Command{
+var configShowCmd = &cli.Command{
 	Name:  "show",
 	Usage: "Show configuration",
 	Action: func(ctx context.Context, cmd *cli.Command) error {
-		cfg := deps.Config()
+		cfg := loadedConfig
 		if cfg == nil {
 			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
-		writer := deps.OutputWriter()
+		writer := outputWriter()
 		if writer.JSON {
 			enc := json.NewEncoder(writer.Out)
 			return enc.Encode(cfg)
