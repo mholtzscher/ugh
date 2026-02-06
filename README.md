@@ -54,10 +54,6 @@ ugh show 1
 
 # Remove tasks
 ugh rm 1 2
-
-# Import/export backups
-ugh export backup.jsonl --all
-ugh import backup.jsonl
 ```
 
 ## Development

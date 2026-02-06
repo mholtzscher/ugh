@@ -14,7 +14,6 @@ const (
 	FlagTitle         = "title"
 	FlagDone          = "done"
 	FlagEditor        = "editor"
-	FlagFormat        = "format"
 	FlagJSON          = "json"
 	FlagLines         = "lines"
 	FlagMeta          = "meta"
@@ -36,10 +35,9 @@ const (
 )
 
 const (
-	FieldState  = "state"
-	FieldFormat = "format"
-	FieldDate   = "date"
-	FieldMeta   = "meta"
+	FieldState = "state"
+	FieldDate  = "date"
+	FieldMeta  = "meta"
 )
 
 const (
@@ -53,13 +51,6 @@ const (
 )
 
 const (
-	FormatJSONL = "jsonl"
-	FormatJSON  = "json"
-
-	FormatsUsage = FormatJSONL + "|" + FormatJSON
-)
-
-const (
 	DateLayoutYYYYMMDD = domain.DateLayoutYYYYMMDD
 	DateTextYYYYMMDD   = domain.DateTextYYYYMMDD
 
@@ -67,7 +58,4 @@ const (
 	MetaTextKeyValue   = domain.MetaTextKeyValue
 )
 
-var (
-	TaskStates = []string{TaskStateInbox, TaskStateNow, TaskStateWaiting, TaskStateLater, TaskStateDone}
-	Formats    = []string{FormatJSONL, FormatJSON}
-)
+var TaskStates = []string{TaskStateInbox, TaskStateNow, TaskStateWaiting, TaskStateLater, TaskStateDone}

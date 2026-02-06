@@ -42,7 +42,6 @@ var helpCategoryOrder = []string{
 	"Lists",
 	"Tasks",
 	"Projects & Contexts",
-	"Backup",
 	"Sync",
 	"System",
 }
