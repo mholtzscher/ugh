@@ -121,7 +121,7 @@ Use flags for quick single-field changes without opening an editor.
 		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
-		if cmd.Args().Len() != 1 {
+		if cmd.Args().Len() < 1 {
 			return errors.New("edit requires a task id")
 		}
 		ids, err := parseIDs(commandArgs(cmd))
@@ -263,7 +263,7 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 		if err != nil {
 			return nil, err
 		}
-		return svc.GetTask(ctx, id)
+		updated, _ = svc.GetTask(ctx, id)
 	}
 	if cmd.Bool(flags.FlagUndone) {
 		_, err := svc.SetDone(ctx, []int64{id}, false)
@@ -276,16 +276,14 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 }
 
 func parseMetaFlags(meta []string) (map[string]string, error) {
-	if len(meta) == 0 {
-		return nil, nil
-	}
-	result := make(map[string]string, len(meta))
-	for _, m := range meta {
+	result := make(map[string]string)
+	for i := 0; i < len(meta); i++ {
+		m := meta[i]
 		k, v, ok := strings.Cut(m, flags.MetaSeparatorColon)
 		if !ok {
 			return nil, fmt.Errorf("invalid meta format: %s (expected %s)", m, flags.MetaTextKeyValue)
 		}
-		result[strings.TrimSpace(k)] = strings.TrimSpace(v)
+		result[k] = v
 	}
 	return result, nil
 }

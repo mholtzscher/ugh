@@ -75,13 +75,13 @@ var addCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
-		defer func() { _ = svc.Close() }()
+		defer svc.Close()
 
 		if err := maybeSyncBeforeWrite(ctx, svc); err != nil {
 			return fmt.Errorf("sync pull: %w", err)
 		}
 
-		state := cmd.String(flags.FlagState)
+		state := flags.TaskStateInbox
 		if cmd.Bool(flags.FlagDone) {
 			state = flags.TaskStateDone
 		}
@@ -94,7 +94,7 @@ var addCmd = &cli.Command{
 			Contexts:   cmd.StringSlice(flags.FlagContext),
 			Meta:       cmd.StringSlice(flags.FlagMeta),
 			DueOn:      cmd.String(flags.FlagDueOn),
-			WaitingFor: cmd.String(flags.FlagWaitingFor),
+			WaitingFor: strings.TrimSpace(cmd.String(flags.FlagWaitingFor)),
 		})
 		if err != nil {
 			return err
