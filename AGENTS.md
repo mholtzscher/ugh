@@ -7,9 +7,7 @@ A task CLI with SQLite storage.
 ## Rules
 
 **Never commit code unless explicitly prompted by the user.**
-**Always run linting after modifying code.**
-**Always run formatter after modifying code.**
-**Always run tests after modifying code.**
+**Always run `just check` after making changes.**
 
 ## Commands
 
@@ -124,4 +122,3 @@ Use goimports or let `go fmt` handle ordering.
 
 - Keep changes minimal and focused.
 - Avoid mass reformatting unless necessary.
-- Run `go mod tidy` after dependency changes.
