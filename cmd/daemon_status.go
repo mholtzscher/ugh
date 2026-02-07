@@ -16,6 +16,7 @@ type daemonStatusOutput struct {
 	ServicePath string `json:"servicePath,omitempty"`
 }
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var daemonStatusCmd = &cli.Command{
 	Name:  "status",
 	Usage: "Show daemon service status",
@@ -23,7 +24,7 @@ var daemonStatusCmd = &cli.Command{
 
 Displays whether the service is installed, running, and if running,
 shows uptime and sync status from the daemon's health endpoint.`,
-	Action: func(ctx context.Context, cmd *cli.Command) error {
+	Action: func(_ context.Context, _ *cli.Command) error {
 		mgr, err := getServiceManager()
 		if err != nil {
 			return fmt.Errorf("detect service manager: %w", err)

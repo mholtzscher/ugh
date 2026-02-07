@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests validate unexported helper behavior.
 package service
 
 import (

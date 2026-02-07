@@ -1,13 +1,16 @@
+//nolint:dupl // Done and undo commands intentionally share execution flow.
 package cmd
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/output"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var undoCmd = &cli.Command{
 	Name:      "undo",
 	Aliases:   []string{"u"},
@@ -25,7 +28,8 @@ var undoCmd = &cli.Command{
 		}
 		defer func() { _ = svc.Close() }()
 
-		if err := maybeSyncBeforeWrite(ctx, svc); err != nil {
+		err = maybeSyncBeforeWrite(ctx, svc)
+		if err != nil {
 			return fmt.Errorf("sync pull: %w", err)
 		}
 
@@ -33,7 +37,8 @@ var undoCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
-		if err := maybeSyncAfterWrite(ctx, svc); err != nil {
+		err = maybeSyncAfterWrite(ctx, svc)
+		if err != nil {
 			return fmt.Errorf("sync push: %w", err)
 		}
 		writer := outputWriter()

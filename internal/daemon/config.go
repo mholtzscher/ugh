@@ -6,6 +6,11 @@ import (
 	"github.com/mholtzscher/ugh/internal/config"
 )
 
+const (
+	defaultPeriodicSyncMinutes = 5
+	defaultSyncRetryMax        = 3
+)
+
 // Config holds parsed daemon configuration with defaults applied.
 type Config struct {
 	PeriodicSync     time.Duration
@@ -18,10 +23,10 @@ type Config struct {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		PeriodicSync:     5 * time.Minute,
+		PeriodicSync:     defaultPeriodicSyncMinutes * time.Minute,
 		LogFile:          "",
 		LogLevel:         "info",
-		SyncRetryMax:     3,
+		SyncRetryMax:     defaultSyncRetryMax,
 		SyncRetryBackoff: 1 * time.Second,
 	}
 }

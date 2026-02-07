@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -49,7 +50,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.mu.Lock()
 	if d.running {
 		d.mu.Unlock()
-		return fmt.Errorf("daemon is already running")
+		return errors.New("daemon is already running")
 	}
 	d.running = true
 	d.startTime = time.Now()
@@ -57,8 +58,11 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// Check if sync is configured
 	if d.storeOpts.SyncURL == "" {
-		d.logger.Info("sync not configured (db.sync_url not set), nothing to do")
-		fmt.Fprintln(os.Stderr, "Daemon exiting: sync not configured. Set db.sync_url in config to enable background sync.")
+		d.logger.InfoContext(ctx, "sync not configured (db.sync_url not set), nothing to do")
+		fmt.Fprintln(
+			os.Stderr,
+			"Daemon exiting: sync not configured. Set db.sync_url in config to enable background sync.",
+		)
 		return nil
 	}
 
@@ -71,15 +75,15 @@ func (d *Daemon) Run(ctx context.Context) error {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
 
-	d.logger.Info("daemon starting",
+	d.logger.InfoContext(ctx, "daemon starting",
 		"sync_interval", d.config.PeriodicSync,
 		"sync_url", d.storeOpts.SyncURL,
 	)
 
 	// Perform initial sync
-	d.logger.Info("performing initial sync")
+	d.logger.InfoContext(ctx, "performing initial sync")
 	if err := d.doSync(ctx); err != nil {
-		d.logger.Warn("initial sync failed", "error", err)
+		d.logger.WarnContext(ctx, "initial sync failed", "error", err)
 	}
 
 	// Start periodic sync loop
@@ -89,14 +93,16 @@ func (d *Daemon) Run(ctx context.Context) error {
 	for {
 		select {
 		case sig := <-sigCh:
-			d.logger.Info("received signal, shutting down", "signal", sig)
-			return d.shutdown(ctx)
+			d.logger.InfoContext(ctx, "received signal, shutting down", "signal", sig)
+			d.shutdown(ctx)
+			return nil
 		case <-ctx.Done():
-			d.logger.Info("context cancelled, shutting down")
-			return d.shutdown(context.Background())
+			d.logger.InfoContext(ctx, "context cancelled, shutting down")
+			d.shutdown(context.Background())
+			return nil
 		case <-ticker.C:
 			if err := d.doSync(ctx); err != nil {
-				d.logger.Warn("periodic sync failed", "error", err)
+				d.logger.WarnContext(ctx, "periodic sync failed", "error", err)
 			}
 		}
 	}
@@ -109,7 +115,7 @@ func (d *Daemon) doSync(ctx context.Context) error {
 
 	for attempt := 0; attempt <= d.config.SyncRetryMax; attempt++ {
 		if attempt > 0 {
-			d.logger.Debug("retrying sync", "attempt", attempt, "backoff", backoff)
+			d.logger.DebugContext(ctx, "retrying sync", "attempt", attempt, "backoff", backoff)
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -126,11 +132,11 @@ func (d *Daemon) doSync(ctx context.Context) error {
 			d.consecutiveFailures = 0
 			d.mu.Unlock()
 
-			d.logger.Debug("sync completed successfully")
+			d.logger.DebugContext(ctx, "sync completed successfully")
 			return nil
 		}
 
-		d.logger.Debug("sync attempt failed", "error", err, "attempt", attempt)
+		d.logger.DebugContext(ctx, "sync attempt failed", "error", err, "attempt", attempt)
 	}
 
 	// All retries exhausted
@@ -140,7 +146,7 @@ func (d *Daemon) doSync(ctx context.Context) error {
 	failures := d.consecutiveFailures
 	d.mu.Unlock()
 
-	d.logger.Error("sync failed after retries", "error", err, "consecutive_failures", failures)
+	d.logger.ErrorContext(ctx, "sync failed after retries", "error", err, "consecutive_failures", failures)
 	return err
 }
 
@@ -152,7 +158,8 @@ func (d *Daemon) syncOnce(ctx context.Context) error {
 	}
 	defer func() { _ = st.Close() }()
 
-	if err := st.Sync(ctx); err != nil {
+	err = st.Sync(ctx)
+	if err != nil {
 		return fmt.Errorf("sync: %w", err)
 	}
 
@@ -160,20 +167,19 @@ func (d *Daemon) syncOnce(ctx context.Context) error {
 }
 
 // shutdown performs graceful shutdown.
-func (d *Daemon) shutdown(ctx context.Context) error {
-	d.logger.Info("performing final sync before shutdown")
+func (d *Daemon) shutdown(ctx context.Context) {
+	d.logger.InfoContext(ctx, "performing final sync before shutdown")
 
 	// Final sync attempt
 	if err := d.syncOnce(ctx); err != nil {
-		d.logger.Warn("final sync failed", "error", err)
+		d.logger.WarnContext(ctx, "final sync failed", "error", err)
 	}
 
 	d.mu.Lock()
 	d.running = false
 	d.mu.Unlock()
 
-	d.logger.Info("shutdown complete")
-	return nil
+	d.logger.InfoContext(ctx, "shutdown complete")
 }
 
 // Uptime returns how long the daemon has been running.

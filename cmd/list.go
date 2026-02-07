@@ -3,11 +3,13 @@ package cmd
 import (
 	"context"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/urfave/cli/v3"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var listCmd = &cli.Command{
 	Name:     "list",
 	Aliases:  []string{"ls", "l"},
@@ -42,7 +44,7 @@ var listCmd = &cli.Command{
 			Name:  flags.FlagState,
 			Usage: "filter by state (" + flags.TaskStatesUsage + ")",
 			Action: flags.StringAction(
-				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
+				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates()...),
 			),
 		},
 		&cli.StringFlag{

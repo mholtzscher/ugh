@@ -3,16 +3,18 @@ package cmd
 import (
 	"context"
 
-	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/service"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var calendarCmd = &cli.Command{
 	Name:     "calendar",
 	Aliases:  []string{"cal"},
 	Usage:    "List items with due dates",
 	Category: "Lists",
-	Action: func(ctx context.Context, cmd *cli.Command) error {
+	Action: func(ctx context.Context, _ *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
 			return err

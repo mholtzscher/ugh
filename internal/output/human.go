@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/mholtzscher/ugh/internal/store"
 	"github.com/olekukonko/tablewriter"
+
+	"github.com/mholtzscher/ugh/internal/store"
 )
 
 type Summary struct {
@@ -22,7 +24,7 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 	table := tablewriter.NewWriter(out)
 	table.Header("Field", "Value")
 	rows := [][]string{
-		{"ID", fmt.Sprintf("%d", task.ID)},
+		{"ID", strconv.FormatInt(task.ID, 10)},
 		{"State", string(task.State)},
 		{"Prev State", stateOrDash(task.PrevState)},
 		{"Created", dayFromTimeOrDash(task.CreatedAt)},
@@ -49,7 +51,7 @@ func writeHumanList(out io.Writer, tasks []*store.Task) error {
 	table.Header("ID", "State", "Due", "Waiting", "Task")
 	for _, task := range tasks {
 		row := []string{
-			fmt.Sprintf("%d", task.ID),
+			strconv.FormatInt(task.ID, 10),
 			string(task.State),
 			dateOrDash(task.DueOn),
 			emptyDash(task.WaitingFor),
@@ -71,7 +73,7 @@ func writeHumanSummary(out io.Writer, summary any) error {
 		if len(value.IDs) > 0 {
 			ids = joinIDs(value.IDs)
 		}
-		if err := table.Append(value.Action, fmt.Sprintf("%d", value.Count), ids); err != nil {
+		if err := table.Append(value.Action, strconv.FormatInt(value.Count, 10), ids); err != nil {
 			return err
 		}
 		return table.Render()
@@ -130,7 +132,7 @@ func dayFromTimeOrDash(value time.Time) string {
 func joinIDs(ids []int64) string {
 	parts := make([]string, 0, len(ids))
 	for _, id := range ids {
-		parts = append(parts, fmt.Sprintf("%d", id))
+		parts = append(parts, strconv.FormatInt(id, 10))
 	}
 	return strings.Join(parts, ",")
 }
@@ -177,7 +179,7 @@ func writeHumanTags(out io.Writer, tags []store.NameCount) error {
 	table := tablewriter.NewWriter(out)
 	table.Header("Name", "Count")
 	for _, tag := range tags {
-		if err := appendRow(table, []string{tag.Name, fmt.Sprintf("%d", tag.Count)}); err != nil {
+		if err := appendRow(table, []string{tag.Name, strconv.FormatInt(tag.Count, 10)}); err != nil {
 			return err
 		}
 	}

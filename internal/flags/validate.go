@@ -9,6 +9,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const pairCount = 2
+
 type StringRule func(*cli.Command, string) error
 
 type StringSliceRule func(*cli.Command, []string) error
@@ -121,21 +123,25 @@ func MutuallyExclusiveBoolFlagsRule(flagNames ...string) BoolRule {
 				active = append(active, flagName)
 			}
 		}
-		if len(active) < 2 {
+		if len(active) < pairCount {
 			return nil
 		}
 		left, right := active[0], active[1]
 		if left > right {
 			left, right = right, left
 		}
-		if len(flagNames) == 2 {
+		if len(flagNames) == pairCount {
 			return fmt.Errorf("cannot use both --%s and --%s", left, right)
 		}
 		return pairError("cannot combine", left, right)
 	}
 }
 
-func BoolRequiresStringOneOfCaseInsensitiveRule(boolFlagName string, stringFlagName string, allowed ...string) BoolRule {
+func BoolRequiresStringOneOfCaseInsensitiveRule(
+	boolFlagName string,
+	stringFlagName string,
+	allowed ...string,
+) BoolRule {
 	allowedSet := make(map[string]bool, len(allowed))
 	normalizedAllowed := make([]string, 0, len(allowed))
 	for _, option := range allowed {
@@ -156,9 +162,19 @@ func BoolRequiresStringOneOfCaseInsensitiveRule(boolFlagName string, stringFlagN
 			return nil
 		}
 		if len(normalizedAllowed) == 1 {
-			return fmt.Errorf("cannot combine --%s with --%s other than %s", boolFlagName, stringFlagName, normalizedAllowed[0])
+			return fmt.Errorf(
+				"cannot combine --%s with --%s other than %s",
+				boolFlagName,
+				stringFlagName,
+				normalizedAllowed[0],
+			)
 		}
-		return fmt.Errorf("cannot combine --%s with --%s outside %s", boolFlagName, stringFlagName, strings.Join(normalizedAllowed, "|"))
+		return fmt.Errorf(
+			"cannot combine --%s with --%s outside %s",
+			boolFlagName,
+			stringFlagName,
+			strings.Join(normalizedAllowed, "|"),
+		)
 	}
 }
 

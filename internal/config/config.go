@@ -12,6 +12,7 @@ import (
 
 const (
 	DefaultVersion = 1
+	configFileMode = 0o600
 )
 
 type DB struct {
@@ -64,7 +65,7 @@ func Save(path string, cfg Config) error {
 	}
 
 	configDir := filepath.Dir(path)
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
+	if err := os.MkdirAll(configDir, 0o750); err != nil {
 		return fmt.Errorf("create config dir: %w", err)
 	}
 
@@ -74,19 +75,23 @@ func Save(path string, cfg Config) error {
 	}
 	defer func() { _ = os.Remove(file.Name()) }()
 
-	if err := toml.NewEncoder(file).Encode(cfg); err != nil {
+	err = toml.NewEncoder(file).Encode(cfg)
+	if err != nil {
 		_ = file.Close()
 		return fmt.Errorf("encode config: %w", err)
 	}
-	if err := file.Chmod(0o644); err != nil {
+	err = file.Chmod(configFileMode)
+	if err != nil {
 		_ = file.Close()
 		return fmt.Errorf("chmod config: %w", err)
 	}
-	if err := file.Close(); err != nil {
+	err = file.Close()
+	if err != nil {
 		return fmt.Errorf("close temp config: %w", err)
 	}
 
-	if err := os.Rename(file.Name(), path); err != nil {
+	err = os.Rename(file.Name(), path)
+	if err != nil {
 		if errors.Is(err, os.ErrExist) {
 			if removeErr := os.Remove(path); removeErr == nil {
 				err = os.Rename(file.Name(), path)
@@ -121,8 +126,9 @@ func Load(path string, allowMissing bool) (*LoadResult, error) {
 	}
 
 	var cfg Config
-	if _, err := toml.Decode(string(data), &cfg); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
+	_, err = toml.Decode(string(data), &cfg)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
 
 	if cfg.Version == 0 {
@@ -161,7 +167,8 @@ func ResolveDBPath(cfgPath, dbPath string) (string, error) {
 			cfgDir := filepath.Dir(cfgPath)
 			path = filepath.Join(cfgDir, path)
 		} else {
-			abs, err := filepath.Abs(path)
+			var abs string
+			abs, err = filepath.Abs(path)
 			if err != nil {
 				return "", fmt.Errorf("resolve relative path: %w", err)
 			}

@@ -7,6 +7,8 @@ import (
 )
 
 // configCmd is the parent command for all config subcommands.
+//
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var configCmd = &cli.Command{
 	Name:     "config",
 	Usage:    "Manage configuration",

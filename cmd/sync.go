@@ -9,11 +9,17 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const (
+	syncStatusTabWidth = 2
+	syncStatusPadding  = 2
+)
+
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var (
 	syncPullCmd = &cli.Command{
 		Name:  "pull",
 		Usage: "Pull changes from remote server",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, _ *cli.Command) error {
 			return runSyncPull(ctx)
 		},
 	}
@@ -21,7 +27,7 @@ var (
 	syncPushCmd = &cli.Command{
 		Name:  "push",
 		Usage: "Push local changes to remote server",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, _ *cli.Command) error {
 			return runSyncPush(ctx)
 		},
 	}
@@ -29,7 +35,7 @@ var (
 	syncStatusCmd = &cli.Command{
 		Name:  "status",
 		Usage: "Show sync status",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, _ *cli.Command) error {
 			return runSyncStatus(ctx)
 		},
 	}
@@ -38,7 +44,7 @@ var (
 		Name:     "sync",
 		Usage:    "Sync database with remote server",
 		Category: "Sync",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, _ *cli.Command) error {
 			return runSync(ctx)
 		},
 		Commands: []*cli.Command{syncPullCmd, syncPushCmd, syncStatusCmd},
@@ -67,10 +73,12 @@ func runSync(ctx context.Context) error {
 	}
 	defer func() { _ = st.Close() }()
 
-	if err := st.Sync(ctx); err != nil {
+	err = st.Sync(ctx)
+	if err != nil {
 		return fmt.Errorf("sync: %w", err)
 	}
-	if err := st.Push(ctx); err != nil {
+	err = st.Push(ctx)
+	if err != nil {
 		return fmt.Errorf("sync: %w", err)
 	}
 
@@ -111,7 +119,8 @@ func runSyncPush(ctx context.Context) error {
 	}
 	defer func() { _ = st.Close() }()
 
-	if err := st.Push(ctx); err != nil {
+	err = st.Push(ctx)
+	if err != nil {
 		return fmt.Errorf("sync push: %w", err)
 	}
 
@@ -150,42 +159,50 @@ func runSyncStatus(ctx context.Context) error {
 		})
 	}
 
-	tw := tabwriter.NewWriter(writer.Out, 0, 2, 2, ' ', 0)
+	tw := tabwriter.NewWriter(writer.Out, 0, syncStatusTabWidth, syncStatusPadding, ' ', 0)
 	write := func(format string, a ...any) error {
-		_, err := fmt.Fprintf(tw, format, a...)
-		return err
+		_, writeErr := fmt.Fprintf(tw, format, a...)
+		return writeErr
 	}
 
 	if stats.LastPullUnixTime > 0 {
-		if err := write("last_pull:\t%d\n", stats.LastPullUnixTime); err != nil {
+		err = write("last_pull:\t%d\n", stats.LastPullUnixTime)
+		if err != nil {
 			return err
 		}
 	} else {
-		if err := write("last_pull:\tnever\n"); err != nil {
+		err = write("last_pull:\tnever\n")
+		if err != nil {
 			return err
 		}
 	}
 
 	if stats.LastPushUnixTime > 0 {
-		if err := write("last_push:\t%d\n", stats.LastPushUnixTime); err != nil {
+		err = write("last_push:\t%d\n", stats.LastPushUnixTime)
+		if err != nil {
 			return err
 		}
 	} else {
-		if err := write("last_push:\tnever\n"); err != nil {
+		err = write("last_push:\tnever\n")
+		if err != nil {
 			return err
 		}
 	}
 
-	if err := write("pending_changes:\t%d\n", stats.CdcOperations); err != nil {
+	err = write("pending_changes:\t%d\n", stats.CdcOperations)
+	if err != nil {
 		return err
 	}
-	if err := write("network_sent:\t%d bytes\n", stats.NetworkSentBytes); err != nil {
+	err = write("network_sent:\t%d bytes\n", stats.NetworkSentBytes)
+	if err != nil {
 		return err
 	}
-	if err := write("network_received:\t%d bytes\n", stats.NetworkReceivedBytes); err != nil {
+	err = write("network_received:\t%d bytes\n", stats.NetworkReceivedBytes)
+	if err != nil {
 		return err
 	}
-	if err := write("revision:\t%s\n", stats.Revision); err != nil {
+	err = write("revision:\t%s\n", stats.Revision)
+	if err != nil {
 		return err
 	}
 

@@ -4,13 +4,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/daemon/service"
-
-	"github.com/urfave/cli/v3"
 )
 
 // daemonCmd is the parent command for all daemon subcommands.
+//
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var daemonCmd = &cli.Command{
 	Name:     "daemon",
 	Usage:    "Manage the background daemon",
@@ -62,7 +64,8 @@ func getDaemonConfigPath() string {
 		return ""
 	}
 
-	if _, err := os.Stat(defaultPath); err != nil {
+	_, err = os.Stat(defaultPath)
+	if err != nil {
 		return ""
 	}
 

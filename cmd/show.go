@@ -7,6 +7,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var showCmd = &cli.Command{
 	Name:      "show",
 	Aliases:   []string{"s"},

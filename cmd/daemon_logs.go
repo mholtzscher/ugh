@@ -6,11 +6,14 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/mholtzscher/ugh/internal/flags"
-
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/flags"
 )
 
+const defaultDaemonLogLines = 50
+
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var daemonLogsCmd = &cli.Command{
 	Name:  "logs",
 	Usage: "Show daemon logs",
@@ -23,7 +26,7 @@ On macOS: Tails the log file specified in config.`,
 			Name:    flags.FlagLines,
 			Aliases: []string{"n"},
 			Usage:   "number of lines to show",
-			Value:   50,
+			Value:   defaultDaemonLogLines,
 		},
 		&cli.BoolFlag{
 			Name:  flags.FlagNoFollow,
@@ -52,7 +55,8 @@ On macOS: Tails the log file specified in config.`,
 		}()
 
 		follow := !cmd.Bool(flags.FlagNoFollow)
-		if err := mgr.TailLogs(ctx, follow, cmd.Int(flags.FlagLines), w.Out); err != nil {
+		err = mgr.TailLogs(ctx, follow, cmd.Int(flags.FlagLines), w.Out)
+		if err != nil {
 			// Ignore context cancelled errors (user pressed Ctrl+C)
 			if ctx.Err() != nil {
 				return nil

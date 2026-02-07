@@ -23,5 +23,5 @@ type Service interface {
 	Close() error
 }
 
-// Ensure TaskService implements Service
+// Ensure TaskService implements Service.
 var _ Service = (*TaskService)(nil)

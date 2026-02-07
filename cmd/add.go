@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/urfave/cli/v3"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var addCmd = &cli.Command{
 	Name:      "add",
 	Aliases:   []string{"a"},
@@ -23,7 +25,7 @@ var addCmd = &cli.Command{
 			Usage: "task state (" + flags.TaskStatesUsage + ")",
 			Value: flags.TaskStateInbox,
 			Action: flags.StringAction(
-				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
+				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates()...),
 			),
 		},
 		&cli.StringFlag{
@@ -77,7 +79,8 @@ var addCmd = &cli.Command{
 		}
 		defer func() { _ = svc.Close() }()
 
-		if err := maybeSyncBeforeWrite(ctx, svc); err != nil {
+		err = maybeSyncBeforeWrite(ctx, svc)
+		if err != nil {
 			return fmt.Errorf("sync pull: %w", err)
 		}
 
@@ -99,7 +102,8 @@ var addCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
-		if err := maybeSyncAfterWrite(ctx, svc); err != nil {
+		err = maybeSyncAfterWrite(ctx, svc)
+		if err != nil {
 			return fmt.Errorf("sync push: %w", err)
 		}
 

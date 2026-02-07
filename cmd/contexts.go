@@ -1,13 +1,16 @@
+//nolint:dupl // Context and project listing commands intentionally share structure.
 package cmd
 
 import (
 	"context"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/urfave/cli/v3"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var contextsCmd = &cli.Command{
 	Name:     "contexts",
 	Aliases:  []string{"ctx"},
