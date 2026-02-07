@@ -32,7 +32,7 @@ var configSetCmd = &cli.Command{
 		}
 		cfg := loadedConfig
 		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion}
+			cfg = &config.Config{Version: config.DefaultVersion, UI: config.UI{Theme: config.DefaultUITheme}}
 		}
 
 		key := cmd.Args().Get(0)
@@ -79,6 +79,9 @@ func setConfigValue(cfg *config.Config, key string, value string) error {
 			return fmt.Errorf("invalid boolean for db.sync_on_write: %w", err)
 		}
 		cfg.DB.SyncOnWrite = parsed
+		return nil
+	case "ui.theme":
+		cfg.UI.Theme = value
 		return nil
 	default:
 		return fmt.Errorf("unknown config key: %s", key)

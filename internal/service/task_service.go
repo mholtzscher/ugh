@@ -27,3 +27,18 @@ func (s *TaskService) Sync(ctx context.Context) error {
 func (s *TaskService) Push(ctx context.Context) error {
 	return s.store.Push(ctx)
 }
+
+func (s *TaskService) SyncStatus(ctx context.Context) (*SyncStatus, error) {
+	stats, err := s.store.SyncStats(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &SyncStatus{
+		LastPullUnixTime: stats.LastPullUnixTime,
+		LastPushUnixTime: stats.LastPushUnixTime,
+		PendingChanges:   stats.CdcOperations,
+		NetworkSentBytes: stats.NetworkSentBytes,
+		NetworkRecvBytes: stats.NetworkReceivedBytes,
+		Revision:         stats.Revision,
+	}, nil
+}

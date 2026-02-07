@@ -1,0 +1,13 @@
+# Root command TUI entry safeguards
+exec ugh --db $WORK/db.sqlite
+stdout 'COMMANDS:'
+
+exec ugh --db $WORK/db.sqlite --no-tui
+stdout 'COMMANDS:'
+
+exec env UGH_NO_TUI=1 ugh --db $WORK/db.sqlite
+stdout 'COMMANDS:'
+
+exec ugh --db $WORK/db.sqlite --no-tui add test task
+exec ugh --db $WORK/db.sqlite list
+stdout 'test task'

@@ -12,6 +12,7 @@ import (
 
 const (
 	DefaultVersion = 1
+	DefaultUITheme = "ansi-default"
 	configFileMode = 0o600
 )
 
@@ -31,10 +32,15 @@ type Daemon struct {
 	SyncRetryBackoff string `toml:"sync_retry_backoff"` // Initial retry backoff (default: "1s")
 }
 
+type UI struct {
+	Theme string `toml:"theme"`
+}
+
 type Config struct {
 	Version int    `toml:"version"`
 	DB      DB     `toml:"db"`
 	Daemon  Daemon `toml:"daemon"`
+	UI      UI     `toml:"ui"`
 }
 
 type LoadResult struct {
@@ -118,7 +124,9 @@ func Load(path string, allowMissing bool) (*LoadResult, error) {
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			if allowMissing {
-				return &LoadResult{Config: Config{Version: DefaultVersion}, WasLoaded: false}, nil
+				cfg := Config{Version: DefaultVersion}
+				applyDefaults(&cfg)
+				return &LoadResult{Config: cfg, WasLoaded: false}, nil
 			}
 			return nil, ErrNotFound
 		}
@@ -131,15 +139,25 @@ func Load(path string, allowMissing bool) (*LoadResult, error) {
 		return nil, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
 
-	if cfg.Version == 0 {
-		cfg.Version = DefaultVersion
-	}
+	applyDefaults(&cfg)
 
 	return &LoadResult{
 		Config:    cfg,
 		UsedPath:  path,
 		WasLoaded: true,
 	}, nil
+}
+
+func applyDefaults(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+	if cfg.Version == 0 {
+		cfg.Version = DefaultVersion
+	}
+	if cfg.UI.Theme == "" {
+		cfg.UI.Theme = DefaultUITheme
+	}
 }
 
 func ResolveDBPath(cfgPath, dbPath string) (string, error) {
