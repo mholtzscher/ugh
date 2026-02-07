@@ -5,15 +5,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/mholtzscher/ugh/internal/daemon/service"
-
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/daemon/service"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var daemonRestartCmd = &cli.Command{
 	Name:  "restart",
 	Usage: "Restart the daemon service",
-	Action: func(ctx context.Context, cmd *cli.Command) error {
+	Action: func(_ context.Context, _ *cli.Command) error {
 		mgr, err := getServiceManager()
 		if err != nil {
 			return fmt.Errorf("detect service manager: %w", err)
@@ -22,7 +23,8 @@ var daemonRestartCmd = &cli.Command{
 		// Stop first (ignore error if not running)
 		_ = mgr.Stop()
 
-		if err := mgr.Start(); err != nil {
+		err = mgr.Start()
+		if err != nil {
 			if errors.Is(err, service.ErrNotInstalled) {
 				return errors.New("service not installed - run 'ugh daemon install' first")
 			}

@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/mholtzscher/ugh/internal/store"
 	"golang.org/x/term"
+
+	"github.com/mholtzscher/ugh/internal/store"
 )
 
 type Writer struct {
@@ -154,7 +156,7 @@ func plainLine(task *store.Task) string {
 	}
 	due := formatDate(task.DueOn)
 	fields := []string{
-		fmt.Sprintf("%d", task.ID),
+		strconv.FormatInt(task.ID, 10),
 		string(task.State),
 		due,
 		task.WaitingFor,

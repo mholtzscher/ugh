@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/service"
 )
 
 func parseIDs(args []string) ([]int64, error) {
@@ -29,8 +30,9 @@ func commandArgs(cmd *cli.Command) []string {
 	if cmd == nil {
 		return nil
 	}
-	args := make([]string, cmd.Args().Len())
-	for i := 0; i < cmd.Args().Len(); i++ {
+	argsLen := cmd.Args().Len()
+	args := make([]string, argsLen)
+	for i := range argsLen {
 		args[i] = cmd.Args().Get(i)
 	}
 	return args

@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests exercise unexported config helpers.
 package config
 
 import (
@@ -96,15 +97,7 @@ something = "value"
 }
 
 func TestResolveDBPath_ExpandEnv(t *testing.T) {
-	origHome, _ := os.UserHomeDir()
-	_ = os.Setenv("HOME", "/test/home")
-	defer func() {
-		if origHome != "" {
-			_ = os.Setenv("HOME", origHome)
-		} else {
-			_ = os.Unsetenv("HOME")
-		}
-	}()
+	t.Setenv("HOME", "/test/home")
 
 	path, err := ResolveDBPath("", "$HOME/data/ugh.sqlite")
 	if err != nil {
@@ -164,15 +157,10 @@ func TestResolveDBPath_RelativeToConfig(t *testing.T) {
 }
 
 func TestResolveDBPath_RelativeNoConfig(t *testing.T) {
-	origWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getcwd: %v", err)
-	}
-	defer func() { _ = os.Chdir(origWd) }()
-
 	tmpDir := t.TempDir()
-	_ = os.Chdir(tmpDir)
-	if err := os.WriteFile("ugh.sqlite", []byte{}, 0o644); err != nil {
+	t.Chdir(tmpDir)
+	err := os.WriteFile("ugh.sqlite", []byte{}, 0o644)
+	if err != nil {
 		t.Fatalf("create sqlite file: %v", err)
 	}
 

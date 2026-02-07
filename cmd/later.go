@@ -3,17 +3,19 @@ package cmd
 import (
 	"context"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
-	"github.com/urfave/cli/v3"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var laterCmd = &cli.Command{
 	Name:     "later",
 	Aliases:  []string{"sd"},
 	Usage:    "List tasks you are not doing now",
 	Category: "Lists",
-	Action: func(ctx context.Context, cmd *cli.Command) error {
+	Action: func(ctx context.Context, _ *cli.Command) error {
 		svc, err := newService(ctx)
 		if err != nil {
 			return err

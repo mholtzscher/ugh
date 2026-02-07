@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,9 +24,9 @@ func (s *TaskService) CreateTask(ctx context.Context, req CreateTaskRequest) (*s
 
 	var dueOn *time.Time
 	if strings.TrimSpace(req.DueOn) != "" {
-		parsed, err := parseDay(req.DueOn)
-		if err != nil {
-			return nil, err
+		parsed, parseErr := parseDay(req.DueOn)
+		if parseErr != nil {
+			return nil, parseErr
 		}
 		dueOn = parsed
 	}
@@ -50,6 +52,7 @@ func (s *TaskService) DeleteTasks(ctx context.Context, ids []int64) (int64, erro
 	return s.store.DeleteTasks(ctx, ids)
 }
 
+//nolint:gocognit,nestif // UpdateTask applies many optional mutations in one place.
 func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*store.Task, error) {
 	current, err := s.store.GetTask(ctx, req.ID)
 	if err != nil {
@@ -77,9 +80,9 @@ func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*s
 		updated.Notes = *req.Notes
 	}
 	if req.State != nil {
-		state, err := normalizeState(*req.State)
-		if err != nil {
-			return nil, err
+		state, stateErr := normalizeState(*req.State)
+		if stateErr != nil {
+			return nil, stateErr
 		}
 		// Transition rules for done state.
 		if state == store.StateDone && updated.State != store.StateDone {
@@ -100,9 +103,9 @@ func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*s
 		if strings.TrimSpace(*req.DueOn) == "" {
 			updated.DueOn = nil
 		} else {
-			parsed, err := parseDay(*req.DueOn)
-			if err != nil {
-				return nil, err
+			parsed, parseErr := parseDay(*req.DueOn)
+			if parseErr != nil {
+				return nil, parseErr
 			}
 			updated.DueOn = parsed
 		}
@@ -131,9 +134,7 @@ func (s *TaskService) UpdateTask(ctx context.Context, req UpdateTaskRequest) (*s
 		if updated.Meta == nil {
 			updated.Meta = map[string]string{}
 		}
-		for k, v := range req.SetMeta {
-			updated.Meta[k] = v
-		}
+		maps.Copy(updated.Meta, req.SetMeta)
 	}
 	for _, k := range req.RemoveMetaKeys {
 		delete(updated.Meta, k)
@@ -153,9 +154,9 @@ func (s *TaskService) FullUpdateTask(ctx context.Context, req FullUpdateTaskRequ
 	}
 	var dueOn *time.Time
 	if strings.TrimSpace(req.DueOn) != "" {
-		parsed, err := parseDay(req.DueOn)
-		if err != nil {
-			return nil, err
+		parsed, parseErr := parseDay(req.DueOn)
+		if parseErr != nil {
+			return nil, parseErr
 		}
 		dueOn = parsed
 	}
@@ -191,19 +192,12 @@ func copyMeta(m map[string]string) map[string]string {
 		return nil
 	}
 	result := make(map[string]string, len(m))
-	for k, v := range m {
-		result[k] = v
-	}
+	maps.Copy(result, m)
 	return result
 }
 
 func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
 func removeStrings(slice []string, toRemove []string) []string {

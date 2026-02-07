@@ -9,17 +9,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/store"
+)
 
-	"github.com/urfave/cli/v3"
+const (
+	defaultDaemonSyncRetryMax = 3
+	openStoreMaxRetries       = 5
+	openStoreInitialBackoff   = 100 * time.Millisecond
 )
 
 // Version is set at build time.
+//
+//nolint:gochecknoglobals // Version must be mutable for ldflags injection at build time.
 var Version = "0.1.1" // x-release-please-version
 
+//nolint:gochecknoglobals // Root CLI flags and config cache are process-wide command state.
 var (
 	rootConfigPath  string
 	rootDBPath      string
@@ -29,6 +38,7 @@ var (
 	loadedConfigWas bool
 )
 
+//nolint:gochecknoglobals // Root command is package-level for CLI registration.
 var rootCmd = &cli.Command{
 	Name:        "ugh",
 	Usage:       "ugh is a task CLI",
@@ -57,8 +67,28 @@ var rootCmd = &cli.Command{
 	Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 		return ctx, loadConfig(cmd)
 	},
+	Commands: []*cli.Command{
+		addCmd,
+		inboxCmd,
+		nowCmd,
+		waitingCmd,
+		laterCmd,
+		calendarCmd,
+		listCmd,
+		showCmd,
+		editCmd,
+		doneCmd,
+		undoCmd,
+		rmCmd,
+		projectsCmd,
+		contextsCmd,
+		syncCmd,
+		configCmd,
+		daemonCmd,
+	},
 }
 
+//nolint:nestif // Config auto-initialization flow is explicit for readability.
 func loadConfig(cmd *cli.Command) error {
 	if cmd != nil {
 		rootConfigPath = cmd.String(flags.FlagConfigPath)
@@ -77,14 +107,16 @@ func loadConfig(cmd *cli.Command) error {
 		if shouldAutoInitConfig() {
 			cfgPath := configPath
 			if cfgPath == "" {
-				defaultPath, err := config.DefaultPath()
+				var defaultPath string
+				defaultPath, err = config.DefaultPath()
 				if err != nil {
 					return fmt.Errorf("get default config path: %w", err)
 				}
 				cfgPath = defaultPath
 			}
 
-			dbPath, err := defaultDBPath()
+			var dbPath string
+			dbPath, err = defaultDBPath()
 			if err != nil {
 				return err
 			}
@@ -95,12 +127,13 @@ func loadConfig(cmd *cli.Command) error {
 				Daemon: config.Daemon{
 					PeriodicSync:     "5m",
 					LogLevel:         "info",
-					SyncRetryMax:     3,
+					SyncRetryMax:     defaultDaemonSyncRetryMax,
 					SyncRetryBackoff: "1s",
 				},
 			}
 
-			if err := config.Save(cfgPath, result.Config); err != nil {
+			err = config.Save(cfgPath, result.Config)
+			if err != nil {
 				return fmt.Errorf("save config: %w", err)
 			}
 			result.WasLoaded = true
@@ -119,6 +152,7 @@ func shouldAutoInitConfig() bool {
 	return rootDBPath == ""
 }
 
+//nolint:nestif // Resolution order intentionally mirrors CLI precedence.
 func effectiveDBPath() (string, error) {
 	if rootDBPath != "" {
 		return rootDBPath, nil
@@ -150,35 +184,14 @@ func Execute() {
 	}
 }
 
-func init() {
-	rootCmd.Commands = []*cli.Command{
-		addCmd,
-		inboxCmd,
-		nowCmd,
-		waitingCmd,
-		laterCmd,
-		calendarCmd,
-		listCmd,
-		showCmd,
-		editCmd,
-		doneCmd,
-		undoCmd,
-		rmCmd,
-		projectsCmd,
-		contextsCmd,
-		syncCmd,
-		configCmd,
-		daemonCmd,
-	}
-}
-
 func openStore(ctx context.Context) (*store.Store, error) {
 	path, err := effectiveDBPath()
 	if err != nil {
 		return nil, err
 	}
 	dbDir := filepath.Dir(path)
-	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+	err = os.MkdirAll(dbDir, 0o750)
+	if err != nil {
 		return nil, fmt.Errorf("create db dir: %w", err)
 	}
 	cacheDir := filepath.Join(dbDir, ".cache")
@@ -194,8 +207,8 @@ func openStore(ctx context.Context) (*store.Store, error) {
 
 	// Retry with backoff if database is locked (e.g., daemon is running)
 	var st *store.Store
-	maxRetries := 5
-	backoff := 100 * time.Millisecond
+	maxRetries := openStoreMaxRetries
+	backoff := openStoreInitialBackoff
 	for i := range maxRetries {
 		st, err = store.Open(ctx, opts)
 		if err == nil {

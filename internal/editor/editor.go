@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
 	"github.com/mholtzscher/ugh/internal/domain"
 	"github.com/mholtzscher/ugh/internal/store"
 )
@@ -76,14 +78,15 @@ func taskTOMLHeader(taskID int64) string {
 `, taskID, domain.TaskStatesUsage, domain.DateTextYYYYMMDD)
 }
 
-func Edit(task *store.Task) (*TaskTOML, error) {
+//nolint:funlen
+func Edit(task *store.Task) (*TaskTOML, bool, error) {
 	taskTOML := TaskToTOML(task)
 
 	var buf bytes.Buffer
 
 	tmpDir, err := makeEditTempDir()
 	if err != nil {
-		return nil, fmt.Errorf("create temp dir: %w", err)
+		return nil, false, fmt.Errorf("create temp dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
@@ -91,14 +94,15 @@ func Edit(task *store.Task) (*TaskTOML, error) {
 	schemaRef := ""
 	if len(taskSchemaJSON) > 0 {
 		schemaPath := filepath.Join(tmpDir, taskSchemaFileName)
-		if err := os.WriteFile(schemaPath, taskSchemaJSON, 0o644); err == nil {
+		err = os.WriteFile(schemaPath, taskSchemaJSON, 0o600)
+		if err == nil {
 			useSchemaHeader = true
-			_ = os.WriteFile(filepath.Join(tmpDir, "taplo.toml"), []byte(fmt.Sprintf(`include = ["*.toml"]
+			_ = os.WriteFile(filepath.Join(tmpDir, "taplo.toml"), fmt.Appendf(nil, `include = ["*.toml"]
 
 [schema]
 path = "./%s"
 enabled = true
-`, taskSchemaFileName)), 0o644)
+`, taskSchemaFileName), 0o600)
 			if runtime.GOOS == "windows" {
 				schemaRef = "file:///" + filepath.ToSlash(schemaPath)
 			} else {
@@ -112,59 +116,65 @@ enabled = true
 		header = fmt.Sprintf("#:schema %s\n%s", schemaRef, header)
 	}
 	buf.WriteString(header)
-	if err := toml.NewEncoder(&buf).Encode(taskTOML); err != nil {
-		return nil, fmt.Errorf("encode task to TOML: %w", err)
+	err = toml.NewEncoder(&buf).Encode(taskTOML)
+	if err != nil {
+		return nil, false, fmt.Errorf("encode task to TOML: %w", err)
 	}
 	original := buf.String()
 
 	tmpFile, err := os.CreateTemp(tmpDir, "ugh-edit-*.toml")
 	if err != nil {
-		return nil, fmt.Errorf("create temp file: %w", err)
+		return nil, false, fmt.Errorf("create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
 
-	if _, err := tmpFile.WriteString(original); err != nil {
+	_, err = tmpFile.WriteString(original)
+	if err != nil {
 		_ = tmpFile.Close()
-		return nil, fmt.Errorf("write temp file: %w", err)
+		return nil, false, fmt.Errorf("write temp file: %w", err)
 	}
-	if err := tmpFile.Close(); err != nil {
-		return nil, fmt.Errorf("close temp file: %w", err)
+	err = tmpFile.Close()
+	if err != nil {
+		return nil, false, fmt.Errorf("close temp file: %w", err)
 	}
 
 	editor := getEditor()
-	cmd := exec.Command(editor, tmpPath)
+	cmd := exec.CommandContext(context.Background(), editor, tmpPath)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("run editor: %w", err)
+	err = cmd.Run()
+	if err != nil {
+		return nil, false, fmt.Errorf("run editor: %w", err)
 	}
 
 	edited, err := os.ReadFile(tmpPath)
 	if err != nil {
-		return nil, fmt.Errorf("read edited file: %w", err)
+		return nil, false, fmt.Errorf("read edited file: %w", err)
 	}
 
 	if string(edited) == original {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	var result TaskTOML
-	if _, err := toml.Decode(string(edited), &result); err != nil {
-		return nil, fmt.Errorf("parse edited TOML: %w", err)
+	_, err = toml.Decode(string(edited), &result)
+	if err != nil {
+		return nil, false, fmt.Errorf("parse edited TOML: %w", err)
 	}
 
-	if err := validate(&result); err != nil {
-		return nil, err
+	err = validate(&result)
+	if err != nil {
+		return nil, false, err
 	}
 
-	return &result, nil
+	return &result, true, nil
 }
 
 func makeEditTempDir() (string, error) {
 	if wd, err := os.Getwd(); err == nil && wd != "" {
-		if dir, err := os.MkdirTemp(wd, "ugh-edit-"); err == nil {
+		if dir, mkdirErr := os.MkdirTemp(wd, "ugh-edit-"); mkdirErr == nil {
 			return dir, nil
 		}
 	}

@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/mholtzscher/ugh/internal/config"
-
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/config"
 )
+
+const configSetArgCount = 2
 
 type configSetResult struct {
 	Action string `json:"action"`
@@ -19,12 +21,13 @@ type configSetResult struct {
 	File   string `json:"file"`
 }
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var configSetCmd = &cli.Command{
 	Name:      "set",
 	Usage:     "Set a configuration value",
 	ArgsUsage: "<key> <value>",
-	Action: func(ctx context.Context, cmd *cli.Command) error {
-		if cmd.Args().Len() != 2 {
+	Action: func(_ context.Context, cmd *cli.Command) error {
+		if cmd.Args().Len() != configSetArgCount {
 			return errors.New("set requires a key and value")
 		}
 		cfg := loadedConfig
@@ -42,7 +45,8 @@ var configSetCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
-		if err := config.Save(cfgPath, *cfg); err != nil {
+		err = config.Save(cfgPath, *cfg)
+		if err != nil {
 			return err
 		}
 		loadedConfig = cfg

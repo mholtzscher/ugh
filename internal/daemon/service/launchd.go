@@ -54,7 +54,7 @@ func (l *Launchd) Install(cfg InstallConfig) error {
 	}
 
 	// Create log directory
-	if err := os.MkdirAll(l.logDir, 0o755); err != nil {
+	if err := os.MkdirAll(l.logDir, 0o750); err != nil {
 		return fmt.Errorf("create log dir: %w", err)
 	}
 
@@ -63,12 +63,12 @@ func (l *Launchd) Install(cfg InstallConfig) error {
 
 	// Create LaunchAgents directory if needed
 	dir := filepath.Dir(l.plistPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create LaunchAgents dir: %w", err)
 	}
 
 	// Write plist file
-	if err := os.WriteFile(l.plistPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(l.plistPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("write plist file: %w", err)
 	}
 
@@ -171,7 +171,8 @@ func (l *Launchd) Stop() error {
 		return ErrNotRunning
 	}
 
-	if err := l.launchctl("stop", launchdLabel); err != nil {
+	err = l.launchctl("stop", launchdLabel)
+	if err != nil {
 		return fmt.Errorf("stop service: %w", err)
 	}
 	return nil
@@ -189,25 +190,22 @@ func (l *Launchd) Status() (Status, error) {
 	status.Installed = true
 
 	// Check if running using launchctl list
-	cmd := exec.Command("launchctl", "list", launchdLabel)
+	cmd := exec.CommandContext(context.Background(), "launchctl", "list", launchdLabel)
 	output, err := cmd.Output()
-	if err != nil {
-		// If list fails, service is not loaded/running
-		return status, nil
-	}
-
-	// Parse output - format is "PID\tStatus\tLabel"
-	// or just "Status\tLabel" if not running
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		fields := strings.Fields(line)
-		if len(fields) >= 1 {
-			// First field might be PID or "-"
-			pid, err := strconv.Atoi(fields[0])
-			if err == nil && pid > 0 {
-				status.Running = true
-				status.PID = pid
-				break
+	if err == nil {
+		// Parse output - format is "PID\tStatus\tLabel"
+		// or just "Status\tLabel" if not running
+		lines := strings.SplitSeq(string(output), "\n")
+		for line := range lines {
+			fields := strings.Fields(line)
+			if len(fields) >= 1 {
+				// First field might be PID or "-"
+				pid, parseErr := strconv.Atoi(fields[0])
+				if parseErr == nil && pid > 0 {
+					status.Running = true
+					status.PID = pid
+					break
+				}
 			}
 		}
 	}
@@ -222,20 +220,26 @@ func (l *Launchd) Status() (Status, error) {
 
 // checkRunningWithPrint uses launchctl print to check if service is running.
 func (l *Launchd) checkRunningWithPrint() (bool, int) {
-	cmd := exec.Command("launchctl", "print", "gui/"+strconv.Itoa(os.Getuid())+"/"+launchdLabel)
+	// #nosec G204 -- launchctl arguments are fixed and contain only current uid and constant label.
+	cmd := exec.CommandContext(
+		context.Background(),
+		"launchctl",
+		"print",
+		"gui/"+strconv.Itoa(os.Getuid())+"/"+launchdLabel,
+	)
 	output, err := cmd.Output()
 	if err != nil {
 		return false, 0
 	}
 
 	// Parse output for PID
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "pid = ") {
-			pidStr := strings.TrimPrefix(line, "pid = ")
-			pid, err := strconv.Atoi(strings.TrimSpace(pidStr))
-			if err == nil && pid > 0 {
+		if after, ok := strings.CutPrefix(line, "pid = "); ok {
+			pidStr := after
+			pid, parseErr := strconv.Atoi(strings.TrimSpace(pidStr))
+			if parseErr == nil && pid > 0 {
 				return true, pid
 			}
 		}
@@ -292,10 +296,10 @@ func (l *Launchd) TailLogs(ctx context.Context, follow bool, lines int, w io.Wri
 
 // launchctl runs launchctl with the given arguments.
 func (l *Launchd) launchctl(args ...string) error {
-	cmd := exec.Command("launchctl", args...)
+	cmd := exec.CommandContext(context.Background(), "launchctl", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
 	}
 	return nil
 }

@@ -69,12 +69,12 @@ func (s *Systemd) Install(cfg InstallConfig) error {
 
 	// Create directory if needed
 	dir := filepath.Dir(s.servicePath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create service dir: %w", err)
 	}
 
 	// Write service file
-	if err := os.WriteFile(s.servicePath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(s.servicePath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("write service file: %w", err)
 	}
 
@@ -170,7 +170,8 @@ func (s *Systemd) Stop() error {
 		return ErrNotRunning
 	}
 
-	if err := s.systemctl("stop", systemdUnit); err != nil {
+	err = s.systemctl("stop", systemdUnit)
+	if err != nil {
 		return fmt.Errorf("stop service: %w", err)
 	}
 	return nil
@@ -188,7 +189,7 @@ func (s *Systemd) Status() (Status, error) {
 	status.Installed = true
 
 	// Check if running using is-active
-	cmd := exec.Command("systemctl", "--user", "is-active", systemdUnit)
+	cmd := exec.CommandContext(context.Background(), "systemctl", "--user", "is-active", systemdUnit)
 	output, _ := cmd.Output()
 	state := strings.TrimSpace(string(output))
 	status.Running = state == "active"
@@ -203,7 +204,16 @@ func (s *Systemd) Status() (Status, error) {
 
 // getPID retrieves the main PID of the service.
 func (s *Systemd) getPID() int {
-	cmd := exec.Command("systemctl", "--user", "show", "-p", "MainPID", "--value", systemdUnit)
+	cmd := exec.CommandContext(
+		context.Background(),
+		"systemctl",
+		"--user",
+		"show",
+		"-p",
+		"MainPID",
+		"--value",
+		systemdUnit,
+	)
 	output, err := cmd.Output()
 	if err != nil {
 		return 0
@@ -257,10 +267,10 @@ func (s *Systemd) TailLogs(ctx context.Context, follow bool, lines int, w io.Wri
 // systemctl runs systemctl with --user flag.
 func (s *Systemd) systemctl(args ...string) error {
 	fullArgs := append([]string{"--user"}, args...)
-	cmd := exec.Command("systemctl", fullArgs...)
+	cmd := exec.CommandContext(context.Background(), "systemctl", fullArgs...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
 	}
 	return nil
 }

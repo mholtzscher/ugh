@@ -58,4 +58,6 @@ const (
 	MetaTextKeyValue   = domain.MetaTextKeyValue
 )
 
-var TaskStates = []string{TaskStateInbox, TaskStateNow, TaskStateWaiting, TaskStateLater, TaskStateDone}
+func TaskStates() []string {
+	return []string{TaskStateInbox, TaskStateNow, TaskStateWaiting, TaskStateLater, TaskStateDone}
+}

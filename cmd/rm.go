@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/output"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var rmCmd = &cli.Command{
 	Name:      "rm",
 	Usage:     "Delete tasks",
@@ -24,7 +26,8 @@ var rmCmd = &cli.Command{
 		}
 		defer func() { _ = svc.Close() }()
 
-		if err := maybeSyncBeforeWrite(ctx, svc); err != nil {
+		err = maybeSyncBeforeWrite(ctx, svc)
+		if err != nil {
 			return fmt.Errorf("sync pull: %w", err)
 		}
 
@@ -32,7 +35,8 @@ var rmCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
-		if err := maybeSyncAfterWrite(ctx, svc); err != nil {
+		err = maybeSyncAfterWrite(ctx, svc)
+		if err != nil {
 			return fmt.Errorf("sync push: %w", err)
 		}
 		writer := outputWriter()

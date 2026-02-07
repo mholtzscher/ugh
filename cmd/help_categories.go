@@ -38,12 +38,14 @@ COPYRIGHT:
    {{template "copyrightTemplate" .}}{{end}}
 `
 
-var helpCategoryOrder = []string{
-	"Lists",
-	"Tasks",
-	"Projects & Contexts",
-	"Sync",
-	"System",
+func helpCategoryOrder() []string {
+	return []string{
+		"Lists",
+		"Tasks",
+		"Projects & Contexts",
+		"Sync",
+		"System",
+	}
 }
 
 func orderedCategories(categories []cli.CommandCategory) []cli.CommandCategory {
@@ -74,7 +76,7 @@ func orderedCategories(categories []cli.CommandCategory) []cli.CommandCategory {
 	}
 
 	used := map[string]bool{}
-	for _, name := range helpCategoryOrder {
+	for _, name := range helpCategoryOrder() {
 		if cat, ok := byName[name]; ok {
 			result = append(result, cat)
 			used[name] = true
@@ -100,6 +102,7 @@ func orderedCategories(categories []cli.CommandCategory) []cli.CommandCategory {
 	return result
 }
 
+//nolint:gochecknoinits,reassign // urfave/cli requires global template hook customization during package initialization.
 func init() {
 	// Inject custom template funcs so our custom root template can reorder categories.
 	old := cli.HelpPrinterCustom

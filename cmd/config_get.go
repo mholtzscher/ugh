@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/mholtzscher/ugh/internal/config"
+	"strconv"
 
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/config"
 )
 
 type configGetResult struct {
@@ -16,11 +17,12 @@ type configGetResult struct {
 	Value string `json:"value"`
 }
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var configGetCmd = &cli.Command{
 	Name:      "get",
 	Usage:     "Get a configuration value",
 	ArgsUsage: "<key>",
-	Action: func(ctx context.Context, cmd *cli.Command) error {
+	Action: func(_ context.Context, cmd *cli.Command) error {
 		if cmd.Args().Len() != 1 {
 			return errors.New("get requires a key")
 		}
@@ -63,7 +65,7 @@ func getConfigValue(cfg *config.Config, key string) (string, error) {
 		}
 		return cfg.DB.AuthToken, nil
 	case "db.sync_on_write":
-		return fmt.Sprintf("%t", cfg.DB.SyncOnWrite), nil
+		return strconv.FormatBool(cfg.DB.SyncOnWrite), nil
 	default:
 		return "", fmt.Errorf("unknown config key: %s", key)
 	}

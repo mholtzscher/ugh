@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests verify unexported parsing helpers directly.
 package service
 
 import (
@@ -60,7 +61,8 @@ func TestParseDay(t *testing.T) {
 		t.Fatalf("parseDay(valid) location = %s, want UTC", got.Location())
 	}
 
-	if _, err := parseDay("02/05/2026"); err == nil {
+	_, err = parseDay("02/05/2026")
+	if err == nil {
 		t.Fatal("parseDay(invalid) error = nil, want error")
 	}
 }
@@ -82,7 +84,8 @@ func TestParseMetaFlags(t *testing.T) {
 		t.Fatalf("parseMetaFlags(valid) b = %q, want %q", meta["b"], "2")
 	}
 
-	if _, err := parseMetaFlags([]string{"missing-separator"}); err == nil {
+	_, err = parseMetaFlags([]string{"missing-separator"})
+	if err == nil {
 		t.Fatal("parseMetaFlags(invalid) error = nil, want error")
 	}
 }

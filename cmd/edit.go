@@ -10,9 +10,11 @@ import (
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/mholtzscher/ugh/internal/store"
+
 	"github.com/urfave/cli/v3"
 )
 
+//nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var editCmd = &cli.Command{
 	Name:     "edit",
 	Aliases:  []string{"e"},
@@ -46,7 +48,7 @@ Use flags for quick single-field changes without opening an editor.
 			Name:  flags.FlagState,
 			Usage: "set state (" + flags.TaskStatesUsage + ")",
 			Action: flags.StringAction(
-				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates...),
+				flags.OneOfCaseInsensitiveRule(flags.FieldState, flags.TaskStates()...),
 			),
 		},
 		&cli.StringFlag{
@@ -136,18 +138,20 @@ Use flags for quick single-field changes without opening an editor.
 		}
 		defer func() { _ = svc.Close() }()
 
-		if err := maybeSyncBeforeWrite(ctx, svc); err != nil {
+		err = maybeSyncBeforeWrite(ctx, svc)
+		if err != nil {
 			return fmt.Errorf("sync pull: %w", err)
 		}
 
 		var saved *store.Task
+		changed := false
 		hasFields := hasFieldFlags(cmd)
 		if cmd.Bool(flags.FlagEditor) && hasFields {
 			return errors.New("cannot combine field flags with --editor")
 		}
 
 		if cmd.Bool(flags.FlagEditor) || !hasFields {
-			saved, err = runEditorMode(ctx, svc, id)
+			saved, changed, err = runEditorMode(ctx, svc, id)
 			if err != nil {
 				return err
 			}
@@ -156,14 +160,17 @@ Use flags for quick single-field changes without opening an editor.
 			if err != nil {
 				return err
 			}
+			changed = true
 		}
 
-		if saved == nil {
-			fmt.Println("No changes made")
-			return nil
+		if !changed {
+			writer := outputWriter()
+			_, err = fmt.Fprintln(writer.Out, "No changes made")
+			return err
 		}
 
-		if err := maybeSyncAfterWrite(ctx, svc); err != nil {
+		err = maybeSyncAfterWrite(ctx, svc)
+		if err != nil {
 			return fmt.Errorf("sync push: %w", err)
 		}
 
@@ -190,22 +197,22 @@ func hasFieldFlags(cmd *cli.Command) bool {
 		len(cmd.StringSlice(flags.FlagRemoveMeta)) > 0
 }
 
-func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.Task, error) {
+func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.Task, bool, error) {
 	task, err := svc.GetTask(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	edited, err := editor.Edit(task)
+	edited, changed, err := editor.Edit(task)
 	if err != nil {
-		return nil, fmt.Errorf("editor: %w", err)
+		return nil, false, fmt.Errorf("editor: %w", err)
 	}
 
-	if edited == nil {
-		return nil, nil
+	if !changed || edited == nil {
+		return nil, false, nil
 	}
 
-	return svc.FullUpdateTask(ctx, service.FullUpdateTaskRequest{
+	updatedTask, updateErr := svc.FullUpdateTask(ctx, service.FullUpdateTaskRequest{
 		ID:         id,
 		Title:      edited.Title,
 		Notes:      edited.Notes,
@@ -216,6 +223,11 @@ func runEditorMode(ctx context.Context, svc service.Service, id int64) (*store.T
 		Contexts:   edited.Contexts,
 		Meta:       edited.Meta,
 	})
+	if updateErr != nil {
+		return nil, false, updateErr
+	}
+
+	return updatedTask, true, nil
 }
 
 func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id int64) (*store.Task, error) {
@@ -259,14 +271,14 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 		return nil, err
 	}
 	if cmd.Bool(flags.FlagDone) {
-		_, err := svc.SetDone(ctx, []int64{id}, true)
+		_, err = svc.SetDone(ctx, []int64{id}, true)
 		if err != nil {
 			return nil, err
 		}
 		return svc.GetTask(ctx, id)
 	}
 	if cmd.Bool(flags.FlagUndone) {
-		_, err := svc.SetDone(ctx, []int64{id}, false)
+		_, err = svc.SetDone(ctx, []int64{id}, false)
 		if err != nil {
 			return nil, err
 		}
@@ -277,7 +289,7 @@ func runFlagsMode(ctx context.Context, cmd *cli.Command, svc service.Service, id
 
 func parseMetaFlags(meta []string) (map[string]string, error) {
 	if len(meta) == 0 {
-		return nil, nil
+		return map[string]string{}, nil
 	}
 	result := make(map[string]string, len(meta))
 	for _, m := range meta {

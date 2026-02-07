@@ -7,8 +7,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,13 +14,14 @@ import (
 
 	tursogo "turso.tech/database/tursogo"
 
-	"github.com/mholtzscher/ugh/internal/store/sqlc"
 	"github.com/pressly/goose/v3"
+
+	"github.com/mholtzscher/ugh/internal/store/sqlc"
 )
 
 type Store struct {
 	db      *sql.DB
-	syncDb  *tursogo.TursoSyncDb
+	syncDB  *tursogo.TursoSyncDb
 	queries *sqlc.Queries
 }
 
@@ -33,6 +32,7 @@ type Options struct {
 	BusyTimeout int // Milliseconds to wait for locks (default: 5000)
 }
 
+//nolint:gocognit,nestif,funlen // Store initialization handles sync, pragmas, and migrations in one flow.
 func Open(ctx context.Context, opts Options) (*Store, error) {
 	if opts.Path == "" {
 		return nil, errors.New("db path is required")
@@ -44,7 +44,7 @@ func Open(ctx context.Context, opts Options) (*Store, error) {
 	}
 
 	var db *sql.DB
-	var syncDb *tursogo.TursoSyncDb
+	var syncDB *tursogo.TursoSyncDb
 
 	if opts.SyncURL != "" {
 		authToken := opts.AuthToken
@@ -54,7 +54,9 @@ func Open(ctx context.Context, opts Options) (*Store, error) {
 			}
 		}
 		if authToken == "" {
-			return nil, errors.New("auth token required when sync_url is set (use db.auth_token in config or LIBSQL_AUTH_TOKEN env var)")
+			return nil, errors.New(
+				"auth token required when sync_url is set (use db.auth_token in config or LIBSQL_AUTH_TOKEN env var)",
+			)
 		}
 
 		trueVal := true
@@ -64,7 +66,8 @@ func Open(ctx context.Context, opts Options) (*Store, error) {
 			AuthToken:        authToken,
 			BootstrapIfEmpty: &trueVal,
 		}
-		sdb, err := tursogo.NewTursoSyncDb(ctx, cfg)
+		var sdb *tursogo.TursoSyncDb
+		sdb, err = tursogo.NewTursoSyncDb(ctx, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("create sync db: %w", err)
 		}
@@ -72,9 +75,8 @@ func Open(ctx context.Context, opts Options) (*Store, error) {
 		if err != nil {
 			return nil, fmt.Errorf("connect sync db: %w", err)
 		}
-		syncDb = sdb
+		syncDB = sdb
 	} else {
-		var err error
 		db, err = sql.Open("turso", abspath)
 		if err != nil {
 			return nil, fmt.Errorf("open db: %w", err)
@@ -86,54 +88,59 @@ func Open(ctx context.Context, opts Options) (*Store, error) {
 	if busyTimeout <= 0 {
 		busyTimeout = 5000 // Default 5 seconds
 	}
-	if _, err := db.ExecContext(ctx, fmt.Sprintf("PRAGMA busy_timeout=%d;", busyTimeout)); err != nil {
+	_, err = db.ExecContext(ctx, fmt.Sprintf("PRAGMA busy_timeout=%d;", busyTimeout))
+	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("apply pragma: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode=WAL;"); err != nil {
+	_, err = db.ExecContext(ctx, "PRAGMA journal_mode=WAL;")
+	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("apply pragma: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys=ON;"); err != nil {
+	_, err = db.ExecContext(ctx, "PRAGMA foreign_keys=ON;")
+	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("apply pragma: %w", err)
 	}
 
 	goose.SetBaseFS(migrationsFS)
-	if err := goose.SetDialect("sqlite3"); err != nil {
+	err = goose.SetDialect("sqlite3")
+	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("set goose dialect: %w", err)
 	}
-	goose.SetLogger(log.New(io.Discard, "", 0))
-	if err := goose.Up(db, "migrations"); err != nil {
+	goose.SetLogger(goose.NopLogger())
+	err = goose.Up(db, "migrations")
+	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 
-	store := &Store{db: db, syncDb: syncDb, queries: sqlc.New(db)}
+	store := &Store{db: db, syncDB: syncDB, queries: sqlc.New(db)}
 	return store, nil
 }
 
 func (s *Store) Sync(ctx context.Context) error {
-	if s.syncDb == nil {
+	if s.syncDB == nil {
 		return errors.New("sync is not configured")
 	}
-	_, err := s.syncDb.Pull(ctx)
+	_, err := s.syncDB.Pull(ctx)
 	return err
 }
 
 func (s *Store) Push(ctx context.Context) error {
-	if s.syncDb == nil {
+	if s.syncDB == nil {
 		return errors.New("sync is not configured")
 	}
-	return s.syncDb.Push(ctx)
+	return s.syncDB.Push(ctx)
 }
 
 func (s *Store) SyncStats(ctx context.Context) (*tursogo.TursoSyncDbStats, error) {
-	if s.syncDb == nil {
+	if s.syncDB == nil {
 		return nil, errors.New("sync is not configured")
 	}
-	stats, err := s.syncDb.Stats(ctx)
+	stats, err := s.syncDB.Stats(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +203,8 @@ func (s *Store) CreateTask(ctx context.Context, task *Task) (*Task, error) {
 		return nil, fmt.Errorf("insert task: %w", err)
 	}
 
-	if err := s.insertDetails(ctx, row.ID, task); err != nil {
+	err = s.insertDetails(ctx, row.ID, task)
+	if err != nil {
 		return nil, err
 	}
 
@@ -269,7 +277,8 @@ func (s *Store) GetTask(ctx context.Context, id int64) (*Task, error) {
 	}
 
 	task := fromGetRow(row)
-	if err := s.loadDetails(ctx, []*Task{task}); err != nil {
+	err = s.loadDetails(ctx, []*Task{task})
+	if err != nil {
 		return nil, err
 	}
 	return task, nil
@@ -328,7 +337,8 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 	for _, row := range rows {
 		tasks = append(tasks, fromListRow(row))
 	}
-	if err := s.loadDetails(ctx, tasks); err != nil {
+	err = s.loadDetails(ctx, tasks)
+	if err != nil {
 		return nil, err
 	}
 	return tasks, nil
@@ -422,21 +432,35 @@ func (s *Store) insertDetails(ctx context.Context, taskID int64, task *Task) err
 	now := time.Now().UTC().Unix()
 
 	for _, project := range uniqueStrings(cleanNames(task.Projects)) {
-		projectID, err := s.queries.EnsureProject(ctx, sqlc.EnsureProjectParams{Name: project, CreatedAt: now, UpdatedAt: now})
+		projectID, err := s.queries.EnsureProject(
+			ctx,
+			sqlc.EnsureProjectParams{Name: project, CreatedAt: now, UpdatedAt: now},
+		)
 		if err != nil {
 			return fmt.Errorf("ensure project %q: %w", project, err)
 		}
-		if err := s.queries.InsertTaskProjectLink(ctx, sqlc.InsertTaskProjectLinkParams{TaskID: taskID, ProjectID: projectID}); err != nil {
+		err = s.queries.InsertTaskProjectLink(
+			ctx,
+			sqlc.InsertTaskProjectLinkParams{TaskID: taskID, ProjectID: projectID},
+		)
+		if err != nil {
 			return fmt.Errorf("insert project link: %w", err)
 		}
 	}
 
 	for _, context := range uniqueStrings(cleanNames(task.Contexts)) {
-		contextID, err := s.queries.EnsureContext(ctx, sqlc.EnsureContextParams{Name: context, CreatedAt: now, UpdatedAt: now})
+		contextID, err := s.queries.EnsureContext(
+			ctx,
+			sqlc.EnsureContextParams{Name: context, CreatedAt: now, UpdatedAt: now},
+		)
 		if err != nil {
 			return fmt.Errorf("ensure context %q: %w", context, err)
 		}
-		if err := s.queries.InsertTaskContextLink(ctx, sqlc.InsertTaskContextLinkParams{TaskID: taskID, ContextID: contextID}); err != nil {
+		err = s.queries.InsertTaskContextLink(
+			ctx,
+			sqlc.InsertTaskContextLinkParams{TaskID: taskID, ContextID: contextID},
+		)
+		if err != nil {
 			return fmt.Errorf("insert context link: %w", err)
 		}
 	}
