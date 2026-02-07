@@ -19,6 +19,7 @@ issues:
   max-same-issues: 50
 
 output:
+  sort-results: true
   sort-order:
     - file
     - linter
