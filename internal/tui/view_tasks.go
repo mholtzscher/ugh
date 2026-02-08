@@ -19,6 +19,7 @@ func (m model) viewTasks() string {
 	if m.layout.narrow {
 		return m.viewTasksNarrow()
 	}
+	m = m.withPaneSizes(m.layout.listWidth, m.layout.bodyHeight, m.layout.detailWidth, m.layout.bodyHeight)
 
 	listStyle := m.styles.panel.Width(m.layout.listWidth).Height(m.layout.bodyHeight)
 	detailStyle := m.styles.panel.Width(m.layout.detailWidth).Height(m.layout.bodyHeight)
@@ -31,6 +32,7 @@ func (m model) viewTasks() string {
 
 func (m model) viewTasksNarrow() string {
 	if m.layout.bodyHeight < narrowSplitMinimum {
+		m = m.withPaneSizes(m.layout.listWidth, m.layout.bodyHeight, m.layout.listWidth, m.layout.bodyHeight)
 		listStyle := m.styles.panel.
 			Width(m.layout.listWidth).
 			Height(m.layout.bodyHeight)
@@ -46,39 +48,51 @@ func (m model) viewTasksNarrow() string {
 	detailStyle := m.styles.panel.
 		Width(m.layout.listWidth).
 		Height(detailHeight)
+	m = m.withPaneSizes(m.layout.listWidth, listHeight, m.layout.listWidth, detailHeight)
 
 	list := listStyle.Render(m.renderTaskList())
 	detail := detailStyle.Render(m.renderTaskDetail())
 	return lipgloss.JoinVertical(lipgloss.Left, list, detail)
 }
 
+func (m model) withPaneSizes(listWidth int, listHeight int, detailWidth int, detailHeight int) model {
+	listContentWidth := max(1, listWidth-panelPadW)
+	listContentHeight := max(1, listHeight-panelPadH)
+	showState := m.filters.state == ""
+
+	m.taskTable.SetWidth(listContentWidth)
+	m.taskTable.SetHeight(listContentHeight)
+	setTaskTableData(
+		&m.taskTable,
+		taskTableColumns(showState, listContentWidth),
+		taskTableRows(m.tasks, showState),
+		clampZeroToMax(m.selected, len(m.tasks)-1),
+	)
+
+	detailContentWidth := max(1, detailWidth-panelPadW)
+	detailContentHeight := max(1, detailHeight-panelPadH)
+	m.detail.Width = detailContentWidth
+	m.detail.Height = detailContentHeight
+
+	return m
+}
+
 func (m model) renderTaskList() string {
-	if m.loading {
+	if m.loading && len(m.tasks) == 0 {
 		return m.styles.muted.Render("Loading tasks...")
 	}
 	if len(m.tasks) == 0 {
 		return m.styles.muted.Render("No tasks found for current filters.")
 	}
-
-	lines := []string{m.styles.title.Render("TASKS")}
-	showState := m.filters.state == ""
-	for i, task := range m.tasks {
-		var line string
-		if showState {
-			line = fmt.Sprintf("%3d  %-7s  %-10s  %s", task.ID, task.State, dueText(task), task.Title)
-		} else {
-			line = fmt.Sprintf("%3d  %-10s  %s", task.ID, dueText(task), task.Title)
-		}
-		if i == m.selected {
-			line = m.styles.selected.Render(line)
-		}
-		lines = append(lines, line)
-	}
-
-	return strings.Join(lines, "\n")
+	return m.taskTable.View()
 }
 
 func (m model) renderTaskDetail() string {
+	m.detail.SetContent(m.renderTaskDetailContent())
+	return m.detail.View()
+}
+
+func (m model) renderTaskDetailContent() string {
 	task := m.selectedTask()
 	if task == nil {
 		return m.styles.muted.Render("Select a task to view details.")
