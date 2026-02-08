@@ -61,8 +61,14 @@ func (m model) renderTaskList() string {
 	}
 
 	lines := []string{m.styles.title.Render("TASKS")}
+	showState := m.filters.state == ""
 	for i, task := range m.tasks {
-		line := fmt.Sprintf("%3d  %-7s  %-10s  %s", task.ID, task.State, dueText(task), task.Title)
+		var line string
+		if showState {
+			line = fmt.Sprintf("%3d  %-7s  %-10s  %s", task.ID, task.State, dueText(task), task.Title)
+		} else {
+			line = fmt.Sprintf("%3d  %-10s  %s", task.ID, dueText(task), task.Title)
+		}
 		if i == m.selected {
 			line = m.styles.selected.Render(line)
 		}
