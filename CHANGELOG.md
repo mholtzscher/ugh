@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/mholtzscher/ugh/compare/v0.1.1...v0.2.0) (2026-02-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* The legacy database schema and todo.txt file format support have been removed. This update requires a clean database migration that resets existing tasks to the new GTD-first structure.
+
+### Features
+
+* **config:** auto-initialize config file when missing ([fffaf52](https://github.com/mholtzscher/ugh/commit/fffaf5299df9aba301c94945c2e99c292c90f4ef))
+* redesign task model for GTD-first architecture ([#2](https://github.com/mholtzscher/ugh/issues/2)) ([5b7d79a](https://github.com/mholtzscher/ugh/commit/5b7d79a934e8d06e83d66610d77e7eddc18a5e01))
+* **tui:** componentize task panes and form interactions ([#12](https://github.com/mholtzscher/ugh/issues/12)) ([b148d7c](https://github.com/mholtzscher/ugh/commit/b148d7cb9395755d8064f0dd695d46bf7e9ba508))
+* **tui:** hide redundant state column when filtered by state ([f466293](https://github.com/mholtzscher/ugh/commit/f466293208bf7b7a8573d2d84a0309979a91131f))
+
 ## [0.1.1](https://github.com/mholtzscher/ugh/compare/v0.1.0...v0.1.1) (2026-02-04)
 
 
