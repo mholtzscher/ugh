@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -27,13 +31,6 @@ const (
 	searchInputWidth  = 48
 	searchMinWidth    = 1
 	searchNarrowPad   = 6
-	modalOuterPad     = 2
-	modalMinWidth     = 52
-	modalMinInput     = 1
-	modalInputPad     = 8
-	modalWidthNum     = 2
-	modalWidthDen     = 3
-	modalMinBodyWidth = 1
 	keyCtrlC          = "ctrl+c"
 )
 
@@ -60,6 +57,10 @@ type model struct {
 	searchInput  textinput.Model
 	searchMode   bool
 	taskForm     taskFormState
+	taskTable    table.Model
+	detail       viewport.Model
+	help         help.Model
+	spinner      spinner.Model
 }
 
 type tabItem struct {
@@ -71,13 +72,18 @@ type tabItem struct {
 func newModel(svc service.Service, opts Options) model {
 	search := newSearchInput(searchInputWidth)
 	tabs := defaultTabs()
+	layout := calculateLayout(defaultWidth, defaultHeight)
+	styleSet := newStyles(SelectTheme(opts.ThemeName), opts.NoColor)
+	taskTable := newTaskTable(styleSet, layout)
+	helpModel := newHelpModel(styleSet, defaultWidth)
+	spinnerModel := newSpinnerModel(styleSet)
 	return model{
 		svc:         svc,
 		keys:        defaultKeyMap(),
-		styles:      newStyles(SelectTheme(opts.ThemeName), opts.NoColor),
+		styles:      styleSet,
 		viewportW:   defaultWidth,
 		viewportH:   defaultHeight,
-		layout:      calculateLayout(defaultWidth, defaultHeight),
+		layout:      layout,
 		view:        viewTasks,
 		filters:     defaultFiltersWithState(tabs[0].state),
 		tabSelected: 0,
@@ -86,6 +92,10 @@ func newModel(svc service.Service, opts Options) model {
 		status:      statusLoadingText,
 		searchInput: search,
 		taskForm:    inactiveTaskForm(searchInputWidth),
+		taskTable:   taskTable,
+		detail:      viewport.New(searchInputWidth, defaultHeight),
+		help:        helpModel,
+		spinner:     spinnerModel,
 	}
 }
 
@@ -113,6 +123,7 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(
 		refreshDataCmd(m.svc, m.filters),
 		tea.WindowSize(),
+		m.spinner.Tick,
 	)
 }
 
@@ -122,9 +133,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewportW = value.Width
 		m.viewportH = value.Height
 		m.layout = calculateLayout(value.Width, value.Height)
+		m.help.Width = value.Width
 		m.searchInput.Width = searchWidthForLayout(m.layout)
 		m.taskForm = m.taskForm.withWidth(searchWidthForLayout(m.layout))
 		return m, clearScreenCmd()
+	case spinner.TickMsg:
+		if !m.loading {
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(value)
+		return m, cmd
 	case tasksLoadedMsg:
 		m = m.applyTasksLoaded(value)
 		return m, nil
@@ -155,7 +174,17 @@ func (m model) applyTasksLoaded(msg tasksLoadedMsg) model {
 	m.errText = ""
 	m.tasks = msg.tasks
 	m.selected = clampTaskSelection(m.tasks, selectedID)
-	m.status = fmt.Sprintf("loaded %d tasks", len(m.tasks))
+	if selectedTaskID(m.tasks, m.selected) != selectedID {
+		m.detail.SetYOffset(0)
+	}
+	showState := m.filters.state == ""
+	setTaskTableData(
+		&m.taskTable,
+		taskTableColumns(showState, m.taskTable.Width()),
+		taskTableRows(m.tasks, showState),
+		clampZeroToMax(m.selected, len(m.tasks)-1),
+	)
+	m.status = ""
 	return m
 }
 
@@ -274,11 +303,6 @@ func (m model) handleTaskViewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filters.state = m.tabs[m.tabSelected].state
 		return m.refreshWithStatus(fmt.Sprintf("filter: %s", m.tabs[m.tabSelected].label))
 	}
-	if key.Matches(msg, m.keys.CycleCompletion) {
-		m.filters = m.filters.cycleCompletion()
-		m.status = fmt.Sprintf("completion filter: %s", m.filters.completionText())
-		return m.refreshWithStatus(m.status)
-	}
 	if key.Matches(msg, m.keys.Search) {
 		return m.startSearch()
 	}
@@ -306,6 +330,12 @@ func (m model) handleTaskViewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	if key.Matches(msg, m.keys.Bottom) {
 		return m.jumpCurrentSelection(false)
+	}
+	if key.Matches(msg, m.keys.DetailUp) {
+		return m.scrollDetailUp()
+	}
+	if key.Matches(msg, m.keys.DetailDown) {
+		return m.scrollDetailDown()
 	}
 
 	task := m.selectedTask()
@@ -353,7 +383,7 @@ func (m model) handleSearchInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) startTaskAddForm() (tea.Model, tea.Cmd) {
 	m.taskForm = startAddTaskForm(searchWidthForLayout(m.layout))
 	m.status = "add task form"
-	cmd := m.taskForm.input.Focus()
+	cmd := m.taskForm.focus()
 	return m, cmd
 }
 
@@ -365,7 +395,7 @@ func (m model) startTaskEditForm() (tea.Model, tea.Cmd) {
 	}
 	m.taskForm = startEditTaskForm(task, searchWidthForLayout(m.layout))
 	m.status = fmt.Sprintf("edit task #%d", task.ID)
-	cmd := m.taskForm.input.Focus()
+	cmd := m.taskForm.focus()
 	return m, cmd
 }
 
@@ -381,37 +411,49 @@ func (m model) handleTaskFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	if msg.String() == "shift+tab" {
 		m.taskForm = m.taskForm.commitInput().previousField()
-		cmd := m.taskForm.input.Focus()
+		cmd := m.taskForm.focus()
 		return m, cmd
 	}
+	if msg.String() == "tab" {
+		return m.advanceTaskForm()
+	}
 	if key.Matches(msg, m.keys.Select) {
-		form := m.taskForm.commitInput()
-		next, done := form.nextField()
-		if !done {
-			m.taskForm = next
-			cmd := m.taskForm.input.Focus()
+		if m.taskForm.field == taskFormFieldNotes {
+			var cmd tea.Cmd
+			m.taskForm, cmd = m.taskForm.update(msg)
 			return m, cmd
 		}
-
-		if strings.TrimSpace(form.values.title) == "" {
-			m.status = "title is required"
-			m.errText = "title is required"
-			m.taskForm = form.withField(taskFormFieldTitle)
-			cmd := m.taskForm.input.Focus()
-			return m, cmd
-		}
-
-		m.errText = ""
-		m.taskForm = inactiveTaskForm(searchWidthForLayout(m.layout))
-		if form.mode == taskFormEdit {
-			return m.startAction("updating task...", fullUpdateTaskCmd(m.svc, form.fullUpdateRequest()))
-		}
-		return m.startAction("creating task...", createTaskCmd(m.svc, form.createRequest()))
+		return m.advanceTaskForm()
 	}
 
 	var cmd tea.Cmd
-	m.taskForm.input, cmd = m.taskForm.input.Update(msg)
+	m.taskForm, cmd = m.taskForm.update(msg)
 	return m, cmd
+}
+
+func (m model) advanceTaskForm() (tea.Model, tea.Cmd) {
+	form := m.taskForm.commitInput()
+	next, done := form.nextField()
+	if !done {
+		m.taskForm = next
+		cmd := m.taskForm.focus()
+		return m, cmd
+	}
+
+	if strings.TrimSpace(form.values.title) == "" {
+		m.status = "title is required"
+		m.errText = "title is required"
+		m.taskForm = form.withField(taskFormFieldTitle)
+		cmd := m.taskForm.focus()
+		return m, cmd
+	}
+
+	m.errText = ""
+	m.taskForm = inactiveTaskForm(searchWidthForLayout(m.layout))
+	if form.mode == taskFormEdit {
+		return m.startAction("updating task...", fullUpdateTaskCmd(m.svc, form.fullUpdateRequest()))
+	}
+	return m.startAction("creating task...", createTaskCmd(m.svc, form.createRequest()))
 }
 
 func (m model) cycleProjectFilter() (tea.Model, tea.Cmd) {
@@ -485,7 +527,12 @@ func (m model) handleTaskActionKeys(msg tea.KeyMsg, task *store.Task) (tea.Model
 
 func (m model) moveCurrentSelection(delta int) (tea.Model, tea.Cmd) {
 	m.deleteTaskID = 0
-	m.selected = clampZeroToMax(m.selected+delta, len(m.tasks)-1)
+	next := clampZeroToMax(m.selected+delta, len(m.tasks)-1)
+	if next != m.selected {
+		m.detail.SetYOffset(0)
+	}
+	m.selected = next
+	m.taskTable.SetCursor(m.selected)
 	return m, nil
 }
 
@@ -494,11 +541,32 @@ func (m model) jumpCurrentSelection(top bool) (tea.Model, tea.Cmd) {
 	if len(m.tasks) == 0 {
 		return m, nil
 	}
+	previous := m.selected
 	if top {
 		m.selected = 0
 	} else {
 		m.selected = len(m.tasks) - 1
 	}
+	if m.selected != previous {
+		m.detail.SetYOffset(0)
+	}
+	m.taskTable.SetCursor(m.selected)
+	return m, nil
+}
+
+func (m model) scrollDetailUp() (tea.Model, tea.Cmd) {
+	if m.selectedTask() == nil {
+		return m, nil
+	}
+	m.detail.HalfPageUp()
+	return m, nil
+}
+
+func (m model) scrollDetailDown() (tea.Model, tea.Cmd) {
+	if m.selectedTask() == nil {
+		return m, nil
+	}
+	m.detail.HalfPageDown()
 	return m, nil
 }
 
@@ -506,14 +574,14 @@ func (m model) refreshWithStatus(status string) (tea.Model, tea.Cmd) {
 	m.loading = true
 	m.deleteTaskID = 0
 	m.status = status
-	return m, refreshDataCmd(m.svc, m.filters)
+	return m, tea.Batch(refreshDataCmd(m.svc, m.filters), m.spinner.Tick)
 }
 
 func (m model) startAction(status string, cmd tea.Cmd) (tea.Model, tea.Cmd) {
 	m.loading = true
 	m.deleteTaskID = 0
 	m.status = status
-	return m, cmd
+	return m, tea.Batch(cmd, m.spinner.Tick)
 }
 
 func (m model) selectedTask() *store.Task {
@@ -528,20 +596,29 @@ func (m model) selectedTask() *store.Task {
 
 func (m model) View() string {
 	tabs := m.renderTabs()
+	statusLine := m.renderStatusLine()
 
-	body := m.viewTasks()
-
-	if m.taskForm.active() {
-		body = m.renderTaskFormModal()
+	renderModel := m
+	if statusLine == "" {
+		renderModel.layout.bodyHeight++
 	}
 
-	statusLine := m.renderStatusLine()
+	body := renderModel.viewTasks()
+
+	if renderModel.taskForm.active() {
+		body = renderModel.renderTaskFormModal()
+	}
+
 	footer := m.renderFooter()
 	parts := []string{tabs}
 	if m.searchMode {
 		parts = append(parts, m.styles.panel.Render(m.searchInput.View()))
 	}
-	parts = append(parts, body, statusLine, footer)
+	parts = append(parts, body)
+	if statusLine != "" {
+		parts = append(parts, statusLine)
+	}
+	parts = append(parts, footer)
 	if m.showHelp {
 		parts = append(parts, m.renderHelp())
 	}
@@ -558,87 +635,6 @@ func (m model) View() string {
 	}
 
 	return m.styles.app.Render(content)
-}
-
-func (m model) renderTaskFormModal() string {
-	bodyWidth := m.layout.listWidth
-	if !m.layout.narrow {
-		bodyWidth = m.layout.listWidth + m.layout.detailWidth
-	}
-	bodyWidth = max(modalMinBodyWidth, bodyWidth)
-
-	availableWidth := max(modalMinBodyWidth, bodyWidth-modalOuterPad)
-	preferredWidth := max(modalMinWidth, (bodyWidth*modalWidthNum)/modalWidthDen)
-	modalWidth := min(availableWidth, preferredWidth)
-	modalInputWidth := max(modalMinInput, modalWidth-modalInputPad)
-
-	form := m.taskForm.withWidth(modalInputWidth)
-	content := m.styles.panelFocus.Width(modalWidth).Render(form.render(m.styles))
-
-	return lipgloss.Place(
-		bodyWidth,
-		m.layout.bodyHeight,
-		lipgloss.Center,
-		lipgloss.Center,
-		content,
-	)
-}
-
-func (m model) renderTabs() string {
-	renderTab := func(active bool, label string) string {
-		if active {
-			return m.styles.tabActive.Render(label)
-		}
-		return m.styles.tabPassive.Render(label)
-	}
-
-	parts := make([]string, 0, len(m.tabs))
-	for i, tab := range m.tabs {
-		label := fmt.Sprintf("%s (%d)", tab.label, tab.count)
-		parts = append(parts, renderTab(i == m.tabSelected, label))
-	}
-
-	return lipgloss.JoinHorizontal(lipgloss.Left, parts...)
-}
-
-func (m model) renderStatusLine() string {
-	if m.errText != "" {
-		return m.styles.errorText.Render(m.errText)
-	}
-	return m.styles.foot.Render(m.status + "  " + m.filters.statusText())
-}
-
-func (m model) renderFooter() string {
-	keys := []string{
-		m.styles.key.Render("j/k") + " move",
-		m.styles.key.Render("[/]") + " tab",
-		m.styles.key.Render("t") + " todo/all/done",
-		m.styles.key.Render("/") + " search",
-		m.styles.key.Render("p/c") + " project/context",
-		m.styles.key.Render("a/e") + " add/edit",
-		m.styles.key.Render("x/u") + " done/undo",
-		m.styles.key.Render("D") + " delete",
-		m.styles.key.Render("?") + " help",
-		m.styles.key.Render("q") + " quit",
-	}
-	return m.styles.foot.Render(strings.Join(keys, "  "))
-}
-
-func (m model) renderHelp() string {
-	text := strings.Join([]string{
-		"TUI keybindings",
-		"- j/k or up/down: move selection",
-		"- [/]: switch state tab",
-		"- t: cycle todo -> all -> done",
-		"- /: edit search query (enter applies, esc cancels)",
-		"- p/c: cycle project or context filter",
-		"- a/e: add or edit task form",
-		"- x/u: done or undo selected task",
-		"- i/n/w/l: move selected task state",
-		"- D: delete selected task (double press to confirm)",
-		"- q: quit",
-	}, "\n")
-	return m.styles.help.Render(text)
 }
 
 func selectedTaskID(tasks []*store.Task, selected int) int64 {
