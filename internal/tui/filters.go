@@ -12,6 +12,7 @@ type listFilters struct {
 	project string
 	context string
 	search  string
+	dueOnly bool
 }
 
 func defaultFiltersWithState(state string) listFilters {
@@ -24,6 +25,7 @@ func (f listFilters) toListTasksRequest() service.ListTasksRequest {
 		Project: f.project,
 		Context: f.context,
 		Search:  f.search,
+		DueOnly: f.dueOnly,
 	}
 
 	switch f.state {
@@ -64,6 +66,9 @@ func (f listFilters) statusText() string {
 	}
 	if f.search != "" {
 		parts = append(parts, "search:"+f.search)
+	}
+	if f.dueOnly {
+		parts = append(parts, "due:only")
 	}
 
 	return strings.Join(parts, " ")

@@ -79,3 +79,11 @@ func TestStatusTextIncludesSearch(t *testing.T) {
 		t.Fatalf("unexpected status text: %q", text)
 	}
 }
+
+func TestStatusTextIncludesDueOnly(t *testing.T) {
+	f := listFilters{dueOnly: true}
+	text := f.statusText()
+	if text != "due:only" {
+		t.Fatalf("unexpected status text: %q", text)
+	}
+}
