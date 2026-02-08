@@ -1,0 +1,99 @@
+package compile_test
+
+import (
+	"testing"
+	"time"
+
+	"github.com/mholtzscher/ugh/internal/nlp"
+	"github.com/mholtzscher/ugh/internal/nlp/compile"
+)
+
+func TestBuildCreatePlan(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := nlp.Parse(`buy milk tomorrow #home @errands waiting:alex`, nlp.ParseOptions{
+		Now: time.Date(2026, 2, 8, 10, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("Parse(create) error = %v", err)
+	}
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{Now: time.Date(2026, 2, 8, 10, 0, 0, 0, time.UTC)})
+	if err != nil {
+		t.Fatalf("Build(create) error = %v", err)
+	}
+	if plan.Create == nil {
+		t.Fatal("create request is nil")
+	}
+	if plan.Create.Title != "buy milk" {
+		t.Fatalf("title = %q, want %q", plan.Create.Title, "buy milk")
+	}
+	if plan.Create.DueOn != "2026-02-09" {
+		t.Fatalf("due = %q, want %q", plan.Create.DueOn, "2026-02-09")
+	}
+	if plan.Create.WaitingFor != "alex" {
+		t.Fatalf("waiting_for = %q, want %q", plan.Create.WaitingFor, "alex")
+	}
+	if len(plan.Create.Projects) != 1 || plan.Create.Projects[0] != "home" {
+		t.Fatalf("projects = %#v, want [home]", plan.Create.Projects)
+	}
+	if len(plan.Create.Contexts) != 1 || plan.Create.Contexts[0] != "errands" {
+		t.Fatalf("contexts = %#v, want [errands]", plan.Create.Contexts)
+	}
+}
+
+func TestBuildUpdatePlanResolvesSelectedTarget(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := nlp.Parse(`set selected state:now +project:work !due`, nlp.ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse(update) error = %v", err)
+	}
+
+	id := int64(42)
+	plan, err := compile.Build(parsed, compile.BuildOptions{SelectedTaskID: &id})
+	if err != nil {
+		t.Fatalf("Build(update) error = %v", err)
+	}
+	if plan.Update == nil {
+		t.Fatal("update request is nil")
+	}
+	if plan.Update.ID != 42 {
+		t.Fatalf("update id = %d, want 42", plan.Update.ID)
+	}
+	if plan.Update.State == nil || *plan.Update.State != "now" {
+		t.Fatalf("state = %#v, want now", plan.Update.State)
+	}
+	if !plan.Update.ClearDueOn {
+		t.Fatal("ClearDueOn = false, want true")
+	}
+	if len(plan.Update.AddProjects) != 1 || plan.Update.AddProjects[0] != "work" {
+		t.Fatalf("add projects = %#v, want [work]", plan.Update.AddProjects)
+	}
+}
+
+func TestBuildFilterPlan(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := nlp.Parse(`find state:now and project:work and text:paper`, nlp.ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse(filter) error = %v", err)
+	}
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{})
+	if err != nil {
+		t.Fatalf("Build(filter) error = %v", err)
+	}
+	if plan.Filter == nil {
+		t.Fatal("filter request is nil")
+	}
+	if plan.Filter.State != "now" {
+		t.Fatalf("state = %q, want now", plan.Filter.State)
+	}
+	if plan.Filter.Project != "work" {
+		t.Fatalf("project = %q, want work", plan.Filter.Project)
+	}
+	if plan.Filter.Search != "paper" {
+		t.Fatalf("search = %q, want paper", plan.Filter.Search)
+	}
+}

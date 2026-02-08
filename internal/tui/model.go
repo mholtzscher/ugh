@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -13,6 +14,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	nlp "github.com/mholtzscher/ugh/internal/nlp"
+	nlpcompile "github.com/mholtzscher/ugh/internal/nlp/compile"
 	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/mholtzscher/ugh/internal/store"
 )
@@ -24,14 +27,16 @@ const (
 )
 
 const (
-	defaultWidth      = 120
-	defaultHeight     = 32
-	statusLoadingText = "loading tasks..."
-	statusRefreshText = "refreshing..."
-	searchInputWidth  = 48
-	searchMinWidth    = 1
-	searchNarrowPad   = 6
-	keyCtrlC          = "ctrl+c"
+	defaultWidth           = 120
+	defaultHeight          = 32
+	statusLoadingText      = "loading tasks..."
+	statusRefreshText      = "refreshing..."
+	statusCommandCancelled = "command cancelled"
+	statusCommandRejected  = "command rejected"
+	searchInputWidth       = 48
+	searchMinWidth         = 1
+	searchNarrowPad        = 6
+	keyCtrlC               = "ctrl+c"
 )
 
 type model struct {
@@ -56,6 +61,8 @@ type model struct {
 	deleteTaskID int64
 	searchInput  textinput.Model
 	searchMode   bool
+	commandInput textinput.Model
+	commandMode  bool
 	taskForm     taskFormState
 	taskTable    table.Model
 	detail       viewport.Model
@@ -71,6 +78,7 @@ type tabItem struct {
 
 func newModel(svc service.Service, opts Options) model {
 	search := newSearchInput(searchInputWidth)
+	command := newCommandInput(searchInputWidth)
 	tabs := defaultTabs()
 	layout := calculateLayout(defaultWidth, defaultHeight)
 	styleSet := newStyles(SelectTheme(opts.ThemeName), opts.NoColor)
@@ -78,25 +86,35 @@ func newModel(svc service.Service, opts Options) model {
 	helpModel := newHelpModel(styleSet, defaultWidth)
 	spinnerModel := newSpinnerModel(styleSet)
 	return model{
-		svc:         svc,
-		keys:        defaultKeyMap(),
-		styles:      styleSet,
-		viewportW:   defaultWidth,
-		viewportH:   defaultHeight,
-		layout:      layout,
-		view:        viewTasks,
-		filters:     defaultFiltersWithState(tabs[0].state),
-		tabSelected: 0,
-		tabs:        tabs,
-		loading:     true,
-		status:      statusLoadingText,
-		searchInput: search,
-		taskForm:    inactiveTaskForm(searchInputWidth),
-		taskTable:   taskTable,
-		detail:      viewport.New(searchInputWidth, defaultHeight),
-		help:        helpModel,
-		spinner:     spinnerModel,
+		svc:          svc,
+		keys:         defaultKeyMap(),
+		styles:       styleSet,
+		viewportW:    defaultWidth,
+		viewportH:    defaultHeight,
+		layout:       layout,
+		view:         viewTasks,
+		filters:      defaultFiltersWithState(tabs[0].state),
+		tabSelected:  0,
+		tabs:         tabs,
+		loading:      true,
+		status:       statusLoadingText,
+		searchInput:  search,
+		commandInput: command,
+		taskForm:     inactiveTaskForm(searchInputWidth),
+		taskTable:    taskTable,
+		detail:       viewport.New(searchInputWidth, defaultHeight),
+		help:         helpModel,
+		spinner:      spinnerModel,
 	}
+}
+
+func newCommandInput(width int) textinput.Model {
+	input := textinput.New()
+	input.Prompt = ": "
+	input.Placeholder = "create/update/filter command"
+	input.CharLimit = 512
+	input.Width = width
+	return input
 }
 
 func newSearchInput(width int) textinput.Model {
@@ -135,6 +153,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.layout = calculateLayout(value.Width, value.Height)
 		m.help.Width = value.Width
 		m.searchInput.Width = searchWidthForLayout(m.layout)
+		m.commandInput.Width = searchWidthForLayout(m.layout)
 		m.taskForm = m.taskForm.withWidth(searchWidthForLayout(m.layout))
 		return m, clearScreenCmd()
 	case spinner.TickMsg:
@@ -254,6 +273,10 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSearchInput(msg)
 	}
 
+	if m.commandMode {
+		return m.handleCommandInput(msg)
+	}
+
 	if modelValue, cmd, handled := m.handleGlobalKey(msg); handled {
 		return modelValue, cmd
 	}
@@ -306,6 +329,9 @@ func (m model) handleTaskViewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, m.keys.Search) {
 		return m.startSearch()
 	}
+	if key.Matches(msg, m.keys.Command) {
+		return m.startCommand()
+	}
 	if key.Matches(msg, m.keys.Add) {
 		return m.startTaskAddForm()
 	}
@@ -347,11 +373,24 @@ func (m model) handleTaskViewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) startSearch() (tea.Model, tea.Cmd) {
+	m.commandMode = false
+	m.commandInput.Blur()
 	m.searchMode = true
 	m.searchInput.SetValue(m.filters.search)
 	m.searchInput.CursorEnd()
 	m.status = "search: type query and press enter"
 	cmd := m.searchInput.Focus()
+	return m, cmd
+}
+
+func (m model) startCommand() (tea.Model, tea.Cmd) {
+	m.searchMode = false
+	m.searchInput.Blur()
+	m.commandMode = true
+	m.commandInput.SetValue("")
+	m.commandInput.CursorEnd()
+	m.status = "command: enter natural language command"
+	cmd := m.commandInput.Focus()
 	return m, cmd
 }
 
@@ -378,6 +417,90 @@ func (m model) handleSearchInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.searchInput, cmd = m.searchInput.Update(msg)
 	return m, cmd
+}
+
+func (m model) handleCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == keyCtrlC {
+		return m, tea.Quit
+	}
+	if key.Matches(msg, m.keys.Esc) {
+		m.commandMode = false
+		m.commandInput.Blur()
+		m.status = statusCommandCancelled
+		return m, nil
+	}
+	if key.Matches(msg, m.keys.Select) {
+		return m.submitCommandInput()
+	}
+
+	var cmd tea.Cmd
+	m.commandInput, cmd = m.commandInput.Update(msg)
+	return m, cmd
+}
+
+func (m model) submitCommandInput() (tea.Model, tea.Cmd) {
+	commandText := strings.TrimSpace(m.commandInput.Value())
+	m.commandMode = false
+	m.commandInput.Blur()
+
+	if commandText == "" {
+		m.status = statusCommandCancelled
+		return m, nil
+	}
+
+	parsed, err := nlp.Parse(commandText, nlp.ParseOptions{Now: time.Now()})
+	if err != nil {
+		m.status = "command parse failed"
+		m.errText = err.Error()
+		return m, nil
+	}
+
+	selectedID := selectedTaskID(m.tasks, m.selected)
+	var selectedIDPtr *int64
+	if selectedID > 0 {
+		selectedIDPtr = &selectedID
+	}
+
+	plan, err := nlpcompile.Build(parsed, nlpcompile.BuildOptions{SelectedTaskID: selectedIDPtr, Now: time.Now()})
+	if err != nil {
+		m.status = statusCommandRejected
+		m.errText = err.Error()
+		return m, nil
+	}
+
+	m.errText = ""
+	switch plan.Intent {
+	case nlp.IntentCreate:
+		if plan.Create == nil {
+			m.status = statusCommandRejected
+			m.errText = "create plan missing request"
+			return m, nil
+		}
+		return m.startAction("creating task...", createTaskCmd(m.svc, *plan.Create))
+	case nlp.IntentUpdate:
+		if plan.Update == nil {
+			m.status = statusCommandRejected
+			m.errText = "update plan missing request"
+			return m, nil
+		}
+		return m.startAction("updating task...", updateTaskCmd(m.svc, *plan.Update))
+	case nlp.IntentFilter:
+		if plan.Filter == nil {
+			m.status = statusCommandRejected
+			m.errText = "filter plan missing request"
+			return m, nil
+		}
+		modelValue, cmd := m.applyCommandFilter(*plan.Filter)
+		return modelValue, cmd
+	case nlp.IntentUnknown:
+		m.status = statusCommandRejected
+		m.errText = "unknown command intent"
+		return m, nil
+	default:
+		m.status = statusCommandRejected
+		m.errText = "unknown command intent"
+		return m, nil
+	}
 }
 
 func (m model) startTaskAddForm() (tea.Model, tea.Cmd) {
@@ -595,6 +718,18 @@ func (m model) selectedTask() *store.Task {
 }
 
 func (m model) View() string {
+	if m.taskForm.active() {
+		return m.renderModalWithBackdrop(m.renderTaskFormModal())
+	}
+
+	if m.searchMode {
+		return m.renderModalWithBackdrop(m.renderInputModal(m.searchInput, "Search"))
+	}
+
+	if m.commandMode {
+		return m.renderModalWithBackdrop(m.renderInputModal(m.commandInput, "Command"))
+	}
+
 	tabs := m.renderTabs()
 	statusLine := m.renderStatusLine()
 
@@ -605,15 +740,8 @@ func (m model) View() string {
 
 	body := renderModel.viewTasks()
 
-	if renderModel.taskForm.active() {
-		body = renderModel.renderTaskFormModal()
-	}
-
 	footer := m.renderFooter()
 	parts := []string{tabs}
-	if m.searchMode {
-		parts = append(parts, m.styles.panel.Render(m.searchInput.View()))
-	}
 	parts = append(parts, body)
 	if statusLine != "" {
 		parts = append(parts, statusLine)
@@ -634,6 +762,20 @@ func (m model) View() string {
 		)
 	}
 
+	return m.styles.app.Render(content)
+}
+
+func (m model) renderModalWithBackdrop(modalContent string) string {
+	canvasWidth, canvasHeight := m.modalCanvasSize()
+	content := lipgloss.Place(
+		canvasWidth,
+		canvasHeight,
+		lipgloss.Left,
+		lipgloss.Top,
+		modalContent,
+		lipgloss.WithWhitespaceChars(" "),
+		lipgloss.WithWhitespaceBackground(m.styles.modalShade.GetBackground()),
+	)
 	return m.styles.app.Render(content)
 }
 
@@ -677,6 +819,40 @@ func searchWidthForLayout(layout layoutSpec) int {
 		return max(searchMinWidth, layout.listWidth-searchNarrowPad)
 	}
 	return searchInputWidth
+}
+
+func (m model) applyCommandFilter(req service.ListTasksRequest) (tea.Model, tea.Cmd) {
+	m.filters.project = req.Project
+	m.filters.context = req.Context
+	m.filters.search = req.Search
+	m.filters.dueOnly = req.DueOnly
+
+	switch {
+	case req.State != "":
+		m.filters.state = req.State
+	case req.All:
+		m.filters.state = ""
+	case req.DoneOnly:
+		m.filters.state = string(store.StateDone)
+	}
+
+	m.tabSelected = tabIndexForState(m.tabs, m.filters.state, m.tabSelected)
+	if m.filters.state == "" {
+		return m.refreshWithStatus("filter command applied")
+	}
+	return m.refreshWithStatus(fmt.Sprintf("filter: %s", m.tabs[m.tabSelected].label))
+}
+
+func tabIndexForState(tabs []tabItem, state string, fallback int) int {
+	for i, tab := range tabs {
+		if tab.state == state {
+			return i
+		}
+	}
+	if fallback >= 0 && fallback < len(tabs) {
+		return fallback
+	}
+	return 0
 }
 
 func clearScreenCmd() tea.Cmd {
