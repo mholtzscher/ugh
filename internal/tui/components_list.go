@@ -14,19 +14,20 @@ const (
 	panelPadW = 4
 	panelPadH = 2
 
-	tableIDWidth     = 4
-	tableStateWidth  = 8
-	tableDueWidth    = 10
-	tableMinTitle    = 8
-	tableGutterState = 6
-	tableGutterBasic = 4
+	tableIDWidth      = 4
+	tableStateWidth   = 8
+	tableDueWidth     = 11
+	tableMinTitle     = 8
+	tableGutterState  = 6
+	tableGutterBasic  = 4
+	tableCellPadRight = 1
 )
 
 func newTaskTable(styleSet styles, layout layoutSpec) table.Model {
 	tableStyles := table.DefaultStyles()
-	tableStyles.Header = styleSet.muted.Bold(true)
-	tableStyles.Cell = lipgloss.NewStyle()
-	tableStyles.Selected = styleSet.selected
+	tableStyles.Header = styleSet.muted.Bold(true).PaddingRight(tableCellPadRight)
+	tableStyles.Cell = lipgloss.NewStyle().PaddingRight(tableCellPadRight)
+	tableStyles.Selected = styleSet.selected.PaddingRight(tableCellPadRight)
 
 	taskTable := table.New(
 		table.WithFocused(false),
