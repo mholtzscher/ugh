@@ -20,6 +20,7 @@ type Service interface {
 	ListContexts(ctx context.Context, req ListTagsRequest) ([]store.NameCount, error)
 	Sync(ctx context.Context) error
 	Push(ctx context.Context) error
+	SyncStatus(ctx context.Context) (*SyncStatus, error)
 	Close() error
 }
 

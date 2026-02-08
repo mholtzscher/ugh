@@ -56,3 +56,12 @@ type FullUpdateTaskRequest struct {
 	DueOn      string
 	WaitingFor string
 }
+
+type SyncStatus struct {
+	LastPullUnixTime int64
+	LastPushUnixTime int64
+	PendingChanges   int64
+	NetworkSentBytes int64
+	NetworkRecvBytes int64
+	Revision         string
+}
