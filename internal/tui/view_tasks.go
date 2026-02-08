@@ -20,20 +20,18 @@ func (m model) viewTasks() string {
 		return m.viewTasksNarrow()
 	}
 
-	navStyle := m.panelStyle(focusNav).Width(m.layout.navWidth).Height(m.layout.bodyHeight)
-	listStyle := m.panelStyle(focusList).Width(m.layout.listWidth).Height(m.layout.bodyHeight)
-	detailStyle := m.panelStyle(focusDetail).Width(m.layout.detailWidth).Height(m.layout.bodyHeight)
+	listStyle := m.styles.panel.Width(m.layout.listWidth).Height(m.layout.bodyHeight)
+	detailStyle := m.styles.panel.Width(m.layout.detailWidth).Height(m.layout.bodyHeight)
 
-	nav := navStyle.Render(m.renderNav())
 	list := listStyle.Render(m.renderTaskList())
 	detail := detailStyle.Render(m.renderTaskDetail())
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, nav, list, detail)
+	return lipgloss.JoinHorizontal(lipgloss.Top, list, detail)
 }
 
 func (m model) viewTasksNarrow() string {
 	if m.layout.bodyHeight < narrowSplitMinimum {
-		listStyle := m.panelStyle(focusList).
+		listStyle := m.styles.panel.
 			Width(m.layout.listWidth).
 			Height(m.layout.bodyHeight)
 		return listStyle.Render(m.renderTaskList())
@@ -42,52 +40,16 @@ func (m model) viewTasksNarrow() string {
 	detailHeight := min(narrowDetailHeight, m.layout.bodyHeight/narrowHeightDivisor)
 	listHeight := m.layout.bodyHeight - detailHeight
 
-	listStyle := m.panelStyle(focusList).
+	listStyle := m.styles.panel.
 		Width(m.layout.listWidth).
 		Height(listHeight)
-	detailStyle := m.panelStyle(focusDetail).
+	detailStyle := m.styles.panel.
 		Width(m.layout.listWidth).
 		Height(detailHeight)
 
 	list := listStyle.Render(m.renderTaskList())
 	detail := detailStyle.Render(m.renderTaskDetail())
 	return lipgloss.JoinVertical(lipgloss.Left, list, detail)
-}
-
-func (m model) panelStyle(focus paneFocus) lipgloss.Style {
-	if m.focus == focus {
-		return m.styles.panelFocus
-	}
-	return m.styles.panel
-}
-
-func (m model) renderNav() string {
-	if len(m.navItems) == 0 {
-		return m.styles.muted.Render("No navigation items yet.")
-	}
-
-	lines := []string{m.styles.title.Render("NAV")}
-	kind := navState
-	lines = append(lines, m.styles.muted.Render("States"))
-
-	for idx, item := range m.navItems {
-		if item.kind != kind {
-			kind = item.kind
-			lines = append(lines, "", m.styles.muted.Render(navSectionLabel(kind)))
-		}
-		line := fmt.Sprintf("  %-16s (%d)", item.label, item.count)
-		if idx == m.navSelected {
-			line = "> " + strings.TrimPrefix(line, "  ")
-			line = m.styles.selected.Render(line)
-		}
-		lines = append(lines, line)
-	}
-
-	if m.focus == focusNav {
-		lines = append(lines, "", m.styles.muted.Render("enter: apply selected scope"))
-	}
-
-	return strings.Join(lines, "\n")
 }
 
 func (m model) renderTaskList() string {
@@ -105,10 +67,6 @@ func (m model) renderTaskList() string {
 			line = m.styles.selected.Render(line)
 		}
 		lines = append(lines, line)
-	}
-
-	if m.focus == focusList {
-		lines = append(lines, "", m.styles.muted.Render("enter: focus details"))
 	}
 
 	return strings.Join(lines, "\n")
@@ -140,24 +98,8 @@ func (m model) renderTaskDetail() string {
 	if m.deleteTaskID == task.ID {
 		lines = append(lines, "", m.styles.warning.Render("Press D again to confirm delete."))
 	}
-	if m.focus == focusDetail {
-		lines = append(lines, "", m.styles.muted.Render("enter: back to task list"))
-	}
 
 	return strings.Join(lines, "\n")
-}
-
-func navSectionLabel(kind navItemKind) string {
-	switch kind {
-	case navState:
-		return "States"
-	case navProject:
-		return "Projects"
-	case navContext:
-		return "Contexts"
-	default:
-		return ""
-	}
 }
 
 func dueText(task *store.Task) string {

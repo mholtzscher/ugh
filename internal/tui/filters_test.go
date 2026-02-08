@@ -10,7 +10,6 @@ func TestListFiltersToListTasksRequest(t *testing.T) {
 		project:    "work",
 		context:    "office",
 		search:     "alpha",
-		dueOnly:    true,
 	}
 
 	req := filters.toListTasksRequest()
@@ -19,9 +18,6 @@ func TestListFiltersToListTasksRequest(t *testing.T) {
 	}
 	if req.State != "now" || req.Project != "work" || req.Context != "office" || req.Search != "alpha" {
 		t.Fatalf("unexpected request filters: %+v", req)
-	}
-	if !req.DueOnly {
-		t.Fatal("expected DueOnly to be true")
 	}
 }
 

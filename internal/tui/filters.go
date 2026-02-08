@@ -17,15 +17,14 @@ const (
 
 type listFilters struct {
 	completion completionFilter
-	dueOnly    bool
 	state      string
 	project    string
 	context    string
 	search     string
 }
 
-func defaultFilters() listFilters {
-	return listFilters{completion: completionTodo}
+func defaultFiltersWithState(state string) listFilters {
+	return listFilters{completion: completionTodo, state: state}
 }
 
 func (f listFilters) toListTasksRequest() service.ListTasksRequest {
@@ -34,7 +33,6 @@ func (f listFilters) toListTasksRequest() service.ListTasksRequest {
 		Project: f.project,
 		Context: f.context,
 		Search:  f.search,
-		DueOnly: f.dueOnly,
 	}
 
 	switch f.completion {
@@ -103,9 +101,6 @@ func (f listFilters) statusText() string {
 	}
 	if f.context != "" {
 		parts = append(parts, "context:"+f.context)
-	}
-	if f.dueOnly {
-		parts = append(parts, "due-only")
 	}
 	if f.search != "" {
 		parts = append(parts, "search:"+f.search)
