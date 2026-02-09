@@ -126,3 +126,13 @@ func fullUpdateTaskCmd(svc service.Service, req service.FullUpdateTaskRequest) t
 		return actionResultMsg{status: fmt.Sprintf("updated task #%d", task.ID)}
 	}
 }
+
+func updateTaskCmd(svc service.Service, req service.UpdateTaskRequest) tea.Cmd {
+	return func() tea.Msg {
+		task, err := svc.UpdateTask(context.Background(), req)
+		if err != nil {
+			return actionResultMsg{err: err}
+		}
+		return actionResultMsg{status: fmt.Sprintf("updated task #%d", task.ID)}
+	}
+}
