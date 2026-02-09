@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/chzyer/readline"
+	"github.com/pterm/pterm"
 
 	"github.com/mholtzscher/ugh/internal/service"
 )
@@ -15,9 +16,14 @@ type Prompt struct {
 }
 
 // NewPrompt creates a new interactive prompt with history loaded from SQLite.
-func NewPrompt(svc service.Service) (*Prompt, error) {
+func NewPrompt(svc service.Service, noColor bool) (*Prompt, error) {
+	promptText := "ugh> "
+	if !noColor {
+		promptText = pterm.Cyan("➜ ") + pterm.Magenta("ugh> ")
+	}
+
 	cfg := &readline.Config{
-		Prompt:          "ugh> ",
+		Prompt:          promptText,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
 	}

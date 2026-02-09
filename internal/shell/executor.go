@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pterm/pterm"
 
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/nlp/compile"
@@ -15,17 +18,19 @@ import (
 
 // Executor bridges NLP parsing to service execution.
 type Executor struct {
-	svc    service.Service
-	state  *SessionState
-	parser nlp.Parser
+	svc     service.Service
+	state   *SessionState
+	parser  nlp.Parser
+	noColor bool
 }
 
 // NewExecutor creates a new executor.
-func NewExecutor(svc service.Service, state *SessionState) *Executor {
+func NewExecutor(svc service.Service, state *SessionState, noColor bool) *Executor {
 	return &Executor{
-		svc:    svc,
-		state:  state,
-		parser: nlp.NewParser(),
+		svc:     svc,
+		state:   state,
+		parser:  nlp.NewParser(),
+		noColor: noColor,
 	}
 }
 
@@ -199,7 +204,7 @@ func (e *Executor) executeFilter(ctx context.Context, plan compile.Plan) (*Execu
 
 	return &ExecuteResult{
 		Intent:    "filter",
-		Message:   formatTaskList(tasks),
+		Message:   formatTaskList(tasks, e.noColor),
 		TaskIDs:   taskIDs,
 		Summary:   fmt.Sprintf("found %d tasks", len(tasks)),
 		Timestamp: time.Now(),
@@ -214,7 +219,7 @@ func formatTaskUpdated(task *store.Task) string {
 	return fmt.Sprintf("Updated task #%d: %s", task.ID, task.Title)
 }
 
-func formatTaskList(tasks []*store.Task) string {
+func formatTaskList(tasks []*store.Task, noColor bool) string {
 	if len(tasks) == 0 {
 		return "No tasks found"
 	}
@@ -222,11 +227,71 @@ func formatTaskList(tasks []*store.Task) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Found %d task(s):\n\n", len(tasks)))
 	for _, task := range tasks {
-		state := task.State
-		if state == "" {
-			state = "inbox"
-		}
-		sb.WriteString(fmt.Sprintf("  #%d %s [%s]\n", task.ID, task.Title, state))
+		sb.WriteString(formatTaskLine(task, noColor) + "\n")
 	}
 	return sb.String()
+}
+
+func formatTaskLine(task *store.Task, noColor bool) string {
+	state := task.State
+	if state == "" {
+		state = "inbox"
+	}
+
+	idStr := formatID(task.ID, noColor)
+	stateStr := formatState(string(state), noColor)
+	tags := formatTags(task.Projects, task.Contexts, noColor)
+	dueStr := formatDueDate(task.DueOn, noColor)
+
+	line := fmt.Sprintf("  %s %s %s", idStr, task.Title, stateStr)
+	if tags != "" {
+		line += " " + tags
+	}
+	if dueStr != "" {
+		line += " " + dueStr
+	}
+	return line
+}
+
+func formatID(id int64, noColor bool) string {
+	if noColor {
+		return "#" + strconv.FormatInt(id, 10)
+	}
+	return pterm.Cyan("#" + strconv.FormatInt(id, 10))
+}
+
+func formatState(state string, noColor bool) string {
+	if noColor {
+		return "[" + state + "]"
+	}
+	return pterm.Magenta("[" + state + "]")
+}
+
+func formatTags(projects, contexts []string, noColor bool) string {
+	var tags []string
+	for _, p := range projects {
+		if noColor {
+			tags = append(tags, "#"+p)
+		} else {
+			tags = append(tags, pterm.Blue("#"+p))
+		}
+	}
+	for _, c := range contexts {
+		if noColor {
+			tags = append(tags, "@"+c)
+		} else {
+			tags = append(tags, pterm.Green("@"+c))
+		}
+	}
+	return strings.Join(tags, " ")
+}
+
+func formatDueDate(dueOn *time.Time, noColor bool) string {
+	if dueOn == nil {
+		return ""
+	}
+	if noColor {
+		return dueOn.Format("2006-01-02")
+	}
+	return pterm.Yellow(dueOn.Format("2006-01-02"))
 }
