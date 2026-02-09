@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/urfave/cli/v3"
+
+	"github.com/mholtzscher/ugh/internal/output"
 )
 
 // daemonStatusOutput represents the status information for JSON output.
@@ -49,22 +52,26 @@ shows uptime and sync status from the daemon's health endpoint.`,
 
 		// Human-readable output
 		if !status.Installed {
-			_, _ = fmt.Fprintln(w.Out, "Service:  not installed")
-			_, _ = fmt.Fprintln(w.Out, "Run 'ugh daemon install' to set up the service")
-			return nil
+			err = w.WriteWarning("Service not installed")
+			if err != nil {
+				return err
+			}
+			return w.WriteInfo("Run 'ugh daemon install' to set up the service")
 		}
 
-		_, _ = fmt.Fprintln(w.Out, "Service:  installed")
-		_, _ = fmt.Fprintln(w.Out, "Path:    ", status.ServicePath)
+		rows := []output.KeyValue{
+			{Key: "service", Value: "installed"},
+			{Key: "path", Value: status.ServicePath},
+		}
 		if status.Running {
-			_, _ = fmt.Fprintln(w.Out, "Status:   running")
+			rows = append(rows, output.KeyValue{Key: "status", Value: "running"})
 			if status.PID > 0 {
-				_, _ = fmt.Fprintln(w.Out, "PID:     ", status.PID)
+				rows = append(rows, output.KeyValue{Key: "pid", Value: strconv.Itoa(status.PID)})
 			}
 		} else {
-			_, _ = fmt.Fprintln(w.Out, "Status:   stopped")
+			rows = append(rows, output.KeyValue{Key: "status", Value: "stopped"})
 		}
 
-		return nil
+		return w.WriteKeyValues(rows)
 	},
 }

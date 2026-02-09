@@ -4,14 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"text/tabwriter"
+	"strconv"
 
 	"github.com/urfave/cli/v3"
-)
 
-const (
-	syncStatusTabWidth = 2
-	syncStatusPadding  = 2
+	"github.com/mholtzscher/ugh/internal/output"
 )
 
 //nolint:gochecknoglobals // CLI command definitions are package-level by design.
@@ -87,8 +84,7 @@ func runSync(ctx context.Context) error {
 		enc := json.NewEncoder(writer.Out)
 		return enc.Encode(syncResult{Action: "sync", Message: "synced with remote"})
 	}
-	_, err = fmt.Fprintln(writer.Out, "synced with remote")
-	return err
+	return writer.WriteSuccess("synced with remote")
 }
 
 func runSyncPull(ctx context.Context) error {
@@ -108,8 +104,7 @@ func runSyncPull(ctx context.Context) error {
 		enc := json.NewEncoder(writer.Out)
 		return enc.Encode(syncResult{Action: "pull", Message: "pulled changes from remote"})
 	}
-	_, err = fmt.Fprintln(writer.Out, "pulled changes from remote")
-	return err
+	return writer.WriteSuccess("pulled changes from remote")
 }
 
 func runSyncPush(ctx context.Context) error {
@@ -129,8 +124,7 @@ func runSyncPush(ctx context.Context) error {
 		enc := json.NewEncoder(writer.Out)
 		return enc.Encode(syncResult{Action: "push", Message: "pushed changes to remote"})
 	}
-	_, err = fmt.Fprintln(writer.Out, "pushed changes to remote")
-	return err
+	return writer.WriteSuccess("pushed changes to remote")
 }
 
 func runSyncStatus(ctx context.Context) error {
@@ -159,52 +153,21 @@ func runSyncStatus(ctx context.Context) error {
 		})
 	}
 
-	tw := tabwriter.NewWriter(writer.Out, 0, syncStatusTabWidth, syncStatusPadding, ' ', 0)
-	write := func(format string, a ...any) error {
-		_, writeErr := fmt.Fprintf(tw, format, a...)
-		return writeErr
+	rows := []output.KeyValue{
+		{Key: "last_pull", Value: formatSyncUnixTime(stats.LastPullUnixTime)},
+		{Key: "last_push", Value: formatSyncUnixTime(stats.LastPushUnixTime)},
+		{Key: "pending_changes", Value: strconv.FormatInt(stats.CdcOperations, 10)},
+		{Key: "network_sent", Value: strconv.FormatInt(stats.NetworkSentBytes, 10) + " bytes"},
+		{Key: "network_received", Value: strconv.FormatInt(stats.NetworkReceivedBytes, 10) + " bytes"},
+		{Key: "revision", Value: stats.Revision},
 	}
 
-	if stats.LastPullUnixTime > 0 {
-		err = write("last_pull:\t%d\n", stats.LastPullUnixTime)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = write("last_pull:\tnever\n")
-		if err != nil {
-			return err
-		}
-	}
+	return writer.WriteKeyValues(rows)
+}
 
-	if stats.LastPushUnixTime > 0 {
-		err = write("last_push:\t%d\n", stats.LastPushUnixTime)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = write("last_push:\tnever\n")
-		if err != nil {
-			return err
-		}
+func formatSyncUnixTime(unixTime int64) string {
+	if unixTime <= 0 {
+		return "never"
 	}
-
-	err = write("pending_changes:\t%d\n", stats.CdcOperations)
-	if err != nil {
-		return err
-	}
-	err = write("network_sent:\t%d bytes\n", stats.NetworkSentBytes)
-	if err != nil {
-		return err
-	}
-	err = write("network_received:\t%d bytes\n", stats.NetworkReceivedBytes)
-	if err != nil {
-		return err
-	}
-	err = write("revision:\t%s\n", stats.Revision)
-	if err != nil {
-		return err
-	}
-
-	return tw.Flush()
+	return strconv.FormatInt(unixTime, 10)
 }

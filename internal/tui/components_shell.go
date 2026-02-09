@@ -9,6 +9,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const taskFormFooterHint = "form: j/k move  enter or i edit  enter/ctrl+j next  shift+tab/ctrl+k previous  " +
+	"ctrl+s save  esc stop/cancel"
+
 func newHelpModel(styleSet styles, width int) help.Model {
 	helpModel := help.New()
 	helpModel.Width = width
@@ -68,6 +71,9 @@ func (m model) renderStatusLine() string {
 }
 
 func (m model) renderFooter() string {
+	if m.taskForm.active() {
+		return m.styles.foot.Render(taskFormFooterHint)
+	}
 	helpModel := m.help
 	helpModel.Width = m.viewportW
 	return helpModel.ShortHelpView(m.keys.ShortHelp())

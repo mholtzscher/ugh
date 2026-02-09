@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pterm/pterm"
 	"golang.org/x/term"
 
 	"github.com/mholtzscher/ugh/internal/store"
@@ -22,11 +23,16 @@ type Writer struct {
 	TTY     bool
 }
 
+type KeyValue struct {
+	Key   string
+	Value string
+}
+
 func NewWriter(jsonMode bool, noColor bool) Writer {
 	return Writer{
 		Out:     os.Stdout,
 		JSON:    jsonMode,
-		NoColor: noColor,
+		NoColor: noColor || os.Getenv("NO_COLOR") != "",
 		TTY:     term.IsTerminal(int(os.Stdout.Fd())),
 	}
 }
@@ -41,7 +47,7 @@ func (w Writer) WriteTask(task *store.Task) error {
 	}
 
 	if w.TTY {
-		return writeHumanTask(w.Out, task)
+		return writeHumanTask(w.Out, w.NoColor, task)
 	}
 	_, err := fmt.Fprintln(w.Out, plainLine(task))
 	return err
@@ -57,7 +63,7 @@ func (w Writer) WriteTasks(tasks []*store.Task) error {
 	}
 
 	if w.TTY {
-		return writeHumanList(w.Out, tasks)
+		return writeHumanList(w.Out, w.NoColor, tasks)
 	}
 	for _, task := range tasks {
 		if _, err := fmt.Fprintln(w.Out, plainLine(task)); err != nil {
@@ -73,7 +79,7 @@ func (w Writer) WriteTags(tags []store.NameCount) error {
 	}
 
 	if w.TTY {
-		return writeHumanTags(w.Out, tags)
+		return writeHumanTags(w.Out, w.NoColor, tags)
 	}
 	for _, tag := range tags {
 		if _, err := fmt.Fprintln(w.Out, tag.Name); err != nil {
@@ -86,6 +92,9 @@ func (w Writer) WriteTags(tags []store.NameCount) error {
 func (w Writer) WriteTagsWithCounts(tags []store.NameCount) error {
 	if w.JSON {
 		return writeJSON(w.Out, tags)
+	}
+	if w.TTY {
+		return writeHumanTagsWithCounts(w.Out, w.NoColor, tags)
 	}
 
 	for _, tag := range tags {
@@ -101,9 +110,55 @@ func (w Writer) WriteSummary(summary any) error {
 		return writeJSON(w.Out, summary)
 	}
 	if w.TTY {
-		return writeHumanSummary(w.Out, summary)
+		return writeHumanSummary(w.Out, w.NoColor, summary)
 	}
 	return writePlainSummary(w.Out, summary)
+}
+
+func (w Writer) WriteKeyValues(rows []KeyValue) error {
+	if w.TTY {
+		return writeHumanKeyValues(w.Out, w.NoColor, rows)
+	}
+	for _, row := range rows {
+		if _, err := fmt.Fprintf(w.Out, "%s:\t%s\n", row.Key, row.Value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w Writer) WriteLine(line string) error {
+	if !w.TTY {
+		_, err := fmt.Fprintln(w.Out, line)
+		return err
+	}
+	formatted := pterm.DefaultBasicText.Sprintln(line)
+	return writeRenderedLine(w.Out, w.NoColor, formatted)
+}
+
+func (w Writer) WriteInfo(line string) error {
+	return w.writePrefixLine(pterm.Info, line)
+}
+
+func (w Writer) WriteSuccess(line string) error {
+	return w.writePrefixLine(pterm.Success, line)
+}
+
+func (w Writer) WriteWarning(line string) error {
+	return w.writePrefixLine(pterm.Warning, line)
+}
+
+func (w Writer) WriteError(line string) error {
+	return w.writePrefixLine(pterm.Error, line)
+}
+
+func (w Writer) writePrefixLine(printer pterm.PrefixPrinter, line string) error {
+	if !w.TTY {
+		_, err := fmt.Fprintln(w.Out, line)
+		return err
+	}
+	formatted := printer.Sprintln(line)
+	return writeRenderedLine(w.Out, w.NoColor, formatted)
 }
 
 type TaskJSON struct {

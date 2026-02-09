@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/olekukonko/tablewriter"
+	"github.com/pterm/pterm"
 
 	"github.com/mholtzscher/ugh/internal/store"
 )
@@ -20,10 +20,9 @@ type Summary struct {
 	File   string  `json:"file,omitempty"`
 }
 
-func writeHumanTask(out io.Writer, task *store.Task) error {
-	table := tablewriter.NewWriter(out)
-	table.Header("Field", "Value")
-	rows := [][]string{
+func writeHumanTask(out io.Writer, noColor bool, task *store.Task) error {
+	rows := pterm.TableData{
+		{"Field", "Value"},
 		{"ID", strconv.FormatInt(task.ID, 10)},
 		{"State", string(task.State)},
 		{"Prev State", stateOrDash(task.PrevState)},
@@ -38,48 +37,33 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 		{"Contexts", joinListOrDash(task.Contexts)},
 		{"Meta", metaOrDash(task.Meta)},
 	}
-	for _, row := range rows {
-		if err := appendRow(table, row); err != nil {
-			return err
-		}
-	}
-	return table.Render()
+	return renderTable(out, noColor, rows)
 }
 
-func writeHumanList(out io.Writer, tasks []*store.Task) error {
-	table := tablewriter.NewWriter(out)
-	table.Header("ID", "State", "Due", "Waiting", "Task")
+func writeHumanList(out io.Writer, noColor bool, tasks []*store.Task) error {
+	rows := pterm.TableData{{"ID", "State", "Due", "Task"}}
 	for _, task := range tasks {
-		row := []string{
+		rows = append(rows, []string{
 			strconv.FormatInt(task.ID, 10),
 			string(task.State),
 			dateOrDash(task.DueOn),
-			emptyDash(task.WaitingFor),
 			task.Title,
-		}
-		if err := appendRow(table, row); err != nil {
-			return err
-		}
+		})
 	}
-	return table.Render()
+	return renderTable(out, noColor, rows)
 }
 
-func writeHumanSummary(out io.Writer, summary any) error {
+func writeHumanSummary(out io.Writer, noColor bool, summary any) error {
 	switch value := summary.(type) {
 	case Summary:
-		table := tablewriter.NewWriter(out)
-		table.Header("Action", "Count", "IDs")
 		ids := "-"
 		if len(value.IDs) > 0 {
 			ids = joinIDs(value.IDs)
 		}
-		if err := table.Append(value.Action, strconv.FormatInt(value.Count, 10), ids); err != nil {
-			return err
-		}
-		return table.Render()
+		rows := pterm.TableData{{"Action", "Count", "IDs"}, {value.Action, strconv.FormatInt(value.Count, 10), ids}}
+		return renderTable(out, noColor, rows)
 	default:
-		_, err := fmt.Fprintf(out, "%v\n", value)
-		return err
+		return writeRenderedLine(out, noColor, pterm.DefaultBasicText.Sprintln(fmt.Sprintf("%v", value)))
 	}
 }
 
@@ -137,14 +121,6 @@ func joinIDs(ids []int64) string {
 	return strings.Join(parts, ",")
 }
 
-func appendRow(table *tablewriter.Table, row []string) error {
-	values := make([]any, len(row))
-	for i, val := range row {
-		values[i] = val
-	}
-	return table.Append(values...)
-}
-
 func joinListOrDash(values []string) string {
 	if len(values) == 0 {
 		return "-"
@@ -175,13 +151,39 @@ func stateOrDash(value *store.State) string {
 	return string(*value)
 }
 
-func writeHumanTags(out io.Writer, tags []store.NameCount) error {
-	table := tablewriter.NewWriter(out)
-	table.Header("Name", "Count")
+func writeHumanTags(out io.Writer, noColor bool, tags []store.NameCount) error {
+	return writeHumanTagsWithCounts(out, noColor, tags)
+}
+
+func writeHumanTagsWithCounts(out io.Writer, noColor bool, tags []store.NameCount) error {
+	rows := pterm.TableData{{"Name", "Count"}}
 	for _, tag := range tags {
-		if err := appendRow(table, []string{tag.Name, strconv.FormatInt(tag.Count, 10)}); err != nil {
-			return err
-		}
+		rows = append(rows, []string{tag.Name, strconv.FormatInt(tag.Count, 10)})
 	}
-	return table.Render()
+	return renderTable(out, noColor, rows)
+}
+
+func writeHumanKeyValues(out io.Writer, noColor bool, rows []KeyValue) error {
+	tableData := pterm.TableData{{"Key", "Value"}}
+	for _, row := range rows {
+		tableData = append(tableData, []string{row.Key, row.Value})
+	}
+	return renderTable(out, noColor, tableData)
+}
+
+func renderTable(out io.Writer, noColor bool, data pterm.TableData) error {
+	table := pterm.DefaultTable.WithHasHeader().WithLeftAlignment().WithBoxed().WithData(data)
+	rendered, err := table.Srender()
+	if err != nil {
+		return err
+	}
+	return writeRenderedLine(out, noColor, rendered)
+}
+
+func writeRenderedLine(out io.Writer, noColor bool, line string) error {
+	if noColor {
+		line = pterm.RemoveColorFromString(line)
+	}
+	_, err := fmt.Fprint(out, line)
+	return err
 }

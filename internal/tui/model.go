@@ -27,16 +27,18 @@ const (
 )
 
 const (
-	defaultWidth           = 120
-	defaultHeight          = 32
-	statusLoadingText      = "loading tasks..."
-	statusRefreshText      = "refreshing..."
-	statusCommandCancelled = "command cancelled"
-	statusCommandRejected  = "command rejected"
-	searchInputWidth       = 48
-	searchMinWidth         = 1
-	searchNarrowPad        = 6
-	keyCtrlC               = "ctrl+c"
+	defaultWidth            = 120
+	defaultHeight           = 32
+	statusLoadingText       = "loading tasks..."
+	statusRefreshText       = "refreshing..."
+	statusCommandCancelled  = "command cancelled"
+	statusCommandRejected   = "command rejected"
+	searchInputWidth        = 48
+	searchMinWidth          = 1
+	searchNarrowPad         = 6
+	keyCtrlC                = "ctrl+c"
+	statusTitleRequired     = "title is required"
+	statusTaskFormLastField = "last field selected - press ctrl+s to save"
 )
 
 type model struct {
@@ -506,8 +508,7 @@ func (m model) submitCommandInput() (tea.Model, tea.Cmd) {
 func (m model) startTaskAddForm() (tea.Model, tea.Cmd) {
 	m.taskForm = startAddTaskForm(searchWidthForLayout(m.layout))
 	m.status = "add task form"
-	cmd := m.taskForm.focus()
-	return m, cmd
+	return m, nil
 }
 
 func (m model) startTaskEditForm() (tea.Model, tea.Cmd) {
@@ -518,35 +519,63 @@ func (m model) startTaskEditForm() (tea.Model, tea.Cmd) {
 	}
 	m.taskForm = startEditTaskForm(task, searchWidthForLayout(m.layout))
 	m.status = fmt.Sprintf("edit task #%d", task.ID)
-	cmd := m.taskForm.focus()
-	return m, cmd
+	return m, nil
 }
 
 func (m model) handleTaskFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.String() == keyCtrlC {
 		return m, tea.Quit
 	}
-
+	if key.Matches(msg, m.keys.Save) {
+		return m.submitTaskForm()
+	}
 	if key.Matches(msg, m.keys.Esc) {
-		m.taskForm = inactiveTaskForm(searchWidthForLayout(m.layout))
-		m.status = "task form cancelled"
+		return m.handleTaskFormEsc()
+	}
+	if m.taskForm.editing {
+		return m.handleTaskFormEditKey(msg)
+	}
+	return m.handleTaskFormNavKey(msg)
+}
+
+func (m model) handleTaskFormEsc() (tea.Model, tea.Cmd) {
+	if m.taskForm.editing {
+		m.taskForm = m.taskForm.withField(m.taskForm.field)
+		m.status = "field edit cancelled"
 		return m, nil
 	}
-	if msg.String() == "shift+tab" {
-		m.taskForm = m.taskForm.commitInput().previousField()
-		cmd := m.taskForm.focus()
+	m.taskForm = inactiveTaskForm(searchWidthForLayout(m.layout))
+	m.status = "task form cancelled"
+	return m, nil
+}
+
+func (m model) handleTaskFormNavKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if key.Matches(msg, m.keys.Up) || msg.String() == "k" || msg.String() == "shift+tab" {
+		m.taskForm = m.taskForm.previousField()
+		return m, nil
+	}
+	if key.Matches(msg, m.keys.Down) || msg.String() == "j" || msg.String() == "tab" {
+		next, _ := m.taskForm.nextField()
+		m.taskForm = next
+		return m, nil
+	}
+	if key.Matches(msg, m.keys.Select) || msg.String() == "i" {
+		var cmd tea.Cmd
+		m.taskForm, cmd = m.taskForm.startEditing()
 		return m, cmd
 	}
-	if msg.String() == "tab" {
-		return m.advanceTaskForm()
+	return m, nil
+}
+
+func (m model) handleTaskFormEditKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "shift+tab" || msg.String() == "ctrl+k" {
+		return m.moveTaskFormField(false)
 	}
-	if key.Matches(msg, m.keys.Select) {
-		if m.taskForm.field == taskFormFieldNotes {
-			var cmd tea.Cmd
-			m.taskForm, cmd = m.taskForm.update(msg)
-			return m, cmd
-		}
-		return m.advanceTaskForm()
+	if msg.String() == "tab" || msg.String() == "ctrl+j" {
+		return m.moveTaskFormField(true)
+	}
+	if key.Matches(msg, m.keys.Select) && m.taskForm.field != taskFormFieldNotes {
+		return m.moveTaskFormField(true)
 	}
 
 	var cmd tea.Cmd
@@ -554,21 +583,34 @@ func (m model) handleTaskFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) advanceTaskForm() (tea.Model, tea.Cmd) {
+func (m model) moveTaskFormField(forward bool) (tea.Model, tea.Cmd) {
 	form := m.taskForm.commitInput()
-	next, done := form.nextField()
-	if !done {
-		m.taskForm = next
-		cmd := m.taskForm.focus()
+	if !forward {
+		previous := form.previousField()
+		var cmd tea.Cmd
+		m.taskForm, cmd = previous.startEditing()
 		return m, cmd
 	}
 
+	next, done := form.nextField()
+	if done {
+		m.taskForm = form.stopEditing()
+		m.status = statusTaskFormLastField
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.taskForm, cmd = next.startEditing()
+	return m, cmd
+}
+
+func (m model) submitTaskForm() (tea.Model, tea.Cmd) {
+	form := m.taskForm.commitInput().stopEditing()
 	if strings.TrimSpace(form.values.title) == "" {
-		m.status = "title is required"
-		m.errText = "title is required"
+		m.status = statusTitleRequired
+		m.errText = statusTitleRequired
 		m.taskForm = form.withField(taskFormFieldTitle)
-		cmd := m.taskForm.focus()
-		return m, cmd
+		return m, nil
 	}
 
 	m.errText = ""
@@ -718,10 +760,6 @@ func (m model) selectedTask() *store.Task {
 }
 
 func (m model) View() string {
-	if m.taskForm.active() {
-		return m.renderModalWithBackdrop(m.renderTaskFormModal())
-	}
-
 	if m.searchMode {
 		return m.renderModalWithBackdrop(m.renderInputModal(m.searchInput, "Search"))
 	}

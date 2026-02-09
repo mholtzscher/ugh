@@ -49,8 +49,10 @@ After installation, use 'ugh daemon start' to start the service.`,
 
 		w := outputWriter()
 		status, _ := mgr.Status()
-		_, _ = fmt.Fprintln(w.Out, "Service installed at", status.ServicePath)
-		_, _ = fmt.Fprintln(w.Out, "Run 'ugh daemon start' to start the daemon")
-		return nil
+		err = w.WriteSuccess("Service installed at " + status.ServicePath)
+		if err != nil {
+			return err
+		}
+		return w.WriteInfo("Run 'ugh daemon start' to start the daemon")
 	},
 }

@@ -32,7 +32,6 @@ The service must be installed first with 'ugh daemon install'.`,
 		}
 
 		w := outputWriter()
-		_, _ = fmt.Fprintln(w.Out, "Daemon started")
-		return nil
+		return w.WriteSuccess("Daemon started")
 	},
 }

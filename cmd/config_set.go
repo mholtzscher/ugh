@@ -57,8 +57,7 @@ var configSetCmd = &cli.Command{
 			enc := json.NewEncoder(writer.Out)
 			return enc.Encode(configSetResult{Action: "set", Key: key, Value: value, File: cfgPath})
 		}
-		_, err = fmt.Fprintf(writer.Out, "set %s\n", key)
-		return err
+		return writer.WriteSuccess("set " + key)
 	},
 }
 

@@ -17,28 +17,6 @@ const (
 	modalHintText     = "enter: apply  esc: close"
 )
 
-func (m model) renderTaskFormModal() string {
-	canvasWidth, canvasHeight := m.modalCanvasSize()
-
-	availableWidth := max(modalMinBodyWidth, canvasWidth-(modalOuterPad*modalPadSides))
-	preferredWidth := max(modalMinWidth, (canvasWidth*modalWidthNum)/modalWidthDen)
-	modalWidth := min(availableWidth, preferredWidth)
-	modalInputWidth := max(modalMinInput, modalWidth-modalInputPad)
-
-	form := m.taskForm.withWidth(modalInputWidth)
-	content := m.styles.panelFocus.Width(modalWidth).Render(
-		form.render(m.styles) + "\n" + m.styles.muted.Render("esc: close"),
-	)
-
-	return lipgloss.Place(
-		canvasWidth,
-		canvasHeight,
-		lipgloss.Center,
-		lipgloss.Center,
-		content,
-	)
-}
-
 func (m model) renderInputModal(input textinput.Model, title string) string {
 	canvasWidth, canvasHeight := m.modalCanvasSize()
 

@@ -29,7 +29,6 @@ var daemonStopCmd = &cli.Command{
 		}
 
 		w := outputWriter()
-		_, _ = fmt.Fprintln(w.Out, "Daemon stopped")
-		return nil
+		return w.WriteSuccess("Daemon stopped")
 	},
 }

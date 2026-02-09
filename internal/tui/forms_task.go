@@ -52,6 +52,7 @@ type taskFormValues struct {
 type taskFormState struct {
 	mode      taskFormMode
 	field     taskFormField
+	editing   bool
 	taskID    int64
 	taskState string
 	values    taskFormValues
@@ -119,6 +120,9 @@ func (f taskFormState) withWidth(width int) taskFormState {
 
 func (f taskFormState) withField(field taskFormField) taskFormState {
 	f.field = field
+	f.editing = false
+	f.input.Blur()
+	f.notes.Blur()
 	if field == taskFormFieldNotes {
 		f.notes.Prompt = taskFormFieldLabel(field) + ": "
 		f.notes.Placeholder = taskFormFieldPlaceholder(field)
@@ -134,11 +138,21 @@ func (f taskFormState) withField(field taskFormField) taskFormState {
 	return f
 }
 
-func (f taskFormState) focus() tea.Cmd {
+func (f taskFormState) startEditing() (taskFormState, tea.Cmd) {
+	f.editing = true
 	if f.field == taskFormFieldNotes {
-		return f.notes.Focus()
+		cmd := f.notes.Focus()
+		return f, cmd
 	}
-	return f.input.Focus()
+	cmd := f.input.Focus()
+	return f, cmd
+}
+
+func (f taskFormState) stopEditing() taskFormState {
+	f.editing = false
+	f.input.Blur()
+	f.notes.Blur()
+	return f
 }
 
 func (f taskFormState) update(msg tea.Msg) (taskFormState, tea.Cmd) {
@@ -242,6 +256,11 @@ func (f taskFormState) render(styles styles) string {
 	lines := []string{styles.title.Render(f.modeTitle())}
 	for field := range taskFormFieldCount {
 		item := taskFormField(field)
+		if f.editing && item == f.field {
+			lines = append(lines, f.inputView(styles))
+			continue
+		}
+
 		label := taskFormFieldLabel(item)
 		value := f.valueForField(item)
 		if value == "" {
@@ -253,11 +272,17 @@ func (f taskFormState) render(styles styles) string {
 		}
 		lines = append(lines, line)
 	}
-	lines = append(lines, "", f.inputView(styles))
-	hint := "enter/tab: next/save  shift+tab: previous  esc: cancel"
-	if f.field == taskFormFieldNotes {
-		hint = "enter: newline  tab: next  shift+tab: previous  esc: cancel"
+
+	if f.editing {
+		hint := "enter/ctrl+j: next field  shift+tab/ctrl+k: previous  ctrl+s: save  esc: stop editing"
+		if f.field == taskFormFieldNotes {
+			hint = "enter: newline  tab/ctrl+j: next field  shift+tab/ctrl+k: previous  ctrl+s: save  esc: stop editing"
+		}
+		lines = append(lines, styles.muted.Render(hint))
+		return strings.Join(lines, "\n")
 	}
+
+	hint := "enter/i: edit field  j/k: move field  tab/shift+tab: move field  ctrl+s: save  esc: cancel"
 	lines = append(lines, styles.muted.Render(hint))
 	return strings.Join(lines, "\n")
 }
