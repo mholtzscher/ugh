@@ -79,6 +79,7 @@ func (e *Executor) preprocessInput(input string) string {
 	if lastID := e.getLastTaskID(); lastID != 0 {
 		input = strings.ReplaceAll(input, " it ", fmt.Sprintf(" %d ", lastID))
 		input = strings.ReplaceAll(input, " this ", fmt.Sprintf(" %d ", lastID))
+		input = strings.ReplaceAll(input, " last ", fmt.Sprintf(" %d ", lastID))
 	}
 	if secondToLastID := e.getSecondToLastTaskID(); secondToLastID != 0 {
 		input = strings.ReplaceAll(input, " that ", fmt.Sprintf(" %d ", secondToLastID))
