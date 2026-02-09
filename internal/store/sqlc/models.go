@@ -24,6 +24,15 @@ type Project struct {
 	UpdatedAt  int64         `json:"updated_at"`
 }
 
+type ShellHistory struct {
+	ID            int64          `json:"id"`
+	Timestamp     int64          `json:"timestamp"`
+	Command       string         `json:"command"`
+	Success       bool           `json:"success"`
+	ResultSummary sql.NullString `json:"result_summary"`
+	Intent        sql.NullString `json:"intent"`
+}
+
 type Task struct {
 	ID          int64          `json:"id"`
 	State       string         `json:"state"`

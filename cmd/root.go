@@ -89,6 +89,7 @@ var rootCmd = &cli.Command{
 		syncCmd,
 		configCmd,
 		daemonCmd,
+		shellCmd,
 	},
 }
 

@@ -17,6 +17,7 @@ var configCmd = &cli.Command{
 		configShowCmd,
 		configGetCmd,
 		configSetCmd,
+		configUnsetCmd,
 	},
 }
 
