@@ -188,6 +188,17 @@ func (r *REPL) processCommand(ctx context.Context, input string) error {
 	case "clear":
 		r.display.Clear()
 		return nil
+	// Quick view shortcuts - expanded before execution
+	case "i":
+		input = "find state:inbox"
+	case "n":
+		input = "find state:now"
+	case "w":
+		input = "find state:waiting"
+	case "l":
+		input = "find state:later"
+	case "c":
+		input = "find due:today"
 	}
 
 	// Handle context commands: context #project, context @context, context clear
@@ -226,8 +237,12 @@ func (r *REPL) showPlainHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "Navigation:")
 	_, _ = fmt.Fprintln(os.Stdout, "  quit, exit, q    Exit the shell")
 	_, _ = fmt.Fprintln(os.Stdout, "  help, ?          Show this help")
-	_, _ = fmt.Fprintln(os.Stdout, "  clear              Clear the screen")
-	_, _ = fmt.Fprintln(os.Stdout)
+	_, _ = fmt.Fprintln(os.Stdout, "  clear            Clear the screen")
+	_, _ = fmt.Fprintln(os.Stdout, "")
+
+	_, _ = fmt.Fprintln(os.Stdout, "Quick Views:")
+	_, _ = fmt.Fprintln(os.Stdout, "  i  Inbox,  n  Now,  w  Waiting,  l  Later,  c  Due today")
+	_, _ = fmt.Fprintln(os.Stdout, "")
 
 	_, _ = fmt.Fprintln(os.Stdout, "Examples:")
 	_, _ = fmt.Fprintln(os.Stdout, "  add buy milk tomorrow #groceries @store")
@@ -283,6 +298,14 @@ func (r *REPL) showColorHelp() {
 		pterm.LightCyan("quit, exit, q") + "    Exit the shell\n" +
 			pterm.LightCyan("help, ?") + "          Show this help\n" +
 			pterm.LightCyan("clear") + "            Clear the screen")
+
+	// Quick Views panel
+	pterm.DefaultBox.WithTitle(pterm.Green("Quick Views")).WithRightPadding(1).WithLeftPadding(1).Println(
+		pterm.LightGreen("i") + "                Inbox tasks\n" +
+			pterm.LightGreen("n") + "                Now tasks\n" +
+			pterm.LightGreen("w") + "                Waiting tasks\n" +
+			pterm.LightGreen("l") + "                Later tasks\n" +
+			pterm.LightGreen("c") + "                Due today")
 
 	// Examples panel
 	pterm.DefaultBox.WithTitle(pterm.Green("Examples")).WithRightPadding(1).WithLeftPadding(1).Println(
