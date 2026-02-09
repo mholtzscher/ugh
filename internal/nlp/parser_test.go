@@ -10,7 +10,7 @@ import (
 // Helper functions to reduce cognitive complexity
 
 // extractTags extracts tag values of a specific kind from a CreateCommand's operations.
-func extractTags(cmd nlp.CreateCommand, kind nlp.TagKind) []string {
+func extractTags(cmd *nlp.CreateCommand, kind nlp.TagKind) []string {
 	var tags []string
 	for _, op := range cmd.Ops {
 		if tagOp, ok := op.(nlp.TagOp); ok && tagOp.Kind == kind {
@@ -18,6 +18,46 @@ func extractTags(cmd nlp.CreateCommand, kind nlp.TagKind) []string {
 		}
 	}
 	return tags
+}
+
+func findSetOpValue(ops []nlp.Operation, field nlp.Field) (string, bool) {
+	for _, op := range ops {
+		setOp, ok := op.(nlp.SetOp)
+		if ok && setOp.Field == field {
+			return string(setOp.Value), true
+		}
+	}
+	return "", false
+}
+
+func findAddOpValue(ops []nlp.Operation, field nlp.Field) (string, bool) {
+	for _, op := range ops {
+		addOp, ok := op.(nlp.AddOp)
+		if ok && addOp.Field == field {
+			return string(addOp.Value), true
+		}
+	}
+	return "", false
+}
+
+func findRemoveOpValue(ops []nlp.Operation, field nlp.Field) (string, bool) {
+	for _, op := range ops {
+		removeOp, ok := op.(nlp.RemoveOp)
+		if ok && removeOp.Field == field {
+			return string(removeOp.Value), true
+		}
+	}
+	return "", false
+}
+
+func hasClearOp(ops []nlp.Operation, field nlp.Field) bool {
+	for _, op := range ops {
+		clearOp, ok := op.(nlp.ClearOp)
+		if ok && clearOp.Field == field {
+			return true
+		}
+	}
+	return false
 }
 
 // assertStringSliceEqual checks if two string slices are equal and reports errors.
@@ -89,7 +129,7 @@ func TestParseCreate_Basic(t *testing.T) {
 			if result.Intent != nlp.IntentCreate {
 				t.Fatalf("intent = %v, want %v", result.Intent, nlp.IntentCreate)
 			}
-			cmd, ok := result.Command.(nlp.CreateCommand)
+			cmd, ok := result.Command.(*nlp.CreateCommand)
 			if !ok {
 				t.Fatalf("command type = %T, want CreateCommand", result.Command)
 			}
@@ -133,7 +173,7 @@ func TestParseCreate_WithProjects(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.CreateCommand)
+			cmd := result.Command.(*nlp.CreateCommand)
 			if cmd.Title != tt.wantTitle {
 				t.Errorf("title = %q, want %q", cmd.Title, tt.wantTitle)
 			}
@@ -162,7 +202,7 @@ func TestParseCreate_WithContexts(t *testing.T) {
 		{
 			name:         "multiple contexts",
 			input:        "add call mom @phone @urgent",
-			wantTitle:    "add call mom",
+			wantTitle:    "call mom",
 			wantContexts: []string{"phone", "urgent"},
 		},
 
@@ -181,7 +221,7 @@ func TestParseCreate_WithContexts(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.CreateCommand)
+			cmd := result.Command.(*nlp.CreateCommand)
 
 			gotContexts := extractTags(cmd, nlp.TagContext)
 			assertStringSliceEqual(t, gotContexts, tt.wantContexts, "contexts")
@@ -218,16 +258,11 @@ func TestParseCreate_WithDates(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.CreateCommand)
-
-			// Find date operation
-			var foundDueValue string
-			for _, op := range cmd.Ops {
-				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldDue {
-					foundDueValue = setOp.Value
-				}
+			cmd := result.Command.(*nlp.CreateCommand)
+			foundDueValue, ok := findSetOpValue(cmd.Ops, nlp.FieldDue)
+			if !ok {
+				t.Fatalf("due operation not found")
 			}
-
 			if foundDueValue != tt.wantDueValue {
 				t.Errorf("due value = %q, want %q", foundDueValue, tt.wantDueValue)
 			}
@@ -282,15 +317,11 @@ func TestParseCreate_WithState(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.CreateCommand)
-
-			var foundState string
-			for _, op := range cmd.Ops {
-				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldState {
-					foundState = setOp.Value
-				}
+			cmd := result.Command.(*nlp.CreateCommand)
+			foundState, ok := findSetOpValue(cmd.Ops, nlp.FieldState)
+			if !ok {
+				t.Fatalf("state operation not found")
 			}
-
 			if foundState != tt.wantState {
 				t.Errorf("state = %q, want %q", foundState, tt.wantState)
 			}
@@ -325,15 +356,11 @@ func TestParseCreate_WithWaiting(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.CreateCommand)
-
-			var foundWaiting string
-			for _, op := range cmd.Ops {
-				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldWaiting {
-					foundWaiting = setOp.Value
-				}
+			cmd := result.Command.(*nlp.CreateCommand)
+			foundWaiting, ok := findSetOpValue(cmd.Ops, nlp.FieldWaiting)
+			if !ok {
+				t.Fatalf("waiting operation not found")
 			}
-
 			if foundWaiting != tt.wantWaiting {
 				t.Errorf("waiting = %q, want %q", foundWaiting, tt.wantWaiting)
 			}
@@ -368,15 +395,11 @@ func TestParseCreate_WithNotes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.CreateCommand)
-
-			var foundNotes string
-			for _, op := range cmd.Ops {
-				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldNotes {
-					foundNotes = setOp.Value
-				}
+			cmd := result.Command.(*nlp.CreateCommand)
+			foundNotes, ok := findSetOpValue(cmd.Ops, nlp.FieldNotes)
+			if !ok {
+				t.Fatalf("notes operation not found")
 			}
-
 			if foundNotes != tt.wantNotes {
 				t.Errorf("notes = %q, want %q", foundNotes, tt.wantNotes)
 			}
@@ -398,7 +421,7 @@ func TestParseCreate_Complex(t *testing.T) {
 		t.Fatalf("Parse error = %v", err)
 	}
 
-	cmd := result.Command.(nlp.CreateCommand)
+	cmd := result.Command.(*nlp.CreateCommand)
 	if cmd.Title != "buy milk" {
 		t.Errorf("title = %q, want %q", cmd.Title, "buy milk")
 	}
@@ -436,6 +459,12 @@ func TestParseUpdate_Targets(t *testing.T) {
 			wantID:   123,
 		},
 		{
+			name:     "hash ID target",
+			input:    "set #123 state:now",
+			wantKind: nlp.TargetID,
+			wantID:   123,
+		},
+		{
 			name:     "edit verb with ID",
 			input:    "edit 456 title:new title",
 			wantKind: nlp.TargetID,
@@ -462,7 +491,7 @@ func TestParseUpdate_Targets(t *testing.T) {
 			if result.Intent != nlp.IntentUpdate {
 				t.Fatalf("intent = %v, want %v", result.Intent, nlp.IntentUpdate)
 			}
-			cmd := result.Command.(nlp.UpdateCommand)
+			cmd := result.Command.(*nlp.UpdateCommand)
 			if cmd.Target.Kind != tt.wantKind {
 				t.Errorf("target kind = %v, want %v", cmd.Target.Kind, tt.wantKind)
 			}
@@ -521,20 +550,15 @@ func TestParseUpdate_SetOperations(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.UpdateCommand)
+			cmd := result.Command.(*nlp.UpdateCommand)
 
-			var found bool
-			for _, op := range cmd.Ops {
-				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == tt.wantField {
-					found = true
-					if setOp.Value != tt.wantValue {
-						t.Errorf("value = %q, want %q", setOp.Value, tt.wantValue)
-					}
-				}
-			}
-
+			value, found := findSetOpValue(cmd.Ops, tt.wantField)
 			if !found {
 				t.Errorf("set operation for field %v not found", tt.wantField)
+				return
+			}
+			if value != tt.wantValue {
+				t.Errorf("value = %q, want %q", value, tt.wantValue)
 			}
 		})
 	}
@@ -565,7 +589,7 @@ func TestParseUpdate_AddOperations(t *testing.T) {
 			name:      "add meta",
 			input:     "set selected +meta:priority:high",
 			wantField: nlp.FieldMeta,
-			wantValue: "priority : high", // Parser adds spaces around colon
+			wantValue: "priority:high",
 		},
 	}
 
@@ -576,20 +600,15 @@ func TestParseUpdate_AddOperations(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.UpdateCommand)
+			cmd := result.Command.(*nlp.UpdateCommand)
 
-			var found bool
-			for _, op := range cmd.Ops {
-				if addOp, ok := op.(nlp.AddOp); ok && addOp.Field == tt.wantField {
-					found = true
-					if addOp.Value != tt.wantValue {
-						t.Errorf("value = %q, want %q", addOp.Value, tt.wantValue)
-					}
-				}
-			}
-
+			value, found := findAddOpValue(cmd.Ops, tt.wantField)
 			if !found {
 				t.Errorf("add operation for field %v not found", tt.wantField)
+				return
+			}
+			if value != tt.wantValue {
+				t.Errorf("value = %q, want %q", value, tt.wantValue)
 			}
 		})
 	}
@@ -625,20 +644,15 @@ func TestParseUpdate_RemoveOperations(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.UpdateCommand)
+			cmd := result.Command.(*nlp.UpdateCommand)
 
-			var found bool
-			for _, op := range cmd.Ops {
-				if removeOp, ok := op.(nlp.RemoveOp); ok && removeOp.Field == tt.wantField {
-					found = true
-					if removeOp.Value != tt.wantValue {
-						t.Errorf("value = %q, want %q", removeOp.Value, tt.wantValue)
-					}
-				}
-			}
-
+			value, found := findRemoveOpValue(cmd.Ops, tt.wantField)
 			if !found {
 				t.Errorf("remove operation for field %v not found", tt.wantField)
+				return
+			}
+			if value != tt.wantValue {
+				t.Errorf("value = %q, want %q", value, tt.wantValue)
 			}
 		})
 	}
@@ -676,16 +690,9 @@ func TestParseUpdate_ClearOperations(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.UpdateCommand)
+			cmd := result.Command.(*nlp.UpdateCommand)
 
-			var found bool
-			for _, op := range cmd.Ops {
-				if clearOp, ok := op.(nlp.ClearOp); ok && clearOp.Field == tt.wantField {
-					found = true
-				}
-			}
-
-			if !found {
+			if !hasClearOp(cmd.Ops, tt.wantField) {
 				t.Errorf("clear operation for field %v not found", tt.wantField)
 			}
 		})
@@ -701,7 +708,7 @@ func TestParseUpdate_Combined(t *testing.T) {
 		t.Fatalf("Parse error = %v", err)
 	}
 
-	cmd := result.Command.(nlp.UpdateCommand)
+	cmd := result.Command.(*nlp.UpdateCommand)
 	if cmd.Target.Kind != nlp.TargetSelected {
 		t.Errorf("target kind = %v, want %v", cmd.Target.Kind, nlp.TargetSelected)
 	}
@@ -755,7 +762,7 @@ func TestParseFilter_Basic(t *testing.T) {
 			if result.Intent != tt.wantIntent {
 				t.Errorf("intent = %v, want %v", result.Intent, tt.wantIntent)
 			}
-			_, ok := result.Command.(nlp.FilterCommand)
+			_, ok := result.Command.(*nlp.FilterCommand)
 			if !ok {
 				t.Errorf("command type = %T, want FilterCommand", result.Command)
 			}
@@ -814,6 +821,12 @@ func TestParseFilter_Predicates(t *testing.T) {
 			wantKind: nlp.PredID,
 			wantText: "3",
 		},
+		{
+			name:     "show hash numeric is id lookup",
+			input:    "show #3",
+			wantKind: nlp.PredID,
+			wantText: "3",
+		},
 	}
 
 	for _, tt := range tests {
@@ -823,7 +836,7 @@ func TestParseFilter_Predicates(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.FilterCommand)
+			cmd := result.Command.(*nlp.FilterCommand)
 
 			pred, ok := cmd.Expr.(nlp.Predicate)
 			if !ok {
@@ -864,7 +877,7 @@ func TestParseFilter_LogicalAnd(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.FilterCommand)
+			cmd := result.Command.(*nlp.FilterCommand)
 
 			binary, ok := cmd.Expr.(nlp.FilterBinary)
 			if !ok {
@@ -902,7 +915,7 @@ func TestParseFilter_LogicalOr(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse error = %v", err)
 			}
-			cmd := result.Command.(nlp.FilterCommand)
+			cmd := result.Command.(*nlp.FilterCommand)
 
 			binary, ok := cmd.Expr.(nlp.FilterBinary)
 			if !ok {
@@ -970,7 +983,7 @@ func TestParseCreateCommand(t *testing.T) {
 		t.Fatalf("Parse(create) intent = %v, want %v", result.Intent, nlp.IntentCreate)
 	}
 
-	cmd, ok := result.Command.(nlp.CreateCommand)
+	cmd, ok := result.Command.(*nlp.CreateCommand)
 	if !ok {
 		t.Fatalf("command type = %T, want CreateCommand", result.Command)
 	}
@@ -993,7 +1006,7 @@ func TestParseUpdateCommand(t *testing.T) {
 		t.Fatalf("Parse(update) intent = %v, want %v", result.Intent, nlp.IntentUpdate)
 	}
 
-	cmd, ok := result.Command.(nlp.UpdateCommand)
+	cmd, ok := result.Command.(*nlp.UpdateCommand)
 	if !ok {
 		t.Fatalf("command type = %T, want UpdateCommand", result.Command)
 	}
@@ -1062,7 +1075,7 @@ func assertTagShorthand(
 		t.Fatalf("intent = %v, want %v", result.Intent, nlp.IntentUpdate)
 	}
 
-	cmd, ok := result.Command.(nlp.UpdateCommand)
+	cmd, ok := result.Command.(*nlp.UpdateCommand)
 	if !ok {
 		t.Fatalf("command type = %T, want UpdateCommand", result.Command)
 	}
@@ -1096,7 +1109,7 @@ func TestParseFilterCommand(t *testing.T) {
 		t.Fatalf("Parse(filter) intent = %v, want %v", result.Intent, nlp.IntentFilter)
 	}
 
-	cmd, ok := result.Command.(nlp.FilterCommand)
+	cmd, ok := result.Command.(*nlp.FilterCommand)
 	if !ok {
 		t.Fatalf("command type = %T, want FilterCommand", result.Command)
 	}

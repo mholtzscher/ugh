@@ -39,19 +39,19 @@ func Build(result nlp.ParseResult, opts BuildOptions) (Plan, error) {
 	}
 
 	switch cmd := result.Command.(type) {
-	case nlp.CreateCommand:
+	case *nlp.CreateCommand:
 		req, err := buildCreateRequest(cmd, opts)
 		if err != nil {
 			return Plan{}, err
 		}
 		return Plan{Intent: nlp.IntentCreate, Create: &req}, nil
-	case nlp.UpdateCommand:
+	case *nlp.UpdateCommand:
 		req, target, err := buildUpdateRequest(cmd, opts)
 		if err != nil {
 			return Plan{}, err
 		}
 		return Plan{Intent: nlp.IntentUpdate, Update: &req, Target: target}, nil
-	case nlp.FilterCommand:
+	case *nlp.FilterCommand:
 		req, err := buildFilterRequest(cmd)
 		if err != nil {
 			return Plan{}, err
@@ -62,7 +62,7 @@ func Build(result nlp.ParseResult, opts BuildOptions) (Plan, error) {
 	}
 }
 
-func buildCreateRequest(cmd nlp.CreateCommand, opts BuildOptions) (service.CreateTaskRequest, error) {
+func buildCreateRequest(cmd *nlp.CreateCommand, opts BuildOptions) (service.CreateTaskRequest, error) {
 	req := service.CreateTaskRequest{Title: strings.TrimSpace(cmd.Title), State: domain.TaskStateInbox}
 
 	for _, op := range cmd.Ops {
@@ -83,6 +83,11 @@ func buildCreateRequest(cmd nlp.CreateCommand, opts BuildOptions) (service.Creat
 			}
 		case nlp.TagOp:
 			req = applyTag(req, typed)
+		case nlp.DueShorthandOp:
+			dueSet := nlp.SetOp{Field: nlp.FieldDue, Value: nlp.OpValue(typed.Value)}
+			if err := applyCreateSet(&req, dueSet, opts.Now); err != nil {
+				return service.CreateTaskRequest{}, err
+			}
 		default:
 			return service.CreateTaskRequest{}, fmt.Errorf("unsupported create op type %T", op)
 		}
@@ -97,8 +102,11 @@ func buildCreateRequest(cmd nlp.CreateCommand, opts BuildOptions) (service.Creat
 }
 
 //nolint:gocognit // update operation compilation is intentionally explicit by op type.
-func buildUpdateRequest(cmd nlp.UpdateCommand, opts BuildOptions) (service.UpdateTaskRequest, nlp.TargetRef, error) {
-	resolvedTarget := cmd.Target
+func buildUpdateRequest(cmd *nlp.UpdateCommand, opts BuildOptions) (service.UpdateTaskRequest, nlp.TargetRef, error) {
+	resolvedTarget := nlp.TargetRef{Kind: nlp.TargetSelected}
+	if cmd.Target != nil {
+		resolvedTarget = *cmd.Target
+	}
 	if resolvedTarget.Kind == nlp.TargetSelected {
 		if opts.SelectedTaskID == nil || *opts.SelectedTaskID <= 0 {
 			return service.UpdateTaskRequest{}, nlp.TargetRef{}, errors.New("selected target requires SelectedTaskID")
@@ -149,7 +157,7 @@ func buildUpdateRequest(cmd nlp.UpdateCommand, opts BuildOptions) (service.Updat
 	return req, resolvedTarget, nil
 }
 
-func buildFilterRequest(cmd nlp.FilterCommand) (service.ListTasksRequest, error) {
+func buildFilterRequest(cmd *nlp.FilterCommand) (service.ListTasksRequest, error) {
 	req := service.ListTasksRequest{}
 	if err := applyFilterExpr(&req, cmd.Expr); err != nil {
 		return service.ListTasksRequest{}, err
@@ -196,7 +204,7 @@ func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr) error {
 }
 
 func applyCreateSet(req *service.CreateTaskRequest, op nlp.SetOp, now time.Time) error {
-	value := strings.TrimSpace(op.Value)
+	value := strings.TrimSpace(string(op.Value))
 	switch op.Field {
 	case nlp.FieldTitle:
 		req.Title = value
@@ -230,7 +238,7 @@ func applyCreateSet(req *service.CreateTaskRequest, op nlp.SetOp, now time.Time)
 }
 
 func applyCreateAdd(req *service.CreateTaskRequest, op nlp.AddOp) error {
-	value := strings.TrimSpace(op.Value)
+	value := strings.TrimSpace(string(op.Value))
 	switch op.Field {
 	case nlp.FieldTitle, nlp.FieldNotes, nlp.FieldDue, nlp.FieldWaiting, nlp.FieldState:
 		return errors.New("+ supports projects/contexts/meta only")
@@ -278,7 +286,7 @@ func applyTag(req service.CreateTaskRequest, op nlp.TagOp) service.CreateTaskReq
 }
 
 func applyUpdateSet(req *service.UpdateTaskRequest, op nlp.SetOp, now time.Time) error {
-	value := strings.TrimSpace(op.Value)
+	value := strings.TrimSpace(string(op.Value))
 	switch op.Field {
 	case nlp.FieldTitle:
 		req.Title = ptr(value)
@@ -315,7 +323,7 @@ func applyUpdateSet(req *service.UpdateTaskRequest, op nlp.SetOp, now time.Time)
 }
 
 func applyUpdateAdd(req *service.UpdateTaskRequest, op nlp.AddOp) error {
-	value := strings.TrimSpace(op.Value)
+	value := strings.TrimSpace(string(op.Value))
 	switch op.Field {
 	case nlp.FieldTitle, nlp.FieldNotes, nlp.FieldDue, nlp.FieldWaiting, nlp.FieldState:
 		return fmt.Errorf("unsupported add field %v", op.Field)
@@ -336,7 +344,7 @@ func applyUpdateAdd(req *service.UpdateTaskRequest, op nlp.AddOp) error {
 }
 
 func applyUpdateRemove(req *service.UpdateTaskRequest, op nlp.RemoveOp) error {
-	value := strings.TrimSpace(op.Value)
+	value := strings.TrimSpace(string(op.Value))
 	switch op.Field {
 	case nlp.FieldTitle, nlp.FieldNotes, nlp.FieldDue, nlp.FieldWaiting, nlp.FieldState:
 		return fmt.Errorf("unsupported remove field %v", op.Field)
