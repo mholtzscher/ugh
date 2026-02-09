@@ -17,9 +17,6 @@ nix build
 ## Usage
 
 ```bash
-# Interactive mode (TTY only)
-ugh
-
 # Add tasks
 ugh add -p groceries -c errands Buy milk
 ugh add --state now -p family -c phone --due 2026-01-20 Call mom
@@ -133,7 +130,6 @@ sync_on_write = true
 --db <path>      Custom database path (overrides config)
 --json           Output as JSON
 --no-color       Disable color output
---no-tui         Disable TUI auto-launch
 ```
 
 ## Data Model
