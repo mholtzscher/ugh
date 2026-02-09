@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
+	"github.com/pterm/pterm"
+	"github.com/pterm/pterm/putils"
 
 	"github.com/mholtzscher/ugh/internal/service"
 )
@@ -27,6 +29,7 @@ const (
 type Options struct {
 	Mode      Mode
 	InputFile string
+	NoColor   bool
 }
 
 // SessionState tracks the current shell session context.
@@ -59,14 +62,14 @@ func NewREPL(svc service.Service, opts Options) *REPL {
 			StartTime:    time.Now(),
 			CommandCount: 0,
 		},
-		display: NewDisplay(),
+		display: NewDisplay(opts.NoColor),
 		history: NewHistory(svc),
 	}
 }
 
 // Run starts the REPL loop.
 func (r *REPL) Run(ctx context.Context) error {
-	r.executor = NewExecutor(r.service, r.state)
+	r.executor = NewExecutor(r.service, r.state, r.options.NoColor)
 
 	switch r.options.Mode {
 	case ModeInteractive:
@@ -80,16 +83,23 @@ func (r *REPL) Run(ctx context.Context) error {
 	}
 }
 
+//nolint:gocognit // REPL loop with pterm styling has higher complexity but is maintainable
 func (r *REPL) runInteractive(ctx context.Context) error {
-	prompt, err := NewPrompt(r.service)
+	prompt, err := NewPrompt(r.service, r.options.NoColor)
 	if err != nil {
 		return fmt.Errorf("initialize prompt: %w", err)
 	}
 	r.prompt = prompt
 	defer r.prompt.Close()
 
-	_, _ = fmt.Fprintln(os.Stdout, "ugh shell - Interactive NLP mode")
-	_, _ = fmt.Fprintln(os.Stdout, "Type 'help' for available commands, 'quit' to exit")
+	if r.options.NoColor {
+		_, _ = fmt.Fprintln(os.Stdout, "ugh")
+		_, _ = fmt.Fprintln(os.Stdout, "Type 'help' for available commands, 'quit' to exit")
+	} else {
+		bigText, _ := pterm.DefaultBigText.WithLetters(putils.LettersFromString("ugh")).Srender()
+		pterm.Println(bigText)
+		pterm.Info.Println("Type 'help' for available commands, 'quit' to exit")
+	}
 	_, _ = fmt.Fprintln(os.Stdout, "")
 
 	for {
@@ -120,7 +130,11 @@ func (r *REPL) runInteractive(ctx context.Context) error {
 			if errors.Is(procErr, errQuit) {
 				return nil
 			}
-			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", procErr)
+			if r.options.NoColor {
+				_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", procErr)
+			} else {
+				pterm.Error.Println(procErr.Error())
+			}
 		}
 	}
 }
@@ -198,52 +212,134 @@ func (r *REPL) processCommand(ctx context.Context, input string) error {
 }
 
 func (r *REPL) showHelp() {
-	_, _ = fmt.Fprintln(os.Stdout, "Available commands:")
-	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  Navigation:")
-	_, _ = fmt.Fprintln(os.Stdout, "    quit, exit, q    Exit the shell")
-	_, _ = fmt.Fprintln(os.Stdout, "    help, ?          Show this help")
-	_, _ = fmt.Fprintln(os.Stdout, "    clear            Clear the screen")
-	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  DSL patterns:")
-	_, _ = fmt.Fprintln(os.Stdout, "    add buy milk tomorrow #groceries @store")
-	_, _ = fmt.Fprintln(os.Stdout, "    add task due:tomorrow state:inbox")
-	_, _ = fmt.Fprintln(os.Stdout, "    set selected state:done")
-	_, _ = fmt.Fprintln(os.Stdout, "    set 123 title:new title +project:work")
-	_, _ = fmt.Fprintln(os.Stdout, "    find state:now")
-	_, _ = fmt.Fprintln(os.Stdout, "    find state:now and project:work")
-	_, _ = fmt.Fprintln(os.Stdout, "    show 3")
-	_, _ = fmt.Fprintln(os.Stdout, "    show #work")
-	_, _ = fmt.Fprintln(os.Stdout, "    filter context:urgent")
-	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  Syntax:")
-	_, _ = fmt.Fprintln(os.Stdout, "    add/create/new <title> [operations...]")
-	_, _ = fmt.Fprintln(os.Stdout, "    set/edit/update <target> [operations...]")
-	_, _ = fmt.Fprintln(os.Stdout, "    find/show/list/filter <predicate> [and/or <predicate>...]")
-	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  Operations:")
-	_, _ = fmt.Fprintln(os.Stdout, "    field:value       Set field (title, notes, due, waiting, state)")
-	_, _ = fmt.Fprintln(os.Stdout, "    +field:value      Add to list (projects, contexts, meta)")
-	_, _ = fmt.Fprintln(os.Stdout, "    -field:value      Remove from list")
-	_, _ = fmt.Fprintln(os.Stdout, "    !field            Clear field")
-	_, _ = fmt.Fprintln(os.Stdout, "    #project          Add project tag")
-	_, _ = fmt.Fprintln(os.Stdout, "    @context          Add context tag")
-	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  Predicates:")
-	_, _ = fmt.Fprintln(os.Stdout, "    state:inbox|now|waiting|later|done")
-	_, _ = fmt.Fprintln(os.Stdout, "    due:today|tomorrow|YYYY-MM-DD")
-	_, _ = fmt.Fprintln(os.Stdout, "    project:name, context:name, text:search")
-	_, _ = fmt.Fprintln(os.Stdout, "    id:123 or just 123  Find by task ID")
-	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  Targets:")
-	_, _ = fmt.Fprintln(os.Stdout, "    selected          Currently selected task")
-	_, _ = fmt.Fprintln(os.Stdout, "    #123              Task ID")
-	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  Context (sticky filters):")
-	_, _ = fmt.Fprintln(os.Stdout, "    context            Show current context state")
-	_, _ = fmt.Fprintln(os.Stdout, "    context #project   Set default project context")
-	_, _ = fmt.Fprintln(os.Stdout, "    context @context   Set default context filter")
-	_, _ = fmt.Fprintln(os.Stdout, "    context clear      Clear all context filters")
+	if r.options.NoColor {
+		r.showPlainHelp()
+	} else {
+		r.showColorHelp()
+	}
+}
+
+func (r *REPL) showPlainHelp() {
+	_, _ = fmt.Fprintln(os.Stdout, "Available Commands")
+	_, _ = fmt.Fprintln(os.Stdout)
+
+	_, _ = fmt.Fprintln(os.Stdout, "Navigation:")
+	_, _ = fmt.Fprintln(os.Stdout, "  quit, exit, q    Exit the shell")
+	_, _ = fmt.Fprintln(os.Stdout, "  help, ?          Show this help")
+	_, _ = fmt.Fprintln(os.Stdout, "  clear              Clear the screen")
+	_, _ = fmt.Fprintln(os.Stdout)
+
+	_, _ = fmt.Fprintln(os.Stdout, "Examples:")
+	_, _ = fmt.Fprintln(os.Stdout, "  add buy milk tomorrow #groceries @store")
+	_, _ = fmt.Fprintln(os.Stdout, "  add task due:tomorrow state:inbox")
+	_, _ = fmt.Fprintln(os.Stdout, "  set selected state:done")
+	_, _ = fmt.Fprintln(os.Stdout, "  set 123 title:new title +project:work")
+	_, _ = fmt.Fprintln(os.Stdout, "  find state:now")
+	_, _ = fmt.Fprintln(os.Stdout, "  find state:now and project:work")
+	_, _ = fmt.Fprintln(os.Stdout, "  show 3")
+	_, _ = fmt.Fprintln(os.Stdout, "  show #work")
+	_, _ = fmt.Fprintln(os.Stdout, "  filter context:urgent")
+	_, _ = fmt.Fprintln(os.Stdout)
+
+	_, _ = fmt.Fprintln(os.Stdout, "Syntax:")
+	_, _ = fmt.Fprintln(os.Stdout, "  add/create/new <title> [operations...]")
+	_, _ = fmt.Fprintln(os.Stdout, "  set/edit/update <target> [operations...]")
+	_, _ = fmt.Fprintln(os.Stdout, "  find/show/list/filter <predicate> [and/or <predicate>...]")
+	_, _ = fmt.Fprintln(os.Stdout)
+
+	_, _ = fmt.Fprintln(os.Stdout, "Operations:")
+	_, _ = fmt.Fprintln(os.Stdout, "  field:value       Set field (title, notes, due, waiting, state)")
+	_, _ = fmt.Fprintln(os.Stdout, "  +field:value      Add to list (projects, contexts, meta)")
+	_, _ = fmt.Fprintln(os.Stdout, "  -field:value      Remove from list")
+	_, _ = fmt.Fprintln(os.Stdout, "  !field            Clear field")
+	_, _ = fmt.Fprintln(os.Stdout, "  #project          Add project tag")
+	_, _ = fmt.Fprintln(os.Stdout, "  @context          Add context tag")
+	_, _ = fmt.Fprintln(os.Stdout)
+
+	_, _ = fmt.Fprintln(os.Stdout, "Predicates:")
+	_, _ = fmt.Fprintln(os.Stdout, "  state:inbox|now|waiting|later|done")
+	_, _ = fmt.Fprintln(os.Stdout, "  due:today|tomorrow|YYYY-MM-DD")
+	_, _ = fmt.Fprintln(os.Stdout, "  project:name, context:name, text:search")
+	_, _ = fmt.Fprintln(os.Stdout, "  id:123 or just 123  Find by task ID")
+	_, _ = fmt.Fprintln(os.Stdout)
+
+	_, _ = fmt.Fprintln(os.Stdout, "Targets:")
+	_, _ = fmt.Fprintln(os.Stdout, "  selected          Currently selected task")
+	_, _ = fmt.Fprintln(os.Stdout, "  #123              Task ID")
+	_, _ = fmt.Fprintln(os.Stdout)
+
+	_, _ = fmt.Fprintln(os.Stdout, "Context (sticky filters):")
+	_, _ = fmt.Fprintln(os.Stdout, "  context            Show current context state")
+	_, _ = fmt.Fprintln(os.Stdout, "  context #project   Set default project context")
+	_, _ = fmt.Fprintln(os.Stdout, "  context @context   Set default context filter")
+	_, _ = fmt.Fprintln(os.Stdout, "  context clear      Clear all context filters")
+}
+
+func (r *REPL) showColorHelp() {
+	pterm.DefaultSection.Println("Available Commands")
+
+	// Navigation panel
+	pterm.DefaultBox.WithTitle(pterm.Cyan("Navigation")).WithRightPadding(1).WithLeftPadding(1).Println(
+		pterm.LightCyan("quit, exit, q") + "    Exit the shell\n" +
+			pterm.LightCyan("help, ?") + "          Show this help\n" +
+			pterm.LightCyan("clear") + "            Clear the screen")
+
+	// Examples panel
+	pterm.DefaultBox.WithTitle(pterm.Green("Examples")).WithRightPadding(1).WithLeftPadding(1).Println(
+		pterm.LightGreen("add buy milk tomorrow #groceries @store") + "\n" +
+			pterm.LightGreen("add task due:tomorrow state:inbox") + "\n" +
+			pterm.LightGreen("set selected state:done") + "\n" +
+			pterm.LightGreen("set 123 title:new title +project:work") + "\n" +
+			pterm.LightGreen("find state:now") + "\n" +
+			pterm.LightGreen("find state:now and project:work") + "\n" +
+			pterm.LightGreen("show 3") + "\n" +
+			pterm.LightGreen("show #work") + "\n" +
+			pterm.LightGreen("filter context:urgent"))
+
+	// Syntax panel - colors match the explanatory boxes
+	syntaxContent := pterm.LightYellow("add/create/new") + " " +
+		pterm.White("<title>") + " " +
+		pterm.LightMagenta("[operations...]") + "\n" +
+		pterm.LightYellow("set/edit/update") + " " +
+		pterm.White("<target>") + " " +
+		pterm.LightMagenta("[operations...]") + "\n" +
+		pterm.LightYellow("find/show/list/filter") + " " +
+		pterm.LightBlue("<predicate>") + " " +
+		pterm.LightYellow("[and/or") + " " +
+		pterm.LightBlue("<predicate>") +
+		pterm.LightYellow("...]")
+	pterm.DefaultBox.WithTitle(pterm.Yellow("Syntax")).
+		WithRightPadding(1).
+		WithLeftPadding(1).
+		Println(syntaxContent)
+
+	// Operations panel
+	pterm.DefaultBox.WithTitle(pterm.Magenta("Operations")).WithRightPadding(1).WithLeftPadding(1).Println(
+		pterm.LightMagenta("field:value") + "       Set field (title, notes, due, waiting, state)\n" +
+			pterm.LightMagenta("+field:value") + "      Add to list (projects, contexts, meta)\n" +
+			pterm.LightMagenta("-field:value") + "      Remove from list\n" +
+			pterm.LightMagenta("!field") + "            Clear field\n" +
+			pterm.LightMagenta("#project") + "          Add project tag\n" +
+			pterm.LightMagenta("@context") + "          Add context tag")
+
+	// Predicates panel
+	pterm.DefaultBox.WithTitle(pterm.Blue("Predicates")).WithRightPadding(1).WithLeftPadding(1).Println(
+		pterm.LightBlue("state:inbox|now|waiting|later|done") + "\n" +
+			pterm.LightBlue("due:today|tomorrow|YYYY-MM-DD") + "\n" +
+			pterm.LightBlue("project:name, context:name, text:search") + "\n" +
+			pterm.LightBlue("id:123 or just 123") + "  Find by task ID")
+
+	// Targets panel
+	pterm.DefaultBox.WithTitle(pterm.White("Targets")).WithRightPadding(1).WithLeftPadding(1).Println(
+		pterm.LightWhite("selected") + "          Currently selected task\n" +
+			pterm.LightWhite("#123") + "              Task ID")
+
+	// Context panel
+	pterm.DefaultBox.WithTitle(pterm.Cyan("Context (sticky filters)")).WithRightPadding(1).WithLeftPadding(1).Println(
+		pterm.LightCyan("context") + "            Show current context state\n" +
+			pterm.LightCyan("context #project") + "   Set default project context\n" +
+			pterm.LightCyan("context @context") + "   Set default context filter\n" +
+			pterm.LightCyan("context clear") + "      Clear all context filters")
 }
 
 const noneValue = "none"
@@ -273,8 +369,25 @@ func (r *REPL) showContext() *ExecuteResult {
 	project := formatContextValue(r.state.ContextProject, "#")
 	ctx := formatContextValue(r.state.ContextContext, "@")
 
-	msg := fmt.Sprintf("Current context:\n  Selected: %s\n  Last: %s\n  Project: %s\n  Context: %s",
-		selected, last, project, ctx)
+	data := pterm.TableData{
+		{"Selected", selected},
+		{"Last", last},
+		{"Project", project},
+		{"Context", ctx},
+	}
+
+	var msg string
+	if !r.options.NoColor {
+		table, _ := pterm.DefaultTable.WithData(data).Srender()
+		msg = pterm.Yellow("Current Context:\n") + table
+	} else {
+		var b strings.Builder
+		b.WriteString("Current Context:\n")
+		for _, row := range data {
+			fmt.Fprintf(&b, "  %s: %s\n", row[0], row[1])
+		}
+		msg = b.String()
+	}
 
 	return &ExecuteResult{
 		Intent:    "context",
