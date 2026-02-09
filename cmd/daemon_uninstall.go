@@ -36,7 +36,6 @@ Stops the service if running, then removes the service configuration.`,
 		}
 
 		w := outputWriter()
-		_, _ = fmt.Fprintln(w.Out, "Service uninstalled from", servicePath)
-		return nil
+		return w.WriteSuccess("Service uninstalled from " + servicePath)
 	},
 }

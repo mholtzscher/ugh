@@ -7,6 +7,7 @@ type styles struct {
 	header     lipgloss.Style
 	panel      lipgloss.Style
 	panelFocus lipgloss.Style
+	panelEdit  lipgloss.Style
 	modalShade lipgloss.Style
 	title      lipgloss.Style
 	muted      lipgloss.Style
@@ -31,6 +32,7 @@ func newStyles(theme Theme, noColor bool) styles {
 			header:     base.Bold(true),
 			panel:      panel,
 			panelFocus: panel,
+			panelEdit:  panel,
 			modalShade: base,
 			title:      base.Bold(true),
 			muted:      base,
@@ -58,6 +60,7 @@ func newStyles(theme Theme, noColor bool) styles {
 		header:     base.Bold(true).Foreground(theme.Tokens.accent),
 		panel:      panel,
 		panelFocus: panel.BorderForeground(theme.Tokens.focusBorder),
+		panelEdit:  panel.BorderForeground(theme.Tokens.success),
 		modalShade: base.Background(theme.Tokens.surface),
 		title:      base.Bold(true).Foreground(theme.Tokens.accentSoft),
 		muted:      base.Foreground(theme.Tokens.textMuted),

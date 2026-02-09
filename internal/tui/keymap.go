@@ -15,6 +15,7 @@ type keyMap struct {
 	DetailUp      key.Binding
 	DetailDown    key.Binding
 	Select        key.Binding
+	Save          key.Binding
 	Search        key.Binding
 	Command       key.Binding
 	ProjectFilter key.Binding
@@ -45,6 +46,7 @@ func defaultKeyMap() keyMap {
 		DetailUp:      key.NewBinding(key.WithKeys("pgup", "ctrl+b"), key.WithHelp("pgup", "detail up")),
 		DetailDown:    key.NewBinding(key.WithKeys("pgdown", "ctrl+f"), key.WithHelp("pgdn", "detail down")),
 		Select:        key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply")),
+		Save:          key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "save form")),
 		Search:        key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 		Command:       key.NewBinding(key.WithKeys(":"), key.WithHelp(":", "command")),
 		ProjectFilter: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "project filter")),
@@ -70,6 +72,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 		k.Command,
 		k.Add,
 		k.Edit,
+		k.Save,
 		k.Done,
 		k.Undo,
 		k.Delete,
@@ -80,7 +83,8 @@ func (k keyMap) ShortHelp() []key.Binding {
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Top, k.Bottom, k.DetailUp, k.DetailDown, k.NextView, k.PrevView, k.Search, k.Command, k.Esc},
+		{k.Up, k.Down, k.Top, k.Bottom, k.DetailUp, k.DetailDown, k.NextView, k.PrevView},
+		{k.Search, k.Command, k.Save, k.Esc},
 		{k.ProjectFilter, k.ContextFilter, k.Add, k.Edit, k.Done, k.Undo, k.Inbox, k.Now, k.Waiting, k.Later, k.Delete},
 		{k.Refresh, k.Help, k.Quit},
 	}

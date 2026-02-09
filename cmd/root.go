@@ -262,7 +262,13 @@ func effectiveDBPath() (string, error) {
 
 func Execute() {
 	if err := rootCmd.Run(context.Background(), os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		writer := output.Writer{
+			Out:     os.Stderr,
+			JSON:    false,
+			NoColor: rootNoColor || os.Getenv("NO_COLOR") != "",
+			TTY:     term.IsTerminal(int(os.Stderr.Fd())),
+		}
+		_ = writer.WriteError(err.Error())
 		os.Exit(1)
 	}
 }

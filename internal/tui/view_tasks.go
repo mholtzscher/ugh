@@ -15,14 +15,23 @@ const (
 	narrowHeightDivisor = 2
 )
 
+type paneFocusMode int
+
+const (
+	paneFocusTasks paneFocusMode = iota
+	paneFocusDetail
+	paneFocusDetailEdit
+)
+
 func (m model) viewTasks() string {
 	if m.layout.narrow {
 		return m.viewTasksNarrow()
 	}
 	m = m.withPaneSizes(m.layout.listWidth, m.layout.bodyHeight, m.layout.detailWidth, m.layout.bodyHeight)
 
-	listStyle := m.styles.panel.Width(m.layout.listWidth).Height(m.layout.bodyHeight)
-	detailStyle := m.styles.panel.Width(m.layout.detailWidth).Height(m.layout.bodyHeight)
+	listPanel, detailPanel := m.focusedPaneStyles()
+	listStyle := listPanel.Width(m.layout.listWidth).Height(m.layout.bodyHeight)
+	detailStyle := detailPanel.Width(m.layout.detailWidth).Height(m.layout.bodyHeight)
 
 	list := listStyle.Render(m.renderTaskList())
 	detail := detailStyle.Render(m.renderTaskDetail())
@@ -33,7 +42,8 @@ func (m model) viewTasks() string {
 func (m model) viewTasksNarrow() string {
 	if m.layout.bodyHeight < narrowSplitMinimum {
 		m = m.withPaneSizes(m.layout.listWidth, m.layout.bodyHeight, m.layout.listWidth, m.layout.bodyHeight)
-		listStyle := m.styles.panel.
+		listPanel, _ := m.focusedPaneStyles()
+		listStyle := listPanel.
 			Width(m.layout.listWidth).
 			Height(m.layout.bodyHeight)
 		return listStyle.Render(m.renderTaskList())
@@ -42,10 +52,11 @@ func (m model) viewTasksNarrow() string {
 	detailHeight := min(narrowDetailHeight, m.layout.bodyHeight/narrowHeightDivisor)
 	listHeight := m.layout.bodyHeight - detailHeight
 
-	listStyle := m.styles.panel.
+	listPanel, detailPanel := m.focusedPaneStyles()
+	listStyle := listPanel.
 		Width(m.layout.listWidth).
 		Height(listHeight)
-	detailStyle := m.styles.panel.
+	detailStyle := detailPanel.
 		Width(m.layout.listWidth).
 		Height(detailHeight)
 	m = m.withPaneSizes(m.layout.listWidth, listHeight, m.layout.listWidth, detailHeight)
@@ -53,6 +64,32 @@ func (m model) viewTasksNarrow() string {
 	list := listStyle.Render(m.renderTaskList())
 	detail := detailStyle.Render(m.renderTaskDetail())
 	return lipgloss.JoinVertical(lipgloss.Left, list, detail)
+}
+
+func (m model) focusedPaneMode() paneFocusMode {
+	if !m.taskForm.active() {
+		return paneFocusTasks
+	}
+	if m.taskForm.editing {
+		return paneFocusDetailEdit
+	}
+	return paneFocusDetail
+}
+
+func (m model) focusedPaneStyles() (lipgloss.Style, lipgloss.Style) {
+	listPanel := m.styles.panel
+	detailPanel := m.styles.panel
+
+	switch m.focusedPaneMode() {
+	case paneFocusTasks:
+		listPanel = m.styles.panelFocus
+	case paneFocusDetail:
+		detailPanel = m.styles.panelFocus
+	case paneFocusDetailEdit:
+		detailPanel = m.styles.panelEdit
+	}
+
+	return listPanel, detailPanel
 }
 
 func (m model) withPaneSizes(listWidth int, listHeight int, detailWidth int, detailHeight int) model {
@@ -93,6 +130,11 @@ func (m model) renderTaskDetail() string {
 }
 
 func (m model) renderTaskDetailContent() string {
+	if m.taskForm.active() {
+		form := m.taskForm.withWidth(max(1, m.detail.Width))
+		return form.render(m.styles)
+	}
+
 	task := m.selectedTask()
 	if task == nil {
 		return m.styles.muted.Render("Select a task to view details.")

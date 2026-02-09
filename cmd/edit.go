@@ -165,8 +165,7 @@ Use flags for quick single-field changes without opening an editor.
 
 		if !changed {
 			writer := outputWriter()
-			_, err = fmt.Fprintln(writer.Out, "No changes made")
-			return err
+			return writer.WriteInfo("No changes made")
 		}
 
 		err = maybeSyncAfterWrite(ctx, svc)

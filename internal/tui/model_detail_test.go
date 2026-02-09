@@ -86,3 +86,53 @@ func TestApplyTasksLoadedResetsDetailOffsetWhenSelectedTaskChanges(t *testing.T)
 		t.Fatalf("expected detail offset reset after task switch, got %d", updated.detail.YOffset)
 	}
 }
+
+func TestRenderTaskDetailContentShowsInlineFormWhenActive(t *testing.T) {
+	m := newModel(nil, Options{})
+	m.taskForm = startAddTaskForm(searchInputWidth)
+	m.detail.Width = 40
+
+	content := m.renderTaskDetailContent()
+	if !strings.Contains(content, "Add Task") {
+		t.Fatalf("expected inline form content, got %q", content)
+	}
+}
+
+func TestViewKeepsTaskListVisibleWhenTaskFormActive(t *testing.T) {
+	m := newModel(nil, Options{})
+	m.viewportW = 120
+	m.viewportH = 32
+	m.layout = calculateLayout(m.viewportW, m.viewportH)
+	m.tasks = []*store.Task{{ID: 1, State: store.StateInbox, Title: "first"}}
+	m.selected = 0
+	m.taskForm = startAddTaskForm(searchInputWidth)
+
+	view := m.View()
+	if !strings.Contains(view, "first") {
+		t.Fatalf("expected task list to remain visible, got %q", view)
+	}
+}
+
+func TestFocusedPaneModeDefaultsToTasks(t *testing.T) {
+	m := newModel(nil, Options{})
+	if mode := m.focusedPaneMode(); mode != paneFocusTasks {
+		t.Fatalf("expected tasks pane focus, got %v", mode)
+	}
+}
+
+func TestFocusedPaneModeUsesDetailForFormNavigation(t *testing.T) {
+	m := newModel(nil, Options{})
+	m.taskForm = startAddTaskForm(searchInputWidth)
+	if mode := m.focusedPaneMode(); mode != paneFocusDetail {
+		t.Fatalf("expected detail pane focus, got %v", mode)
+	}
+}
+
+func TestFocusedPaneModeUsesEditColorInFormEditing(t *testing.T) {
+	m := newModel(nil, Options{})
+	m.taskForm = startAddTaskForm(searchInputWidth)
+	m.taskForm, _ = m.taskForm.startEditing()
+	if mode := m.focusedPaneMode(); mode != paneFocusDetailEdit {
+		t.Fatalf("expected edit pane focus, got %v", mode)
+	}
+}

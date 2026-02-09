@@ -32,7 +32,6 @@ var daemonRestartCmd = &cli.Command{
 		}
 
 		w := outputWriter()
-		_, _ = fmt.Fprintln(w.Out, "Daemon restarted")
-		return nil
+		return w.WriteSuccess("Daemon restarted")
 	},
 }

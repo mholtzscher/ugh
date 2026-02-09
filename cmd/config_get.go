@@ -42,8 +42,7 @@ var configGetCmd = &cli.Command{
 			enc := json.NewEncoder(writer.Out)
 			return enc.Encode(configGetResult{Key: key, Value: value})
 		}
-		_, err = fmt.Fprintln(writer.Out, value)
-		return err
+		return writer.WriteLine(value)
 	},
 }
 
