@@ -38,15 +38,19 @@ func parseInput(input string, opts ParseOptions) (ParseResult, error) {
 	}
 
 	p := parser{tokens: tokens, opts: opts}
-	mode := p.resolveMode()
+	mode, err := p.resolveMode()
+	if err != nil {
+		return ParseResult{
+			Intent: IntentUnknown,
+			Diagnostics: []Diagnostic{{
+				Severity: SeverityError,
+				Code:     "E_CMD",
+				Message:  err.Error(),
+			}},
+		}, err
+	}
 
 	switch mode {
-	case ModeAuto:
-		cmd, parseErr := p.parseCreateCommand()
-		if parseErr != nil {
-			return ParseResult{Intent: IntentCreate}, parseErr
-		}
-		return ParseResult{Intent: IntentCreate, Command: cmd}, nil
 	case ModeCreate:
 		cmd, parseErr := p.parseCreateCommand()
 		if parseErr != nil {
@@ -65,30 +69,37 @@ func parseInput(input string, opts ParseOptions) (ParseResult, error) {
 			return ParseResult{Intent: IntentFilter}, parseErr
 		}
 		return ParseResult{Intent: IntentFilter, Command: cmd}, nil
+	case ModeAuto:
+		return ParseResult{}, errors.New("mode not resolved")
 	default:
 		return ParseResult{}, errors.New("unknown parse mode")
 	}
 }
 
-func (p *parser) resolveMode() Mode {
+func (p *parser) resolveMode() (Mode, error) {
 	if p.opts.Mode != ModeAuto {
-		return p.opts.Mode
+		return p.opts.Mode, nil
 	}
 	tok := p.current()
 	if tok.kind != tokenWord {
-		return ModeCreate
+		return ModeAuto, errors.New(
+			"expected command verb (add, create, new, set, edit, update, find, show, list, filter)",
+		)
 	}
 	word := strings.ToLower(tok.text)
 	if isUpdateVerb(word) {
-		return ModeUpdate
+		return ModeUpdate, nil
 	}
 	if isFilterVerb(word) {
-		return ModeFilter
+		return ModeFilter, nil
 	}
 	if isCreateVerb(word) {
-		return ModeCreate
+		return ModeCreate, nil
 	}
-	return ModeCreate
+	return ModeAuto, fmt.Errorf(
+		"unknown command verb: %q (expected: add, create, new, set, edit, update, find, show, list, filter)",
+		word,
+	)
 }
 
 func (p *parser) parseCreateCommand() (CreateCommand, error) {

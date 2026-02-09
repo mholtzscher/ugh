@@ -49,13 +49,13 @@ func TestParseCreate_Basic(t *testing.T) {
 	}{
 		{
 			name:        "simple title",
-			input:       "buy milk",
+			input:       "add buy milk",
 			wantTitle:   "buy milk",
 			wantOpCount: 0,
 		},
 		{
 			name:        "multi-word title",
-			input:       "buy organic whole milk",
+			input:       "add buy organic whole milk",
 			wantTitle:   "buy organic whole milk",
 			wantOpCount: 0,
 		},
@@ -114,13 +114,13 @@ func TestParseCreate_WithProjects(t *testing.T) {
 	}{
 		{
 			name:         "single project",
-			input:        "buy milk #groceries",
+			input:        "add buy milk #groceries",
 			wantTitle:    "buy milk",
 			wantProjects: []string{"groceries"},
 		},
 		{
 			name:         "multiple projects",
-			input:        "plan vacation #personal #travel",
+			input:        "add plan vacation #personal #travel",
 			wantTitle:    "plan vacation",
 			wantProjects: []string{"personal", "travel"},
 		},
@@ -155,20 +155,20 @@ func TestParseCreate_WithContexts(t *testing.T) {
 	}{
 		{
 			name:         "single context",
-			input:        "buy milk @store",
+			input:        "add buy milk @store",
 			wantTitle:    "buy milk",
 			wantContexts: []string{"store"},
 		},
 		{
 			name:         "multiple contexts",
-			input:        "call mom @phone @urgent",
-			wantTitle:    "call mom",
+			input:        "add call mom @phone @urgent",
+			wantTitle:    "add call mom",
 			wantContexts: []string{"phone", "urgent"},
 		},
 
 		{
 			name:         "mixed projects and contexts",
-			input:        "buy milk #groceries @store @urgent",
+			input:        "add buy milk #groceries @store @urgent",
 			wantTitle:    "buy milk",
 			wantContexts: []string{"store", "urgent"},
 		},
@@ -201,12 +201,12 @@ func TestParseCreate_WithDates(t *testing.T) {
 	}{
 		{
 			name:         "due field with today",
-			input:        "task due:today",
+			input:        "add task due:today",
 			wantDueValue: "today",
 		},
 		{
 			name:         "due field with tomorrow",
-			input:        "task due:tomorrow",
+			input:        "add task due:tomorrow",
 			wantDueValue: "tomorrow",
 		},
 	}
@@ -245,32 +245,32 @@ func TestParseCreate_WithState(t *testing.T) {
 	}{
 		{
 			name:      "state inbox",
-			input:     "task state:inbox",
+			input:     "add task state:inbox",
 			wantState: "inbox",
 		},
 		{
 			name:      "state now",
-			input:     "task state:now",
+			input:     "add task state:now",
 			wantState: "now",
 		},
 		{
 			name:      "state waiting",
-			input:     "task state:waiting",
+			input:     "add task state:waiting",
 			wantState: "waiting",
 		},
 		{
 			name:      "state later",
-			input:     "task state:later",
+			input:     "add task state:later",
 			wantState: "later",
 		},
 		{
 			name:      "state done",
-			input:     "task state:done",
+			input:     "add task state:done",
 			wantState: "done",
 		},
 		{
 			name:      "state todo",
-			input:     "task state:todo",
+			input:     "add task state:todo",
 			wantState: "todo", // Normalization happens at compile time, not parse time
 		},
 	}
@@ -308,12 +308,12 @@ func TestParseCreate_WithWaiting(t *testing.T) {
 	}{
 		{
 			name:        "waiting simple",
-			input:       "task waiting:alex",
+			input:       "add task waiting:alex",
 			wantWaiting: "alex",
 		},
 		{
 			name:        "multiple words",
-			input:       "task waiting:the team",
+			input:       "add task waiting:the team",
 			wantWaiting: "the team",
 		},
 	}
@@ -351,12 +351,12 @@ func TestParseCreate_WithNotes(t *testing.T) {
 	}{
 		{
 			name:      "simple notes",
-			input:     "task notes:remember this",
+			input:     "add task notes:remember this",
 			wantNotes: "remember this",
 		},
 		{
 			name:      "notes with special chars",
-			input:     "task notes:call before 5pm",
+			input:     "add task notes:call before 5pm",
 			wantNotes: "call before 5pm",
 		},
 	}
@@ -391,7 +391,7 @@ func TestParseCreate_Complex(t *testing.T) {
 
 	// Complex combined create command
 	result, err := nlp.Parse(
-		"buy milk tomorrow #groceries @store waiting:alex notes:organic preferred",
+		"add buy milk tomorrow #groceries @store waiting:alex notes:organic preferred",
 		nlp.ParseOptions{Now: now},
 	)
 	if err != nil {
@@ -915,11 +915,11 @@ func TestParseErrors(t *testing.T) {
 		},
 		{
 			name:  "empty field value",
-			input: "task state:",
+			input: "add task state:",
 		},
 		{
 			name:  "invalid tag token",
-			input: "task #",
+			input: "add task #",
 		},
 	}
 
@@ -942,7 +942,7 @@ func TestParseCreateCommand(t *testing.T) {
 	t.Parallel()
 
 	result, err := nlp.Parse(
-		`buy milk tomorrow #home @errands waiting:alex`,
+		`add buy milk tomorrow #home @errands waiting:alex`,
 		nlp.ParseOptions{Now: time.Date(2026, 2, 8, 10, 0, 0, 0, time.UTC)},
 	)
 	if err != nil {
