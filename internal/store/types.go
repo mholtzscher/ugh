@@ -43,3 +43,12 @@ type NameCount struct {
 	Name  string
 	Count int64
 }
+
+type ShellHistory struct {
+	ID            int64
+	Timestamp     int64
+	Command       string
+	Success       bool
+	ResultSummary string
+	Intent        string
+}

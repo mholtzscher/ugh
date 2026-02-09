@@ -14,11 +14,10 @@ type Prompt struct {
 	rl *readline.Instance
 }
 
-// NewPrompt creates a new interactive prompt.
-func NewPrompt(historyPath string) (*Prompt, error) {
+// NewPrompt creates a new interactive prompt with history loaded from SQLite.
+func NewPrompt(svc service.Service) (*Prompt, error) {
 	cfg := &readline.Config{
 		Prompt:          "ugh> ",
-		HistoryFile:     historyPath,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
 	}
@@ -26,6 +25,17 @@ func NewPrompt(historyPath string) (*Prompt, error) {
 	rl, err := readline.NewEx(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create readline: %w", err)
+	}
+
+	// Load recent history from SQLite into readline
+	ctx := context.Background()
+	const historyLoadLimit = 100
+	history, err := svc.ListShellHistory(ctx, historyLoadLimit)
+	if err == nil {
+		// Add oldest first so newest ends up at the end (most recent)
+		for i := len(history) - 1; i >= 0; i-- {
+			_ = rl.SaveHistory(history[i].Command)
+		}
 	}
 
 	return &Prompt{rl: rl}, nil
@@ -36,7 +46,7 @@ func (p *Prompt) Readline() (string, error) {
 	return p.rl.Readline()
 }
 
-// Close closes the prompt and saves history.
+// Close closes the prompt.
 func (p *Prompt) Close() error {
 	return p.rl.Close()
 }
@@ -52,10 +62,7 @@ func NewHistory(svc service.Service) *History {
 }
 
 // Record records a command in history.
-func (h *History) Record(_ context.Context, command string, success bool, summary string) error {
-	// Placeholder - actual implementation would use store
-	_ = command
-	_ = success
-	_ = summary
-	return nil
+func (h *History) Record(ctx context.Context, command string, success bool, summary string, intent string) error {
+	_, err := h.svc.RecordShellHistory(ctx, command, success, summary, intent)
+	return err
 }

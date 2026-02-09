@@ -506,6 +506,104 @@ func (s *Store) ListContextCounts(ctx context.Context, onlyDone bool, excludeDon
 	return result, nil
 }
 
+// RecordShellHistory records a command in shell history.
+func (s *Store) RecordShellHistory(
+	ctx context.Context, command string, success bool, summary string, intent string,
+) (*ShellHistory, error) {
+	params := sqlc.InsertShellHistoryParams{
+		Timestamp:     time.Now().UTC().Unix(),
+		Command:       command,
+		Success:       success,
+		ResultSummary: nullString(summary),
+		Intent:        nullString(intent),
+	}
+	row, err := s.queries.InsertShellHistory(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("insert shell history: %w", err)
+	}
+	return &ShellHistory{
+		ID:            row.ID,
+		Timestamp:     row.Timestamp,
+		Command:       row.Command,
+		Success:       row.Success,
+		ResultSummary: row.ResultSummary.String,
+		Intent:        row.Intent.String,
+	}, nil
+}
+
+// ListShellHistory returns recent shell history entries.
+func (s *Store) ListShellHistory(ctx context.Context, limit int64) ([]*ShellHistory, error) {
+	rows, err := s.queries.ListShellHistory(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list shell history: %w", err)
+	}
+	result := make([]*ShellHistory, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, &ShellHistory{
+			ID:            row.ID,
+			Timestamp:     row.Timestamp,
+			Command:       row.Command,
+			Success:       row.Success,
+			ResultSummary: row.ResultSummary.String,
+			Intent:        row.Intent.String,
+		})
+	}
+	return result, nil
+}
+
+// SearchShellHistory searches shell history with filters.
+func (s *Store) SearchShellHistory(
+	ctx context.Context, search, intent string, success *bool, limit int64,
+) ([]*ShellHistory, error) {
+	var searchNull sql.NullString
+	if search != "" {
+		searchNull = sql.NullString{String: search, Valid: true}
+	}
+	var intentNull sql.NullString
+	if intent != "" {
+		intentNull = sql.NullString{String: intent, Valid: true}
+	}
+	var successBool bool
+	var successAny any
+	if success != nil {
+		successBool = *success
+		successAny = *success
+	}
+	params := sqlc.SearchShellHistoryParams{
+		Column1: searchNull,
+		Column2: searchNull,
+		Column3: intentNull,
+		Intent:  intentNull,
+		Column5: successAny,
+		Success: successBool,
+		Limit:   limit,
+	}
+	rows, err := s.queries.SearchShellHistory(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("search shell history: %w", err)
+	}
+	result := make([]*ShellHistory, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, &ShellHistory{
+			ID:            row.ID,
+			Timestamp:     row.Timestamp,
+			Command:       row.Command,
+			Success:       row.Success,
+			ResultSummary: row.ResultSummary.String,
+			Intent:        row.Intent.String,
+		})
+	}
+	return result, nil
+}
+
+// ClearShellHistory clears all shell history.
+func (s *Store) ClearShellHistory(ctx context.Context) error {
+	if err := s.queries.ClearShellHistory(ctx); err != nil {
+		return fmt.Errorf("clear shell history: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) deleteDetails(ctx context.Context, taskID int64) error {
 	if err := s.queries.DeleteTaskProjectLinks(ctx, taskID); err != nil {
 		return fmt.Errorf("delete project links: %w", err)

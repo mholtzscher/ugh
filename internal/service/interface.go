@@ -22,6 +22,16 @@ type Service interface {
 	Push(ctx context.Context) error
 	SyncStatus(ctx context.Context) (*SyncStatus, error)
 	Close() error
+
+	// Shell history operations
+	RecordShellHistory(
+		ctx context.Context, command string, success bool, summary string, intent string,
+	) (*store.ShellHistory, error)
+	ListShellHistory(ctx context.Context, limit int64) ([]*store.ShellHistory, error)
+	SearchShellHistory(
+		ctx context.Context, search, intent string, success *bool, limit int64,
+	) ([]*store.ShellHistory, error)
+	ClearShellHistory(ctx context.Context) error
 }
 
 // Ensure TaskService implements Service.
