@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/store"
-	"github.com/mholtzscher/ugh/internal/tui"
 )
 
 const (
@@ -37,7 +35,6 @@ var (
 	rootDBPath      string
 	rootJSON        bool
 	rootNoColor     bool
-	rootNoTUI       bool
 	loadedConfig    *config.Config
 	loadedConfigWas bool
 )
@@ -67,18 +64,11 @@ var rootCmd = &cli.Command{
 			Name:  flags.FlagNoColor,
 			Usage: "disable color output",
 		},
-		&cli.BoolFlag{
-			Name:  flags.FlagNoTUI,
-			Usage: "disable TUI auto-launch",
-		},
 	},
 	Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 		return ctx, loadConfig(cmd)
 	},
-	Action: func(ctx context.Context, cmd *cli.Command) error {
-		if shouldLaunchTUI(cmd) {
-			return runTUI(ctx)
-		}
+	Action: func(_ context.Context, cmd *cli.Command) error {
 		return cli.ShowRootCommandHelp(cmd)
 	},
 	Commands: []*cli.Command{
@@ -109,7 +99,6 @@ func loadConfig(cmd *cli.Command) error {
 		rootDBPath = cmd.String(flags.FlagDBPath)
 		rootJSON = cmd.Bool(flags.FlagJSON)
 		rootNoColor = cmd.Bool(flags.FlagNoColor)
-		rootNoTUI = cmd.Bool(flags.FlagNoTUI)
 	}
 
 	configPath := rootConfigPath
@@ -159,73 +148,6 @@ func loadConfig(cmd *cli.Command) error {
 	loadedConfig = &result.Config
 	loadedConfigWas = result.WasLoaded
 	return nil
-}
-
-func shouldLaunchTUI(cmd *cli.Command) bool {
-	if cmd == nil {
-		return false
-	}
-	if rootNoTUI || cmd.Bool(flags.FlagNoTUI) {
-		return false
-	}
-	if rootJSON {
-		return false
-	}
-	if noTUIEnvEnabled() {
-		return false
-	}
-	return isInteractiveTerminal()
-}
-
-func noTUIEnvEnabled() bool {
-	value := strings.TrimSpace(os.Getenv("UGH_NO_TUI"))
-	if value == "" {
-		return false
-	}
-	parsed, err := strconv.ParseBool(value)
-	if err == nil {
-		return parsed
-	}
-	return value == "1" || strings.EqualFold(value, "yes") || strings.EqualFold(value, "on")
-}
-
-func isInteractiveTerminal() bool {
-	stdinTTY := term.IsTerminal(int(os.Stdin.Fd()))
-	stdoutTTY := term.IsTerminal(int(os.Stdout.Fd()))
-	return stdinTTY && stdoutTTY
-}
-
-func runTUI(ctx context.Context) error {
-	svc, err := newService(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = svc.Close() }()
-
-	cfgPath := rootConfigPath
-	if cfgPath == "" {
-		defaultPath, defaultPathErr := config.DefaultPath()
-		if defaultPathErr == nil {
-			cfgPath = defaultPath
-		}
-	}
-
-	cfg := config.Config{Version: config.DefaultVersion, UI: config.UI{Theme: config.DefaultUITheme}}
-	if loadedConfig != nil {
-		cfg = *loadedConfig
-	}
-
-	themeName := config.DefaultUITheme
-	if loadedConfig != nil && strings.TrimSpace(loadedConfig.UI.Theme) != "" {
-		themeName = loadedConfig.UI.Theme
-	}
-
-	return tui.Run(ctx, svc, tui.Options{
-		ThemeName:  themeName,
-		NoColor:    rootNoColor || os.Getenv("NO_COLOR") != "",
-		ConfigPath: cfgPath,
-		Config:     cfg,
-	})
 }
 
 func shouldAutoInitConfig() bool {

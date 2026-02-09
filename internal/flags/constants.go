@@ -19,7 +19,6 @@ const (
 	FlagMeta          = "meta"
 	FlagNotes         = "notes"
 	FlagNoColor       = "no-color"
-	FlagNoTUI         = "no-tui"
 	FlagNoFollow      = "no-follow"
 	FlagNoDue         = "no-due"
 	FlagNoWaitingFor  = "no-waiting-for"
