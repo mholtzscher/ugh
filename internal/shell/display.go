@@ -2,7 +2,7 @@ package shell
 
 import (
 	"fmt"
-	"io"
+	"os"
 
 	"github.com/mholtzscher/ugh/internal/output"
 )
@@ -66,5 +66,5 @@ func (d *Display) showDetail(result *ExecuteResult) {
 
 // Clear clears the screen.
 func (d *Display) Clear() {
-	_, _ = fmt.Fprint(io.Discard, "\033[H\033[2J")
+	_, _ = fmt.Fprint(os.Stdout, "\033[H\033[2J")
 }

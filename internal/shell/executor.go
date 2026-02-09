@@ -75,11 +75,17 @@ func (e *Executor) Execute(ctx context.Context, input string) (*ExecuteResult, e
 }
 
 func (e *Executor) preprocessInput(input string) string {
-	// Replace pronouns with actual IDs
-	input = strings.ReplaceAll(input, " it ", fmt.Sprintf(" %d ", e.getLastTaskID()))
-	input = strings.ReplaceAll(input, " this ", fmt.Sprintf(" %d ", e.getLastTaskID()))
-	input = strings.ReplaceAll(input, " that ", fmt.Sprintf(" %d ", e.getSecondToLastTaskID()))
-	input = strings.ReplaceAll(input, " selected ", fmt.Sprintf(" %d ", e.getSelectedTaskID()))
+	// Replace pronouns with actual IDs (only if IDs exist)
+	if lastID := e.getLastTaskID(); lastID != 0 {
+		input = strings.ReplaceAll(input, " it ", fmt.Sprintf(" %d ", lastID))
+		input = strings.ReplaceAll(input, " this ", fmt.Sprintf(" %d ", lastID))
+	}
+	if secondToLastID := e.getSecondToLastTaskID(); secondToLastID != 0 {
+		input = strings.ReplaceAll(input, " that ", fmt.Sprintf(" %d ", secondToLastID))
+	}
+	if selectedID := e.getSelectedTaskID(); selectedID != 0 {
+		input = strings.ReplaceAll(input, " selected ", fmt.Sprintf(" %d ", selectedID))
+	}
 
 	// Add context filters if set
 	if e.state.ContextProject != "" && !strings.Contains(input, "#") {
