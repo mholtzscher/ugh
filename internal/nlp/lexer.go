@@ -13,10 +13,31 @@ var dslLexer = lexer.MustSimple([]lexer.SimpleRule{
 	{Name: "ProjectTag", Pattern: `#[a-zA-Z_][a-zA-Z0-9_-]*`},
 	{Name: "ContextTag", Pattern: `@[a-zA-Z_][a-zA-Z0-9_-]*`},
 
-	// Operations
+	// Field setters with colon (op starters) - MUST come before Ident
+	// These consume the field name and colon together
+	{
+		Name:    "SetField",
+		Pattern: `\b(title|notes|due|waiting|state|project|projects|context|contexts|meta|id|text)\b\s*:`,
+	},
+	{
+		Name:    "AddField",
+		Pattern: `\+\s*\b(project|projects|context|contexts|meta)\b\s*:`,
+	},
+	{
+		Name:    "RemoveField",
+		Pattern: `-\s*\b(project|projects|context|contexts|meta)\b\s*:`,
+	},
+	{
+		Name:    "ClearField",
+		Pattern: `!\s*\b(notes|due|waiting|projects|contexts|meta)\b`,
+	},
+
+	// Clear op for non-field cases (just the ! symbol)
+	{Name: "ClearOp", Pattern: `!`},
+
+	// Add/Remove ops as standalone (for tag operations)
 	{Name: "AddOp", Pattern: `\+`},
 	{Name: "RemoveOp", Pattern: `-`},
-	{Name: "ClearOp", Pattern: `!`},
 
 	// Punctuation
 	{Name: "Colon", Pattern: `:`},
@@ -34,6 +55,12 @@ var dslLexer = lexer.MustSimple([]lexer.SimpleRule{
 
 	// Verbs (commands)
 	{Name: "Verb", Pattern: `\b(add|create|new|set|edit|update|find|show|list|filter)\b`},
+
+	// Relative date keywords
+	{Name: "RelativeDate", Pattern: `\b(today|tomorrow|next-week)\b`},
+
+	// Target keywords
+	{Name: "Target", Pattern: `\b(selected|it|this|that)\b`},
 
 	// Identifiers and words (catch-all for regular words including alphanumeric)
 	{Name: "Ident", Pattern: `[a-zA-Z0-9_-]+`},
