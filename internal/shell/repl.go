@@ -191,7 +191,7 @@ func (r *REPL) processCommand(ctx context.Context, input string) error {
 	}
 
 	// Handle view commands: view i/inbox, view n/now, view w/waiting, view l/later, view c/calendar
-	if result, handled := r.handleViewCommand(cmd); handled {
+	if result, handled := r.handleViewCommand(ctx, cmd); handled {
 		r.display.ShowResult(result)
 		return nil
 	}
@@ -235,8 +235,9 @@ func (r *REPL) showPlainHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "")
 
 	_, _ = fmt.Fprintln(os.Stdout, "Views:")
-	_, _ = fmt.Fprintln(os.Stdout, "  view i/inbox  Inbox    view n/now    Now       view w/wait  Waiting")
-	_, _ = fmt.Fprintln(os.Stdout, "  view l/later  Later    view c/cal    Due today")
+	_, _ = fmt.Fprintln(os.Stdout, "  view i/inbox      Inbox      view n/now        Now")
+	_, _ = fmt.Fprintln(os.Stdout, "  view w/waiting    Waiting    view l/later      Later")
+	_, _ = fmt.Fprintln(os.Stdout, "  view c/calendar   Due today")
 	_, _ = fmt.Fprintln(os.Stdout, "")
 
 	_, _ = fmt.Fprintln(os.Stdout, "Examples:")
@@ -474,7 +475,7 @@ func (r *REPL) handleContextArgs(parts []string) (*ExecuteResult, bool) {
 
 // handleViewCommand handles view commands like "view i", "view inbox", etc.
 // Returns (result, true) if handled, (nil, false) otherwise.
-func (r *REPL) handleViewCommand(cmd string) (*ExecuteResult, bool) {
+func (r *REPL) handleViewCommand(ctx context.Context, cmd string) (*ExecuteResult, bool) {
 	parts := strings.Fields(cmd)
 	if len(parts) == 0 || parts[0] != "view" {
 		return nil, false
@@ -508,7 +509,7 @@ func (r *REPL) handleViewCommand(cmd string) (*ExecuteResult, bool) {
 	}
 
 	// Execute the filter query
-	result, err := r.executor.Execute(context.Background(), filterQuery)
+	result, err := r.executor.Execute(ctx, filterQuery)
 	if err != nil {
 		return &ExecuteResult{
 			Intent:    "view",
