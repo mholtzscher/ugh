@@ -2,6 +2,7 @@ package nlp
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -17,8 +18,7 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 		opts.Now = time.Now()
 	}
 
-	// Use participle to parse the input into grammar structures
-	gInput, err := dslParser.ParseString("", input)
+	root, err := dslParser.ParseString("", input)
 	if err != nil {
 		// Try to determine what kind of error this is
 		return ParseResult{
@@ -31,8 +31,33 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 		}, err
 	}
 
-	// Convert grammar to AST
-	return convertGrammar(gInput, opts)
+	if root == nil || root.Cmd == nil {
+		return ParseResult{Intent: IntentUnknown}, errors.New("empty parse result")
+	}
+
+	intent, cmdAny, postErr := postProcess(root.Cmd)
+	if postErr != nil {
+		return ParseResult{Intent: intent}, postErr
+	}
+
+	if opts.Mode != ModeAuto {
+		want := IntentUnknown
+		switch opts.Mode {
+		case ModeAuto:
+			want = IntentUnknown
+		case ModeCreate:
+			want = IntentCreate
+		case ModeUpdate:
+			want = IntentUpdate
+		case ModeFilter:
+			want = IntentFilter
+		}
+		if want != IntentUnknown && intent != want {
+			return ParseResult{Intent: intent, Command: cmdAny}, errors.New("command does not match parse mode")
+		}
+	}
+
+	return ParseResult{Intent: intent, Command: cmdAny}, nil
 }
 
 // Parser interface for dependency injection.
@@ -50,4 +75,24 @@ func NewParser() Parser {
 // Parse implements the Parser interface.
 func (defaultParser) Parse(_ context.Context, input string, opts ParseOptions) (ParseResult, error) {
 	return Parse(input, opts)
+}
+
+func postProcess(cmd Command) (Intent, any, error) {
+	switch typed := cmd.(type) {
+	case *CreateCommand:
+		if err := typed.postProcess(); err != nil {
+			return IntentCreate, typed, err
+		}
+		return IntentCreate, typed, nil
+	case *UpdateCommand:
+		typed.postProcess()
+		return IntentUpdate, typed, nil
+	case *FilterCommand:
+		if err := typed.postProcess(); err != nil {
+			return IntentFilter, typed, err
+		}
+		return IntentFilter, typed, nil
+	default:
+		return IntentUnknown, cmd, errors.New("unknown command type")
+	}
 }

@@ -9,6 +9,9 @@ var dslLexer = lexer.MustSimple([]lexer.SimpleRule{
 	// Quoted strings first (highest priority)
 	{Name: "Quoted", Pattern: `"(?:[^"\\]|\\.)*"`},
 
+	// Numeric hash IDs (must come before ProjectTag)
+	{Name: "HashNumber", Pattern: `#[0-9]+`},
+
 	// Tags - project (#) and context (@)
 	{Name: "ProjectTag", Pattern: `#[a-zA-Z_][a-zA-Z0-9_-]*`},
 	{Name: "ContextTag", Pattern: `@[a-zA-Z_][a-zA-Z0-9_-]*`},
@@ -17,7 +20,7 @@ var dslLexer = lexer.MustSimple([]lexer.SimpleRule{
 	// These consume the field name and colon together
 	{
 		Name:    "SetField",
-		Pattern: `\b(title|notes|due|waiting|state|project|projects|context|contexts|meta|id|text)\b\s*:`,
+		Pattern: `\b(title|notes|due|waiting|waiting-for|waiting_for|state|project|projects|context|contexts|meta|id|text)\b\s*:`,
 	},
 	{
 		Name:    "AddField",
@@ -29,7 +32,7 @@ var dslLexer = lexer.MustSimple([]lexer.SimpleRule{
 	},
 	{
 		Name:    "ClearField",
-		Pattern: `!\s*\b(notes|due|waiting|projects|contexts|meta)\b`,
+		Pattern: `!\s*\b(notes|due|waiting|waiting-for|waiting_for|projects|contexts|meta)\b`,
 	},
 
 	// Clear op for non-field cases (just the ! symbol)
@@ -41,26 +44,13 @@ var dslLexer = lexer.MustSimple([]lexer.SimpleRule{
 
 	// Punctuation
 	{Name: "Colon", Pattern: `:`},
+	{Name: "Comma", Pattern: `,`},
 	{Name: "LParen", Pattern: `\(`},
 	{Name: "RParen", Pattern: `\)`},
 
 	// Logical operators
 	{Name: "AndOp", Pattern: `&&`},
 	{Name: "OrOp", Pattern: `\|\|`},
-
-	// Keywords
-	{Name: "And", Pattern: `\band\b`},
-	{Name: "Or", Pattern: `\bor\b`},
-	{Name: "Not", Pattern: `\bnot\b`},
-
-	// Verbs (commands)
-	{Name: "Verb", Pattern: `\b(add|create|new|set|edit|update|find|show|list|filter)\b`},
-
-	// Relative date keywords
-	{Name: "RelativeDate", Pattern: `\b(today|tomorrow|next-week)\b`},
-
-	// Target keywords
-	{Name: "Target", Pattern: `\b(selected|it|this|that)\b`},
 
 	// Identifiers and words (catch-all for regular words including alphanumeric)
 	{Name: "Ident", Pattern: `[a-zA-Z0-9_-]+`},
