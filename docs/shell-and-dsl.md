@@ -95,11 +95,11 @@ flowchart TD
     F --> G[AST Commands]
 
     subgraph Tokens["Token Types"]
-        T1[Quoted: "buy milk"]
+        T1["Quoted: buy milk"]
         T2[ProjectTag: #groceries]
         T3[ContextTag: @store]
         T4[SetField: title:]<-->T5[Ident: buy]
-        T6[AndOp: &&/and]<-->T7[OrOp: ||/or]
+        T6["AndOp: &&/and"]<-->T7["OrOp: ||/or"]
     end
 
     subgraph Grammar["Grammar Nodes"]
