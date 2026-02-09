@@ -49,13 +49,13 @@ func TestParseCreate_Basic(t *testing.T) {
 	}{
 		{
 			name:        "simple title",
-			input:       "buy milk",
+			input:       "add buy milk",
 			wantTitle:   "buy milk",
 			wantOpCount: 0,
 		},
 		{
 			name:        "multi-word title",
-			input:       "buy organic whole milk",
+			input:       "add buy organic whole milk",
 			wantTitle:   "buy organic whole milk",
 			wantOpCount: 0,
 		},
@@ -114,13 +114,13 @@ func TestParseCreate_WithProjects(t *testing.T) {
 	}{
 		{
 			name:         "single project",
-			input:        "buy milk #groceries",
+			input:        "add buy milk #groceries",
 			wantTitle:    "buy milk",
 			wantProjects: []string{"groceries"},
 		},
 		{
 			name:         "multiple projects",
-			input:        "plan vacation #personal #travel",
+			input:        "add plan vacation #personal #travel",
 			wantTitle:    "plan vacation",
 			wantProjects: []string{"personal", "travel"},
 		},
@@ -155,20 +155,20 @@ func TestParseCreate_WithContexts(t *testing.T) {
 	}{
 		{
 			name:         "single context",
-			input:        "buy milk @store",
+			input:        "add buy milk @store",
 			wantTitle:    "buy milk",
 			wantContexts: []string{"store"},
 		},
 		{
 			name:         "multiple contexts",
-			input:        "call mom @phone @urgent",
-			wantTitle:    "call mom",
+			input:        "add call mom @phone @urgent",
+			wantTitle:    "add call mom",
 			wantContexts: []string{"phone", "urgent"},
 		},
 
 		{
 			name:         "mixed projects and contexts",
-			input:        "buy milk #groceries @store @urgent",
+			input:        "add buy milk #groceries @store @urgent",
 			wantTitle:    "buy milk",
 			wantContexts: []string{"store", "urgent"},
 		},
@@ -201,12 +201,12 @@ func TestParseCreate_WithDates(t *testing.T) {
 	}{
 		{
 			name:         "due field with today",
-			input:        "task due:today",
+			input:        "add task due:today",
 			wantDueValue: "today",
 		},
 		{
 			name:         "due field with tomorrow",
-			input:        "task due:tomorrow",
+			input:        "add task due:tomorrow",
 			wantDueValue: "tomorrow",
 		},
 	}
@@ -224,7 +224,7 @@ func TestParseCreate_WithDates(t *testing.T) {
 			var foundDueValue string
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldDue {
-					foundDueValue = setOp.Value.Raw
+					foundDueValue = setOp.Value
 				}
 			}
 
@@ -245,32 +245,32 @@ func TestParseCreate_WithState(t *testing.T) {
 	}{
 		{
 			name:      "state inbox",
-			input:     "task state:inbox",
+			input:     "add task state:inbox",
 			wantState: "inbox",
 		},
 		{
 			name:      "state now",
-			input:     "task state:now",
+			input:     "add task state:now",
 			wantState: "now",
 		},
 		{
 			name:      "state waiting",
-			input:     "task state:waiting",
+			input:     "add task state:waiting",
 			wantState: "waiting",
 		},
 		{
 			name:      "state later",
-			input:     "task state:later",
+			input:     "add task state:later",
 			wantState: "later",
 		},
 		{
 			name:      "state done",
-			input:     "task state:done",
+			input:     "add task state:done",
 			wantState: "done",
 		},
 		{
 			name:      "state todo",
-			input:     "task state:todo",
+			input:     "add task state:todo",
 			wantState: "todo", // Normalization happens at compile time, not parse time
 		},
 	}
@@ -287,7 +287,7 @@ func TestParseCreate_WithState(t *testing.T) {
 			var foundState string
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldState {
-					foundState = setOp.Value.Raw
+					foundState = setOp.Value
 				}
 			}
 
@@ -308,12 +308,12 @@ func TestParseCreate_WithWaiting(t *testing.T) {
 	}{
 		{
 			name:        "waiting simple",
-			input:       "task waiting:alex",
+			input:       "add task waiting:alex",
 			wantWaiting: "alex",
 		},
 		{
 			name:        "multiple words",
-			input:       "task waiting:the team",
+			input:       "add task waiting:the team",
 			wantWaiting: "the team",
 		},
 	}
@@ -330,7 +330,7 @@ func TestParseCreate_WithWaiting(t *testing.T) {
 			var foundWaiting string
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldWaiting {
-					foundWaiting = setOp.Value.Raw
+					foundWaiting = setOp.Value
 				}
 			}
 
@@ -351,12 +351,12 @@ func TestParseCreate_WithNotes(t *testing.T) {
 	}{
 		{
 			name:      "simple notes",
-			input:     "task notes:remember this",
+			input:     "add task notes:remember this",
 			wantNotes: "remember this",
 		},
 		{
 			name:      "notes with special chars",
-			input:     "task notes:call before 5pm",
+			input:     "add task notes:call before 5pm",
 			wantNotes: "call before 5pm",
 		},
 	}
@@ -373,7 +373,7 @@ func TestParseCreate_WithNotes(t *testing.T) {
 			var foundNotes string
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldNotes {
-					foundNotes = setOp.Value.Raw
+					foundNotes = setOp.Value
 				}
 			}
 
@@ -391,7 +391,7 @@ func TestParseCreate_Complex(t *testing.T) {
 
 	// Complex combined create command
 	result, err := nlp.Parse(
-		"buy milk tomorrow #groceries @store waiting:alex notes:organic preferred",
+		"add buy milk tomorrow #groceries @store waiting:alex notes:organic preferred",
 		nlp.ParseOptions{Now: now},
 	)
 	if err != nil {
@@ -527,8 +527,8 @@ func TestParseUpdate_SetOperations(t *testing.T) {
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == tt.wantField {
 					found = true
-					if setOp.Value.Raw != tt.wantValue {
-						t.Errorf("value = %q, want %q", setOp.Value.Raw, tt.wantValue)
+					if setOp.Value != tt.wantValue {
+						t.Errorf("value = %q, want %q", setOp.Value, tt.wantValue)
 					}
 				}
 			}
@@ -582,8 +582,8 @@ func TestParseUpdate_AddOperations(t *testing.T) {
 			for _, op := range cmd.Ops {
 				if addOp, ok := op.(nlp.AddOp); ok && addOp.Field == tt.wantField {
 					found = true
-					if addOp.Value.Raw != tt.wantValue {
-						t.Errorf("value = %q, want %q", addOp.Value.Raw, tt.wantValue)
+					if addOp.Value != tt.wantValue {
+						t.Errorf("value = %q, want %q", addOp.Value, tt.wantValue)
 					}
 				}
 			}
@@ -631,8 +631,8 @@ func TestParseUpdate_RemoveOperations(t *testing.T) {
 			for _, op := range cmd.Ops {
 				if removeOp, ok := op.(nlp.RemoveOp); ok && removeOp.Field == tt.wantField {
 					found = true
-					if removeOp.Value.Raw != tt.wantValue {
-						t.Errorf("value = %q, want %q", removeOp.Value.Raw, tt.wantValue)
+					if removeOp.Value != tt.wantValue {
+						t.Errorf("value = %q, want %q", removeOp.Value, tt.wantValue)
 					}
 				}
 			}
@@ -796,6 +796,24 @@ func TestParseFilter_Predicates(t *testing.T) {
 			wantKind: nlp.PredText,
 			wantText: "report",
 		},
+		{
+			name:     "id predicate explicit",
+			input:    "find id:42",
+			wantKind: nlp.PredID,
+			wantText: "42",
+		},
+		{
+			name:     "id predicate numeric",
+			input:    "find 42",
+			wantKind: nlp.PredID,
+			wantText: "42",
+		},
+		{
+			name:     "show numeric is id lookup",
+			input:    "show 3",
+			wantKind: nlp.PredID,
+			wantText: "3",
+		},
 	}
 
 	for _, tt := range tests {
@@ -915,11 +933,11 @@ func TestParseErrors(t *testing.T) {
 		},
 		{
 			name:  "empty field value",
-			input: "task state:",
+			input: "add task state:",
 		},
 		{
 			name:  "invalid tag token",
-			input: "task #",
+			input: "add task #",
 		},
 	}
 
@@ -942,7 +960,7 @@ func TestParseCreateCommand(t *testing.T) {
 	t.Parallel()
 
 	result, err := nlp.Parse(
-		`buy milk tomorrow #home @errands waiting:alex`,
+		`add buy milk tomorrow #home @errands waiting:alex`,
 		nlp.ParseOptions{Now: time.Date(2026, 2, 8, 10, 0, 0, 0, time.UTC)},
 	)
 	if err != nil {
@@ -984,6 +1002,86 @@ func TestParseUpdateCommand(t *testing.T) {
 	}
 	if len(cmd.Ops) != 3 {
 		t.Fatalf("ops len = %d, want 3", len(cmd.Ops))
+	}
+}
+
+func TestParseUpdate_TagShorthand(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		input        string
+		wantTarget   nlp.TargetKind
+		wantTagKind  nlp.TagKind
+		wantTagValue string
+	}{
+		{
+			name:         "set project tag shorthand",
+			input:        "set #work",
+			wantTarget:   nlp.TargetSelected,
+			wantTagKind:  nlp.TagProject,
+			wantTagValue: "work",
+		},
+		{
+			name:         "set context tag shorthand",
+			input:        "set @urgent",
+			wantTarget:   nlp.TargetSelected,
+			wantTagKind:  nlp.TagContext,
+			wantTagValue: "urgent",
+		},
+		{
+			name:         "edit with tag shorthand",
+			input:        "edit #personal",
+			wantTarget:   nlp.TargetSelected,
+			wantTagKind:  nlp.TagProject,
+			wantTagValue: "personal",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assertTagShorthand(t, tt.input, tt.wantTarget, tt.wantTagKind, tt.wantTagValue)
+		})
+	}
+}
+
+func assertTagShorthand(
+	t *testing.T,
+	input string,
+	wantTarget nlp.TargetKind,
+	wantTagKind nlp.TagKind,
+	wantTagValue string,
+) {
+	t.Helper()
+	result, err := nlp.Parse(input, nlp.ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+	if result.Intent != nlp.IntentUpdate {
+		t.Fatalf("intent = %v, want %v", result.Intent, nlp.IntentUpdate)
+	}
+
+	cmd, ok := result.Command.(nlp.UpdateCommand)
+	if !ok {
+		t.Fatalf("command type = %T, want UpdateCommand", result.Command)
+	}
+	if cmd.Target.Kind != wantTarget {
+		t.Errorf("target kind = %v, want %v", cmd.Target.Kind, wantTarget)
+	}
+	if len(cmd.Ops) != 1 {
+		t.Fatalf("ops len = %d, want 1", len(cmd.Ops))
+	}
+
+	tagOp, ok := cmd.Ops[0].(nlp.TagOp)
+	if !ok {
+		t.Fatalf("op type = %T, want TagOp", cmd.Ops[0])
+	}
+	if tagOp.Kind != wantTagKind {
+		t.Errorf("tag kind = %v, want %v", tagOp.Kind, wantTagKind)
+	}
+	if tagOp.Value != wantTagValue {
+		t.Errorf("tag value = %q, want %q", tagOp.Value, wantTagValue)
 	}
 }
 

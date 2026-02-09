@@ -54,7 +54,7 @@ func (e *Executor) Execute(ctx context.Context, input string) (*ExecuteResult, e
 	if len(parseResult.Diagnostics) > 0 {
 		for _, diag := range parseResult.Diagnostics {
 			if diag.Severity == nlp.SeverityError {
-				return nil, fmt.Errorf("parse error at %d: %s", diag.Span.Start.Offset, diag.Message)
+				return nil, fmt.Errorf("parse error: %s", diag.Message)
 			}
 		}
 	}

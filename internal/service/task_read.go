@@ -8,6 +8,18 @@ import (
 )
 
 func (s *TaskService) ListTasks(ctx context.Context, req ListTasksRequest) ([]*store.Task, error) {
+	// If specific ID requested, fetch that task directly
+	if req.ID > 0 {
+		task, err := s.GetTask(ctx, req.ID)
+		if err != nil {
+			return nil, err
+		}
+		if task == nil {
+			return []*store.Task{}, nil
+		}
+		return []*store.Task{task}, nil
+	}
+
 	filters := store.Filters{
 		All:        req.All,
 		DoneOnly:   req.DoneOnly,

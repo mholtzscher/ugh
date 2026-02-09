@@ -13,6 +13,9 @@ schema = 3
   [mod."github.com/BurntSushi/toml"]
     version = "v1.6.0"
     hash = "sha256-ptdUJvuc21ixeLt+M5way/na3aCnCO4MYHWulWp8NEY="
+  [mod."github.com/alecthomas/participle/v2"]
+    version = "v2.1.4"
+    hash = "sha256-MNNIJGTV6Rqm5rEPQX0Nro0XTzJ9/SmQ24hZ4kJaiIM="
   [mod."github.com/chzyer/readline"]
     version = "v1.5.1"
     hash = "sha256-6wKd6/JZ9/O7FwSyNKE3KOt8fVPZEunqbTHQUxlOUNc="

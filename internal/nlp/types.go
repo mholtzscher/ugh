@@ -26,28 +26,16 @@ const (
 	SeverityInfo
 )
 
-type Position struct {
-	Offset int
-	Line   int
-	Column int
-}
-
-type Span struct {
-	Start Position
-	End   Position
-}
-
 type Diagnostic struct {
 	Severity Severity
 	Code     string
 	Message  string
-	Span     Span
 	Hint     string
 }
 
 type ParseResult struct {
 	Intent      Intent
-	Command     CommandAST
+	Command     any
 	Diagnostics []Diagnostic
 	Canonical   string
 }

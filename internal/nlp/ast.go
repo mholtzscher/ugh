@@ -1,39 +1,18 @@
 package nlp
 
-type Node interface {
-	NodeSpan() Span
-}
-
-type CommandAST interface {
-	Node
-	commandNode()
-}
-
 type CreateCommand struct {
 	Title string
 	Ops   []Operation
-	Span  Span
 }
-
-func (c CreateCommand) commandNode()   {}
-func (c CreateCommand) NodeSpan() Span { return c.Span }
 
 type UpdateCommand struct {
 	Target TargetRef
 	Ops    []Operation
-	Span   Span
 }
-
-func (c UpdateCommand) commandNode()   {}
-func (c UpdateCommand) NodeSpan() Span { return c.Span }
 
 type FilterCommand struct {
 	Expr FilterExpr
-	Span Span
 }
-
-func (c FilterCommand) commandNode()   {}
-func (c FilterCommand) NodeSpan() Span { return c.Span }
 
 type TargetKind int
 
@@ -45,7 +24,6 @@ const (
 type TargetRef struct {
 	Kind TargetKind
 	ID   int64
-	Span Span
 }
 
 type Field int
@@ -62,44 +40,35 @@ const (
 )
 
 type Operation interface {
-	Node
-	opNode()
+	operation()
 }
 
 type SetOp struct {
 	Field Field
-	Value Value
-	Span  Span
+	Value string
 }
 
-func (o SetOp) opNode()        {}
-func (o SetOp) NodeSpan() Span { return o.Span }
+func (SetOp) operation() {}
 
 type AddOp struct {
 	Field Field
-	Value Value
-	Span  Span
+	Value string
 }
 
-func (o AddOp) opNode()        {}
-func (o AddOp) NodeSpan() Span { return o.Span }
+func (AddOp) operation() {}
 
 type RemoveOp struct {
 	Field Field
-	Value Value
-	Span  Span
+	Value string
 }
 
-func (o RemoveOp) opNode()        {}
-func (o RemoveOp) NodeSpan() Span { return o.Span }
+func (RemoveOp) operation() {}
 
 type ClearOp struct {
 	Field Field
-	Span  Span
 }
 
-func (o ClearOp) opNode()        {}
-func (o ClearOp) NodeSpan() Span { return o.Span }
+func (ClearOp) operation() {}
 
 type TagKind int
 
@@ -111,21 +80,12 @@ const (
 type TagOp struct {
 	Kind  TagKind
 	Value string
-	Span  Span
 }
 
-func (o TagOp) opNode()        {}
-func (o TagOp) NodeSpan() Span { return o.Span }
-
-type Value struct {
-	Raw    string
-	Quoted bool
-	Span   Span
-}
+func (TagOp) operation() {}
 
 type FilterExpr interface {
-	Node
-	filterNode()
+	filterExpr()
 }
 
 type FilterBoolOp int
@@ -139,19 +99,15 @@ type FilterBinary struct {
 	Op    FilterBoolOp
 	Left  FilterExpr
 	Right FilterExpr
-	Span  Span
 }
 
-func (e FilterBinary) filterNode()    {}
-func (e FilterBinary) NodeSpan() Span { return e.Span }
+func (FilterBinary) filterExpr() {}
 
 type FilterNot struct {
 	Expr FilterExpr
-	Span Span
 }
 
-func (e FilterNot) filterNode()    {}
-func (e FilterNot) NodeSpan() Span { return e.Span }
+func (FilterNot) filterExpr() {}
 
 type PredicateKind int
 
@@ -161,6 +117,7 @@ const (
 	PredProject
 	PredContext
 	PredText
+	PredID
 )
 
 type DateCmp int
@@ -190,9 +147,6 @@ type Predicate struct {
 	DateCmp  DateCmp
 	DateKind DateValueKind
 	DateText string
-
-	Span Span
 }
 
-func (e Predicate) filterNode()    {}
-func (e Predicate) NodeSpan() Span { return e.Span }
+func (Predicate) filterExpr() {}
