@@ -190,6 +190,12 @@ func (r *REPL) processCommand(ctx context.Context, input string) error {
 		return nil
 	}
 
+	// Handle view commands: view i/inbox, view n/now, view w/waiting, view l/later, view c/calendar
+	if result, handled := r.handleViewCommand(ctx, cmd); handled {
+		r.display.ShowResult(result)
+		return nil
+	}
+
 	// Handle context commands: context #project, context @context, context clear
 	if result, handled := r.handleContextCommand(cmd); handled {
 		r.display.ShowResult(result)
@@ -224,10 +230,15 @@ func (r *REPL) showPlainHelp() {
 	_, _ = fmt.Fprintln(os.Stdout)
 
 	_, _ = fmt.Fprintln(os.Stdout, "Navigation:")
-	_, _ = fmt.Fprintln(os.Stdout, "  quit, exit, q    Exit the shell")
-	_, _ = fmt.Fprintln(os.Stdout, "  help, ?          Show this help")
-	_, _ = fmt.Fprintln(os.Stdout, "  clear              Clear the screen")
-	_, _ = fmt.Fprintln(os.Stdout)
+	_, _ = fmt.Fprintln(os.Stdout, "  quit, exit, q  Exit the shell    help, ?  Show this help")
+	_, _ = fmt.Fprintln(os.Stdout, "  clear          Clear the screen")
+	_, _ = fmt.Fprintln(os.Stdout, "")
+
+	_, _ = fmt.Fprintln(os.Stdout, "Views:")
+	_, _ = fmt.Fprintln(os.Stdout, "  view i/inbox      Inbox      view n/now        Now")
+	_, _ = fmt.Fprintln(os.Stdout, "  view w/waiting    Waiting    view l/later      Later")
+	_, _ = fmt.Fprintln(os.Stdout, "  view c/calendar   Due today")
+	_, _ = fmt.Fprintln(os.Stdout, "")
 
 	_, _ = fmt.Fprintln(os.Stdout, "Examples:")
 	_, _ = fmt.Fprintln(os.Stdout, "  add buy milk tomorrow #groceries @store")
@@ -283,6 +294,15 @@ func (r *REPL) showColorHelp() {
 		pterm.LightCyan("quit, exit, q") + "    Exit the shell\n" +
 			pterm.LightCyan("help, ?") + "          Show this help\n" +
 			pterm.LightCyan("clear") + "            Clear the screen")
+
+	// Views panel
+	pterm.DefaultBox.WithTitle(pterm.Green("Views")).WithRightPadding(1).WithLeftPadding(1).Println(
+		pterm.LightGreen("view") + "               Show available views\n" +
+			pterm.LightGreen("view i/inbox") + "     Inbox tasks\n" +
+			pterm.LightGreen("view n/now") + "       Now tasks\n" +
+			pterm.LightGreen("view w/waiting") + "   Waiting tasks\n" +
+			pterm.LightGreen("view l/later") + "     Later tasks\n" +
+			pterm.LightGreen("view c/calendar") + "  Tasks due today")
 
 	// Examples panel
 	pterm.DefaultBox.WithTitle(pterm.Green("Examples")).WithRightPadding(1).WithLeftPadding(1).Println(
@@ -451,4 +471,83 @@ func (r *REPL) handleContextArgs(parts []string) (*ExecuteResult, bool) {
 	}
 
 	return nil, false
+}
+
+// handleViewCommand handles view commands like "view i", "view inbox", etc.
+// Returns (result, true) if handled, (nil, false) otherwise.
+func (r *REPL) handleViewCommand(ctx context.Context, cmd string) (*ExecuteResult, bool) {
+	parts := strings.Fields(cmd)
+	if len(parts) == 0 || parts[0] != "view" {
+		return nil, false
+	}
+
+	if len(parts) == 1 {
+		return r.showViewHelp(), true
+	}
+
+	viewName := strings.ToLower(parts[1])
+	var filterQuery string
+
+	switch viewName {
+	case "i", "inbox":
+		filterQuery = "find state:inbox"
+	case "n", "now":
+		filterQuery = "find state:now"
+	case "w", "waiting":
+		filterQuery = "find state:waiting"
+	case "l", "later":
+		filterQuery = "find state:later"
+	case "c", "calendar", "today":
+		filterQuery = "find due:today"
+	default:
+		return &ExecuteResult{
+			Intent:    "view",
+			Message:   fmt.Sprintf("Unknown view: %s. Try: inbox, now, waiting, later, calendar", viewName),
+			Summary:   "unknown view",
+			Timestamp: time.Now(),
+		}, true
+	}
+
+	// Execute the filter query
+	result, err := r.executor.Execute(ctx, filterQuery)
+	if err != nil {
+		return &ExecuteResult{
+			Intent:    "view",
+			Message:   fmt.Sprintf("Error executing view: %v", err),
+			Summary:   "view error",
+			Timestamp: time.Now(),
+		}, true
+	}
+
+	return result, true
+}
+
+func (r *REPL) showViewHelp() *ExecuteResult {
+	var msg string
+	if !r.options.NoColor {
+		msg = pterm.Green("Available Views:\n") +
+			"  " + pterm.LightGreen("i, inbox") + "     Inbox tasks\n" +
+			"  " + pterm.LightGreen("n, now") + "       Now tasks\n" +
+			"  " + pterm.LightGreen("w, waiting") + "   Waiting tasks\n" +
+			"  " + pterm.LightGreen("l, later") + "     Later tasks\n" +
+			"  " + pterm.LightGreen("c, calendar") + "  Tasks due today\n" +
+			"\nUsage: view <name> (e.g., view i or view inbox)"
+	} else {
+		var b strings.Builder
+		b.WriteString("Available Views:\n")
+		b.WriteString("  i, inbox     Inbox tasks\n")
+		b.WriteString("  n, now       Now tasks\n")
+		b.WriteString("  w, waiting   Waiting tasks\n")
+		b.WriteString("  l, later     Later tasks\n")
+		b.WriteString("  c, calendar  Tasks due today\n")
+		b.WriteString("\nUsage: view <name> (e.g., view i or view inbox)")
+		msg = b.String()
+	}
+
+	return &ExecuteResult{
+		Intent:    "view",
+		Message:   msg,
+		Summary:   "showing view help",
+		Timestamp: time.Now(),
+	}
 }
