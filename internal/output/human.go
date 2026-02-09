@@ -187,3 +187,30 @@ func writeRenderedLine(out io.Writer, noColor bool, line string) error {
 	_, err := fmt.Fprint(out, line)
 	return err
 }
+
+const maxCommandDisplayLength = 50
+
+func writeHumanHistory(out io.Writer, noColor bool, entries []*HistoryEntry) error {
+	if len(entries) == 0 {
+		return writeRenderedLine(out, noColor, pterm.DefaultBasicText.Sprintln("No history entries"))
+	}
+
+	rows := pterm.TableData{{"Time", "Status", "Intent", "Command"}}
+	for _, e := range entries {
+		status := "✓"
+		if !e.Success {
+			status = "✗"
+		}
+		intent := e.Intent
+		if intent == "" {
+			intent = "-"
+		}
+		timeStr := e.Time.Format("2006-01-02 15:04")
+		cmd := e.Command
+		if len(cmd) > maxCommandDisplayLength {
+			cmd = cmd[:maxCommandDisplayLength-3] + "..."
+		}
+		rows = append(rows, []string{timeStr, status, intent, cmd})
+	}
+	return renderTable(out, noColor, rows)
+}

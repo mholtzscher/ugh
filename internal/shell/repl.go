@@ -25,9 +25,8 @@ const (
 
 // Options configures the shell behavior.
 type Options struct {
-	Mode        Mode
-	InputFile   string
-	HistoryPath string
+	Mode      Mode
+	InputFile string
 }
 
 // SessionState tracks the current shell session context.
@@ -82,7 +81,7 @@ func (r *REPL) Run(ctx context.Context) error {
 }
 
 func (r *REPL) runInteractive(ctx context.Context) error {
-	prompt, err := NewPrompt(r.options.HistoryPath)
+	prompt, err := NewPrompt(r.service)
 	if err != nil {
 		return fmt.Errorf("initialize prompt: %w", err)
 	}
@@ -190,7 +189,7 @@ func (r *REPL) processCommand(ctx context.Context, input string) error {
 		return err
 	}
 
-	if histErr := r.history.Record(ctx, input, true, result.Summary); histErr != nil {
+	if histErr := r.history.Record(ctx, input, true, result.Summary, result.Intent); histErr != nil {
 		_ = histErr
 	}
 

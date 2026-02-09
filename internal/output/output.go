@@ -245,3 +245,62 @@ func formatDateTime(val time.Time) string {
 	}
 	return val.UTC().Format(time.RFC3339)
 }
+
+// HistoryJSON represents a shell history entry for JSON output.
+type HistoryJSON struct {
+	ID      int64  `json:"id"`
+	Time    string `json:"time"`
+	Command string `json:"command"`
+	Success bool   `json:"success"`
+	Summary string `json:"summary,omitempty"`
+	Intent  string `json:"intent,omitempty"`
+}
+
+// HistoryEntry represents a shell history entry for display.
+type HistoryEntry struct {
+	ID      int64
+	Time    time.Time
+	Command string
+	Success bool
+	Summary string
+	Intent  string
+}
+
+func (w Writer) WriteHistory(entries []*HistoryEntry) error {
+	if w.JSON {
+		payload := make([]HistoryJSON, 0, len(entries))
+		for _, e := range entries {
+			payload = append(payload, HistoryJSON{
+				ID:      e.ID,
+				Time:    formatDateTime(e.Time),
+				Command: e.Command,
+				Success: e.Success,
+				Summary: e.Summary,
+				Intent:  e.Intent,
+			})
+		}
+		return writeJSON(w.Out, payload)
+	}
+
+	if w.TTY {
+		return writeHumanHistory(w.Out, w.NoColor, entries)
+	}
+
+	for _, e := range entries {
+		status := "✓"
+		if !e.Success {
+			status = "✗"
+		}
+		_, err := fmt.Fprintf(w.Out, "%d\t%s\t%s\t%s\t%s\n",
+			e.ID,
+			formatDateTime(e.Time),
+			status,
+			e.Intent,
+			e.Command,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
