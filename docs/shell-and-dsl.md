@@ -75,7 +75,7 @@ flowchart LR
 **Features:**
 - **Three modes**: Interactive REPL, script file execution, stdin pipe
 - **Pronoun resolution**: `it`/`this` → last task, `that` → second-to-last, `selected` → selected task
-- **Sticky context**: `set #project` and `set @context` apply to all subsequent commands
+- **Sticky context**: `context #project` and `context @context` apply to all subsequent commands
 - **Session persistence**: Tracks recently accessed tasks and selected task
 
 ### 2. NLP Layer (`internal/nlp/`)
@@ -245,8 +245,8 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph Context["Sticky Context Set"]
-        C1["set #work"]
-        C2["set @urgent"]
+        C1["context #work"]
+        C2["context @urgent"]
     end
 
     A["list state:now"] --> B["Context Injection:<br/>#work + @urgent"]
@@ -291,9 +291,9 @@ show id:123
 ### Context Commands
 
 ```
-set #project        # Set default project filter
-set @context        # Set default context filter
-clear context       # Remove all sticky filters
+context #project    # Set default project filter
+context @context    # Set default context filter
+context clear       # Remove all sticky filters
 ```
 
 ## Key Design Decisions
