@@ -177,7 +177,7 @@ func (r *REPL) processCommand(ctx context.Context, input string) error {
 		return nil
 	}
 
-	// Handle context commands: set #project, set @context, clear context
+	// Handle context commands: context #project, context @context, context clear
 	if result, handled := r.handleContextCommand(cmd); handled {
 		r.display.ShowResult(result)
 		return nil
@@ -241,12 +241,12 @@ func (r *REPL) showHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "    #123              Task ID")
 	_, _ = fmt.Fprintln(os.Stdout, "")
 	_, _ = fmt.Fprintln(os.Stdout, "  Context (sticky filters):")
-	_, _ = fmt.Fprintln(os.Stdout, "    set #project      Set default project context")
-	_, _ = fmt.Fprintln(os.Stdout, "    set @context      Set default context filter")
-	_, _ = fmt.Fprintln(os.Stdout, "    clear context     Clear all context filters")
+	_, _ = fmt.Fprintln(os.Stdout, "    context #project  Set default project context")
+	_, _ = fmt.Fprintln(os.Stdout, "    context @context  Set default context filter")
+	_, _ = fmt.Fprintln(os.Stdout, "    context clear     Clear all context filters")
 }
 
-// handleContextCommand handles context setting commands like "set #work" or "set @home".
+// handleContextCommand handles context setting commands like "context #work" or "context @home".
 // Returns (result, true) if handled, (nil, false) otherwise.
 func (r *REPL) handleContextCommand(cmd string) (*ExecuteResult, bool) {
 	const contextCommandParts = 2
@@ -255,8 +255,8 @@ func (r *REPL) handleContextCommand(cmd string) (*ExecuteResult, bool) {
 		return nil, false
 	}
 
-	// Handle "clear context" command
-	if parts[0] == "clear" && parts[1] == "context" {
+	// Handle "context clear" command
+	if parts[0] == "context" && parts[1] == "clear" {
 		r.state.ContextProject = ""
 		r.state.ContextContext = ""
 		return &ExecuteResult{
@@ -267,8 +267,8 @@ func (r *REPL) handleContextCommand(cmd string) (*ExecuteResult, bool) {
 		}, true
 	}
 
-	// Handle "set #project" or "set @context"
-	if parts[0] == "set" {
+	// Handle "context #project" or "context @context"
+	if parts[0] == "context" {
 		token := parts[1]
 		if strings.HasPrefix(token, "#") && len(token) > 1 {
 			r.state.ContextProject = strings.TrimPrefix(token, "#")
