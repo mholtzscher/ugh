@@ -15,21 +15,23 @@ flowchart TD
         D --> E[Context Injection]
     end
 
-    subgraph NLP["NLP Layer (Parsing)"]
-        E --> F[Lexer]
-        F --> G[Grammar Parser]
-        G --> H[Convert to AST]
+    subgraph NLP["NLP Layer (Participle DSL)"]
+        E --> F[Lexer<br/>dslLexer]
+        F --> G[Participle Parser<br/>dslParser]
+        G --> H[Grammar Nodes<br/>dsl_nodes.go]
+        H --> I[Post-Process<br/>dsl_postprocess.go]
+        I --> J[AST Commands]
     end
 
     subgraph Compile["Compile Layer"]
-        H --> I[Validate & Normalize]
-        I --> J[Build Execution Plan]
+        J --> K[Validate & Normalize]
+        K --> L[Build Execution Plan]
     end
 
     subgraph Execute["Execution Layer"]
-        J --> K[Service Calls]
-        K --> L[Database]
-        K --> M[Output Display]
+        L --> M[Service Calls]
+        M --> N[Database]
+        M --> O[Output Display]
     end
 
     style Shell fill:#e1f5fe
@@ -71,6 +73,7 @@ flowchart LR
 - `prompt.go` - Interactive prompt with readline (history, editing)
 - `scripting.go` - Script file processing
 - `types.go` - Session state and execution types
+- `display.go` - Output formatting
 
 **Features:**
 - **Three modes**: Interactive REPL, script file execution, stdin pipe
@@ -80,23 +83,29 @@ flowchart LR
 
 ### 2. NLP Layer (`internal/nlp/`)
 
-Parses natural language-like commands into executable structures:
+Uses [participle](https://github.com/alecthomas/participle) to parse natural language-like commands:
 
 ```mermaid
 flowchart TD
-    A[Raw Input] --> B[Lexer<br/>participle]
+    A[Raw Input] --> B[Lexer<br/>dslLexer]
     B --> C[Tokens]
-    C --> D[Grammar Parser<br/>GInput struct]
-    D --> E[Convert<br/>convert.go]
-    E --> F[AST Commands]
+    C --> D[Participle Parser<br/>dslParser]
+    D --> E[Grammar Nodes<br/>CreateCommand etc.]
+    E --> F[Post-Process<br/>dsl_postprocess.go]
+    F --> G[AST Commands]
 
     subgraph Tokens["Token Types"]
         T1[Quoted: "buy milk"]
         T2[ProjectTag: #groceries]
         T3[ContextTag: @store]
-        T4[Verb: add/create/set/find]
-        T5[Op: + - !]
-        T6[Logic: and/or/not]
+        T4[SetField: title:]<-->T5[Ident: buy]
+        T6[AndOp: &&/and]<-->T7[OrOp: ||/or]
+    end
+
+    subgraph Grammar["Grammar Nodes"]
+        G1[CreateCommand]
+        G2[UpdateCommand]
+        G3[FilterCommand]
     end
 
     subgraph AST["AST Command Types"]
@@ -106,17 +115,23 @@ flowchart TD
     end
 
     C --> Tokens
-    F --> AST
+    D --> Grammar
+    G --> AST
 
     style Tokens fill:#fff3e0
+    style Grammar fill:#e8f5e9
     style AST fill:#e8f5e9
 ```
 
 **Key Files:**
-- `lexer.go` - Tokenizer using participle library
-- `grammar.go` - Grammar structures (auto-generated)
-- `convert.go` - Converts grammar tokens to typed AST (706 lines)
-- `ast.go` - AST type definitions
+- `lexer.go` - Participle lexer with regex rules for tokens
+- `dsl_parser.go` - Participle parser configuration with Union types
+- `dsl_nodes.go` - Grammar node types with struct tags and custom Parse methods
+- `dsl_parse.go` - Custom Parse implementations for verbs, targets, operators
+- `dsl_symbols.go` - Token type symbol mapping
+- `dsl_postprocess.go` - Normalization and validation of parsed commands
+- `parser.go` - Public parser interface
+- `ast.go` - Final AST type definitions
 - `types.go` - Parse modes and intent types
 
 **Operations Supported:**
@@ -137,6 +152,12 @@ flowchart LR
 **Fields:**
 - `title`, `notes`, `due`, `waiting`/`waiting-for`, `state`
 - `projects`, `contexts`, `meta` (list fields supporting Add/Remove)
+
+**Participle Grammar Features:**
+- **Struct tags** for simple token matching: `` `parser:"@Ident"``
+- **Custom Parse methods** for complex logic (synonyms, multi-token values)
+- **Union types** for polymorphic nodes: `participle.Union[Command](&CreateCommand{}, ...)`
+- **Custom Capture** methods for field normalization
 
 ### 3. Compile Layer (`internal/nlp/compile/`)
 
@@ -174,6 +195,7 @@ flowchart LR
 
 **Key File:**
 - `plan.go` - Main compilation logic (464 lines)
+- `plan_test.go` - Compilation tests
 
 **Responsibilities:**
 - Date normalization: `today`, `tomorrow`, `next-week` → `YYYY-MM-DD`
@@ -190,6 +212,7 @@ sequenceDiagram
     participant User
     participant Shell as Shell (REPL)
     participant NLP as NLP Parser
+    participant Post as Post-Process
     participant Compile as Compile Plan
     participant Service as Task Service
     participant DB as SQLite
@@ -197,9 +220,10 @@ sequenceDiagram
     User->>Shell: "add buy milk #groceries"
     Shell->>Shell: Preprocess (pronouns, context)
     Shell->>NLP: Parse input
-    NLP->>NLP: Lex + Grammar parse
-    NLP->>NLP: Convert to AST
-    NLP->>Compile: AST Command
+    NLP->>NLP: Lex + Participle parse
+    NLP->>Post: Grammar nodes
+    Post->>Post: Normalize & validate
+    Post->>Compile: AST Command
     Compile->>Compile: Normalize & validate
     Compile->>Shell: Execution Plan
     Shell->>Service: Execute plan
@@ -220,9 +244,9 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     A["add buy milk #groceries @store due:tomorrow"] --> B["Lexer"]
-    B --> C["Tokens:<br/>Verb: add<br/>Text: buy milk<br/>Tag: #groceries<br/>Tag: @store<br/>Set: due:tomorrow"]
-    C --> D["Grammar → GInput"]
-    D --> E["Convert → CreateCommand"]
+    B --> C["Tokens:<br/>Ident: add<br/>Ident: buy<br/>Ident: milk<br/>ProjectTag: #groceries<br/>ContextTag: @store<br/>SetField: due:<br/>Ident: tomorrow"]
+    C --> D["Participle Parser → CreateCommand"]
+    D --> E["Post-Process:<br/>Title: 'buy milk'<br/>Ops: [#groceries, @store, due:tomorrow]"]
     E --> F["Compile:<br/>due:tomorrow → 2026-02-09"]
     F --> G["CreateTaskRequest"]
     G --> H["Service.CreateTask"]
@@ -234,8 +258,8 @@ flowchart LR
 ```mermaid
 flowchart LR
     A["set it state:done"] --> B["Preprocessor:<br/>it → 123"]
-    B --> C["Lexer & Parse"]
-    C --> D["UpdateCommand:<br/>Target: 123<br/>SetOp: state:done"]
+    B --> C["Lexer & Participle Parse"]
+    C --> D["UpdateCommand:<br/>Target: 123<br/>Ops: [state:done]"]
     D --> E["Compile & Execute"]
     E --> F["Task 123 marked done"]
 ```
@@ -298,31 +322,85 @@ context clear       # Remove all sticky filters
 
 ## Key Design Decisions
 
-1. **Two-Phase Parsing**: Grammar parsing → AST conversion keeps the grammar simple while enabling rich semantics
-2. **Stateful Shell**: Session tracks last/selected tasks for natural pronoun usage
-3. **Sticky Context**: Project/context filters persist across commands for workflow efficiency
-4. **Operations Model**: Consistent `+`/`-`/`!` syntax for list field modifications
-5. **Participle Parser**: Uses `participle` library for maintainable grammar definitions
-6. **Separate Compilation**: AST → Plan → Service request enables validation and normalization
+1. **Participle Parser**: Uses `participle` library for maintainable grammar definitions with struct tags and custom Parse methods
+2. **Grammar Nodes → AST**: Participle produces grammar-specific nodes that are post-processed into the final AST
+3. **Custom Parse Methods**: Used for verb synonyms (add/create/new), target references (#123, selected, it), and multi-token filter values
+4. **Struct Tags**: Simple token matching where possible, custom logic only where needed
+5. **Stateful Shell**: Session tracks last/selected tasks for natural pronoun usage
+6. **Sticky Context**: Project/context filters persist across commands for workflow efficiency
+7. **Operations Model**: Consistent `+`/`-`/`!` syntax for list field modifications
+8. **Separate Compilation**: AST → Plan → Service request enables validation and normalization
 
 ## File Locations
 
 ```
 internal/
 ├── shell/
-│   ├── repl.go           # Interactive/scripting modes
-│   ├── executor.go         # Shell-NLP bridge
-│   ├── prompt.go           # Readline integration
-│   ├── scripting.go        # File/stdin processing
-│   ├── display.go          # Output formatting
-│   └── types.go            # Session types
+│   ├── repl.go              # Interactive/scripting modes
+│   ├── executor.go            # Shell-NLP bridge
+│   ├── prompt.go              # Readline integration
+│   ├── scripting.go           # File/stdin processing
+│   ├── display.go             # Output formatting
+│   └── types.go               # Session types
 └── nlp/
-    ├── lexer.go            # Tokenizer
-    ├── grammar.go          # Grammar structures
-    ├── parser.go           # Parser interface
-    ├── convert.go          # Grammar → AST (706 lines)
-    ├── ast.go              # AST types
-    ├── types.go            # Parse types
+    ├── lexer.go               # Participle lexer rules
+    ├── dsl_parser.go          # Participle parser config
+    ├── dsl_nodes.go           # Grammar node types
+    ├── dsl_parse.go           # Custom Parse methods
+    ├── dsl_symbols.go         # Token type symbols
+    ├── dsl_postprocess.go     # Grammar → AST normalization
+    ├── parser.go              # Public parser interface
+    ├── parser_test.go         # Parser tests
+    ├── ast.go                 # Final AST types
+    ├── types.go               # Parse types
     └── compile/
-        └── plan.go         # AST → Execution plan (464 lines)
+        ├── plan.go            # AST → Execution plan
+        └── plan_test.go       # Compilation tests
 ```
+
+## Participle Grammar Details
+
+### Lexer Rules (lexer.go)
+
+Tokens are defined with regex patterns in priority order:
+- `Quoted`: `"..."` strings
+- `HashNumber`: `#123` numeric IDs
+- `ProjectTag`: `#word` project tags
+- `ContextTag`: `@word` context tags
+- `SetField`: `field:` field setters
+- `AddField`: `+field:` field additions
+- `RemoveField`: `-field:` field removals
+- `ClearField`: `!field` field clearing
+- `Ident`: words and identifiers
+- `Whitespace`: spaces (elided)
+
+### Union Types (dsl_parser.go)
+
+Participle unions enable polymorphic parsing:
+
+```go
+participle.Union[Command](
+    &CreateCommand{},
+    &UpdateCommand{},
+    &FilterCommand{},
+)
+```
+
+### Custom Parse Methods (dsl_parse.go, dsl_nodes.go)
+
+Used when struct tags aren't sufficient:
+
+```go
+func (v *CreateVerb) Parse(lex *lexer.PeekingLexer) error {
+    // Handle synonyms: add, create, new
+    // Return participle.NextMatch if not a match
+}
+```
+
+### Post-Processing (dsl_postprocess.go)
+
+After participle parsing:
+- Combine text tokens into title
+- Normalize operations
+- Validate required fields
+- Set default targets
