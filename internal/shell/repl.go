@@ -241,22 +241,73 @@ func (r *REPL) showHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "    #123              Task ID")
 	_, _ = fmt.Fprintln(os.Stdout, "")
 	_, _ = fmt.Fprintln(os.Stdout, "  Context (sticky filters):")
-	_, _ = fmt.Fprintln(os.Stdout, "    context #project  Set default project context")
-	_, _ = fmt.Fprintln(os.Stdout, "    context @context  Set default context filter")
-	_, _ = fmt.Fprintln(os.Stdout, "    context clear     Clear all context filters")
+	_, _ = fmt.Fprintln(os.Stdout, "    context            Show current context state")
+	_, _ = fmt.Fprintln(os.Stdout, "    context #project   Set default project context")
+	_, _ = fmt.Fprintln(os.Stdout, "    context @context   Set default context filter")
+	_, _ = fmt.Fprintln(os.Stdout, "    context clear      Clear all context filters")
 }
 
-// handleContextCommand handles context setting commands like "context #work" or "context @home".
+const noneValue = "none"
+
+// handleContextCommand handles context setting/viewing commands like "context #work", "context @home", or just "context".
 // Returns (result, true) if handled, (nil, false) otherwise.
 func (r *REPL) handleContextCommand(cmd string) (*ExecuteResult, bool) {
-	const contextCommandParts = 2
 	parts := strings.Fields(cmd)
-	if len(parts) != contextCommandParts {
+	if len(parts) == 0 || parts[0] != "context" {
 		return nil, false
 	}
 
+	if len(parts) == 1 {
+		return r.showContext(), true
+	}
+
+	return r.handleContextArgs(parts)
+}
+
+func (r *REPL) showContext() *ExecuteResult {
+	selected := noneValue
+	if r.state.SelectedTaskID != nil {
+		selected = fmt.Sprintf("#%d", *r.state.SelectedTaskID)
+	}
+
+	last := formatTaskIDs(r.state.LastTaskIDs)
+	project := formatContextValue(r.state.ContextProject, "#")
+	ctx := formatContextValue(r.state.ContextContext, "@")
+
+	msg := fmt.Sprintf("Current context:\n  Selected: %s\n  Last: %s\n  Project: %s\n  Context: %s",
+		selected, last, project, ctx)
+
+	return &ExecuteResult{
+		Intent:    "context",
+		Message:   msg,
+		Summary:   "showing context",
+		Timestamp: time.Now(),
+	}
+}
+
+func formatTaskIDs(ids []int64) string {
+	if len(ids) == 0 {
+		return noneValue
+	}
+	strs := make([]string, len(ids))
+	for i, id := range ids {
+		strs[i] = fmt.Sprintf("#%d", id)
+	}
+	return strings.Join(strs, ", ")
+}
+
+func formatContextValue(value, prefix string) string {
+	if value == "" {
+		return noneValue
+	}
+	return prefix + value
+}
+
+func (r *REPL) handleContextArgs(parts []string) (*ExecuteResult, bool) {
+	arg := parts[1]
+
 	// Handle "context clear" command
-	if parts[0] == "context" && parts[1] == "clear" {
+	if arg == "clear" {
 		r.state.ContextProject = ""
 		r.state.ContextContext = ""
 		return &ExecuteResult{
@@ -268,26 +319,23 @@ func (r *REPL) handleContextCommand(cmd string) (*ExecuteResult, bool) {
 	}
 
 	// Handle "context #project" or "context @context"
-	if parts[0] == "context" {
-		token := parts[1]
-		if strings.HasPrefix(token, "#") && len(token) > 1 {
-			r.state.ContextProject = strings.TrimPrefix(token, "#")
-			return &ExecuteResult{
-				Intent:    "context",
-				Message:   fmt.Sprintf("Set project context to %s", token),
-				Summary:   fmt.Sprintf("context project %s", token),
-				Timestamp: time.Now(),
-			}, true
-		}
-		if strings.HasPrefix(token, "@") && len(token) > 1 {
-			r.state.ContextContext = strings.TrimPrefix(token, "@")
-			return &ExecuteResult{
-				Intent:    "context",
-				Message:   fmt.Sprintf("Set context filter to %s", token),
-				Summary:   fmt.Sprintf("context %s", token),
-				Timestamp: time.Now(),
-			}, true
-		}
+	if strings.HasPrefix(arg, "#") && len(arg) > 1 {
+		r.state.ContextProject = strings.TrimPrefix(arg, "#")
+		return &ExecuteResult{
+			Intent:    "context",
+			Message:   fmt.Sprintf("Set project context to %s", arg),
+			Summary:   fmt.Sprintf("context project %s", arg),
+			Timestamp: time.Now(),
+		}, true
+	}
+	if strings.HasPrefix(arg, "@") && len(arg) > 1 {
+		r.state.ContextContext = strings.TrimPrefix(arg, "@")
+		return &ExecuteResult{
+			Intent:    "context",
+			Message:   fmt.Sprintf("Set context filter to %s", arg),
+			Summary:   fmt.Sprintf("context %s", arg),
+			Timestamp: time.Now(),
+		}, true
 	}
 
 	return nil, false
