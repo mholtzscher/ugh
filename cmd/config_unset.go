@@ -5,39 +5,36 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/urfave/cli/v3"
 
 	"github.com/mholtzscher/ugh/internal/config"
 )
 
-const configSetArgCount = 2
+const configUnsetArgCount = 1
 
-type configSetResult struct {
+type configUnsetResult struct {
 	Action string `json:"action"`
 	Key    string `json:"key"`
-	Value  string `json:"value"`
 	File   string `json:"file"`
 }
 
 //nolint:gochecknoglobals // CLI command definitions are package-level by design.
-var configSetCmd = &cli.Command{
-	Name:      "set",
-	Usage:     "Set a configuration value",
-	ArgsUsage: "<key> <value>",
+var configUnsetCmd = &cli.Command{
+	Name:      "unset",
+	Usage:     "Unset (remove) a configuration value",
+	ArgsUsage: "<key>",
 	Action: func(_ context.Context, cmd *cli.Command) error {
-		if cmd.Args().Len() != configSetArgCount {
-			return errors.New("set requires a key and value")
+		if cmd.Args().Len() != configUnsetArgCount {
+			return errors.New("unset requires a key")
 		}
 		cfg := loadedConfig
 		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion, UI: config.UI{Theme: config.DefaultUITheme}}
+			return errors.New("no config loaded")
 		}
 
 		key := cmd.Args().Get(0)
-		value := cmd.Args().Get(1)
-		if err := setConfigValue(cfg, key, value); err != nil {
+		if err := unsetConfigValue(cfg, key); err != nil {
 			return err
 		}
 
@@ -50,37 +47,32 @@ var configSetCmd = &cli.Command{
 			return err
 		}
 		loadedConfig = cfg
-		loadedConfigWas = true
 
 		writer := outputWriter()
 		if writer.JSON {
 			enc := json.NewEncoder(writer.Out)
-			return enc.Encode(configSetResult{Action: "set", Key: key, Value: value, File: cfgPath})
+			return enc.Encode(configUnsetResult{Action: "unset", Key: key, File: cfgPath})
 		}
-		return writer.WriteSuccess("set " + key)
+		return writer.WriteSuccess("unset " + key)
 	},
 }
 
-func setConfigValue(cfg *config.Config, key string, value string) error {
+func unsetConfigValue(cfg *config.Config, key string) error {
 	switch key {
 	case configKeyDBPath:
-		cfg.DB.Path = value
+		cfg.DB.Path = ""
 		return nil
 	case configKeyDBSyncURL:
-		cfg.DB.SyncURL = value
+		cfg.DB.SyncURL = ""
 		return nil
 	case configKeyDBAuthToken:
-		cfg.DB.AuthToken = value
+		cfg.DB.AuthToken = ""
 		return nil
 	case configKeyDBSyncOnWrite:
-		parsed, err := strconv.ParseBool(value)
-		if err != nil {
-			return fmt.Errorf("invalid boolean for %s: %w", configKeyDBSyncOnWrite, err)
-		}
-		cfg.DB.SyncOnWrite = parsed
+		cfg.DB.SyncOnWrite = false
 		return nil
 	case configKeyUITheme:
-		cfg.UI.Theme = value
+		cfg.UI.Theme = config.DefaultUITheme
 		return nil
 	default:
 		return fmt.Errorf("unknown config key: %s", key)

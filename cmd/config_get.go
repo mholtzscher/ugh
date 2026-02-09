@@ -48,24 +48,24 @@ var configGetCmd = &cli.Command{
 
 func getConfigValue(cfg *config.Config, key string) (string, error) {
 	switch key {
-	case "db.path":
+	case configKeyDBPath:
 		if cfg.DB.Path == "" {
-			return "", errors.New("config key not set: db.path")
+			return "", errors.New("config key not set: " + configKeyDBPath)
 		}
 		return cfg.DB.Path, nil
-	case "db.sync_url":
+	case configKeyDBSyncURL:
 		if cfg.DB.SyncURL == "" {
-			return "", errors.New("config key not set: db.sync_url")
+			return "", errors.New("config key not set: " + configKeyDBSyncURL)
 		}
 		return cfg.DB.SyncURL, nil
-	case "db.auth_token":
+	case configKeyDBAuthToken:
 		if cfg.DB.AuthToken == "" {
-			return "", errors.New("config key not set: db.auth_token")
+			return "", errors.New("config key not set: " + configKeyDBAuthToken)
 		}
 		return cfg.DB.AuthToken, nil
-	case "db.sync_on_write":
+	case configKeyDBSyncOnWrite:
 		return strconv.FormatBool(cfg.DB.SyncOnWrite), nil
-	case "ui.theme":
+	case configKeyUITheme:
 		if cfg.UI.Theme == "" {
 			return config.DefaultUITheme, nil
 		}
