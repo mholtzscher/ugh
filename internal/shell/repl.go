@@ -177,6 +177,12 @@ func (r *REPL) processCommand(ctx context.Context, input string) error {
 		return nil
 	}
 
+	// Handle context commands: set #project, set @context, clear context
+	if result, handled := r.handleContextCommand(cmd); handled {
+		r.display.ShowResult(result)
+		return nil
+	}
+
 	r.state.CommandCount++
 
 	result, err := r.executor.Execute(ctx, input)
@@ -200,14 +206,89 @@ func (r *REPL) showHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "    help, ?          Show this help")
 	_, _ = fmt.Fprintln(os.Stdout, "    clear            Clear the screen")
 	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  Natural language patterns:")
-	_, _ = fmt.Fprintln(os.Stdout, "    buy milk tomorrow #groceries @store")
-	_, _ = fmt.Fprintln(os.Stdout, "    find tasks about report")
-	_, _ = fmt.Fprintln(os.Stdout, "    mark selected as done")
-	_, _ = fmt.Fprintln(os.Stdout, "    show all work tasks")
-	_, _ = fmt.Fprintln(os.Stdout, "    delete the grocery task")
+	_, _ = fmt.Fprintln(os.Stdout, "  DSL patterns:")
+	_, _ = fmt.Fprintln(os.Stdout, "    add buy milk tomorrow #groceries @store")
+	_, _ = fmt.Fprintln(os.Stdout, "    add task due:tomorrow state:inbox")
+	_, _ = fmt.Fprintln(os.Stdout, "    set selected state:done")
+	_, _ = fmt.Fprintln(os.Stdout, "    set 123 title:new title +project:work")
+	_, _ = fmt.Fprintln(os.Stdout, "    find state:now")
+	_, _ = fmt.Fprintln(os.Stdout, "    find state:now and project:work")
+	_, _ = fmt.Fprintln(os.Stdout, "    show 3")
+	_, _ = fmt.Fprintln(os.Stdout, "    show #work")
+	_, _ = fmt.Fprintln(os.Stdout, "    filter context:urgent")
 	_, _ = fmt.Fprintln(os.Stdout, "")
-	_, _ = fmt.Fprintln(os.Stdout, "  Projects: #project-name")
-	_, _ = fmt.Fprintln(os.Stdout, "  Contexts: @context-name")
-	_, _ = fmt.Fprintln(os.Stdout, "  States: inbox, now, waiting, later, done")
+	_, _ = fmt.Fprintln(os.Stdout, "  Syntax:")
+	_, _ = fmt.Fprintln(os.Stdout, "    add/create/new <title> [operations...]")
+	_, _ = fmt.Fprintln(os.Stdout, "    set/edit/update <target> [operations...]")
+	_, _ = fmt.Fprintln(os.Stdout, "    find/show/list/filter <predicate> [and/or <predicate>...]")
+	_, _ = fmt.Fprintln(os.Stdout, "")
+	_, _ = fmt.Fprintln(os.Stdout, "  Operations:")
+	_, _ = fmt.Fprintln(os.Stdout, "    field:value       Set field (title, notes, due, waiting, state)")
+	_, _ = fmt.Fprintln(os.Stdout, "    +field:value      Add to list (projects, contexts, meta)")
+	_, _ = fmt.Fprintln(os.Stdout, "    -field:value      Remove from list")
+	_, _ = fmt.Fprintln(os.Stdout, "    !field            Clear field")
+	_, _ = fmt.Fprintln(os.Stdout, "    #project          Add project tag")
+	_, _ = fmt.Fprintln(os.Stdout, "    @context          Add context tag")
+	_, _ = fmt.Fprintln(os.Stdout, "")
+	_, _ = fmt.Fprintln(os.Stdout, "  Predicates:")
+	_, _ = fmt.Fprintln(os.Stdout, "    state:inbox|now|waiting|later|done")
+	_, _ = fmt.Fprintln(os.Stdout, "    due:today|tomorrow|YYYY-MM-DD")
+	_, _ = fmt.Fprintln(os.Stdout, "    project:name, context:name, text:search")
+	_, _ = fmt.Fprintln(os.Stdout, "    id:123 or just 123  Find by task ID")
+	_, _ = fmt.Fprintln(os.Stdout, "")
+	_, _ = fmt.Fprintln(os.Stdout, "  Targets:")
+	_, _ = fmt.Fprintln(os.Stdout, "    selected          Currently selected task")
+	_, _ = fmt.Fprintln(os.Stdout, "    #123              Task ID")
+	_, _ = fmt.Fprintln(os.Stdout, "")
+	_, _ = fmt.Fprintln(os.Stdout, "  Context (sticky filters):")
+	_, _ = fmt.Fprintln(os.Stdout, "    set #project      Set default project context")
+	_, _ = fmt.Fprintln(os.Stdout, "    set @context      Set default context filter")
+	_, _ = fmt.Fprintln(os.Stdout, "    clear context     Clear all context filters")
+}
+
+// handleContextCommand handles context setting commands like "set #work" or "set @home".
+// Returns (result, true) if handled, (nil, false) otherwise.
+func (r *REPL) handleContextCommand(cmd string) (*ExecuteResult, bool) {
+	const contextCommandParts = 2
+	parts := strings.Fields(cmd)
+	if len(parts) != contextCommandParts {
+		return nil, false
+	}
+
+	// Handle "clear context" command
+	if parts[0] == "clear" && parts[1] == "context" {
+		r.state.ContextProject = ""
+		r.state.ContextContext = ""
+		return &ExecuteResult{
+			Intent:    "context",
+			Message:   "Context filters cleared",
+			Summary:   "cleared context",
+			Timestamp: time.Now(),
+		}, true
+	}
+
+	// Handle "set #project" or "set @context"
+	if parts[0] == "set" {
+		token := parts[1]
+		if strings.HasPrefix(token, "#") && len(token) > 1 {
+			r.state.ContextProject = strings.TrimPrefix(token, "#")
+			return &ExecuteResult{
+				Intent:    "context",
+				Message:   fmt.Sprintf("Set project context to %s", token),
+				Summary:   fmt.Sprintf("context project %s", token),
+				Timestamp: time.Now(),
+			}, true
+		}
+		if strings.HasPrefix(token, "@") && len(token) > 1 {
+			r.state.ContextContext = strings.TrimPrefix(token, "@")
+			return &ExecuteResult{
+				Intent:    "context",
+				Message:   fmt.Sprintf("Set context filter to %s", token),
+				Summary:   fmt.Sprintf("context %s", token),
+				Timestamp: time.Now(),
+			}, true
+		}
+	}
+
+	return nil, false
 }

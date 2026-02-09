@@ -224,7 +224,7 @@ func TestParseCreate_WithDates(t *testing.T) {
 			var foundDueValue string
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldDue {
-					foundDueValue = setOp.Value.Raw
+					foundDueValue = setOp.Value
 				}
 			}
 
@@ -287,7 +287,7 @@ func TestParseCreate_WithState(t *testing.T) {
 			var foundState string
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldState {
-					foundState = setOp.Value.Raw
+					foundState = setOp.Value
 				}
 			}
 
@@ -330,7 +330,7 @@ func TestParseCreate_WithWaiting(t *testing.T) {
 			var foundWaiting string
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldWaiting {
-					foundWaiting = setOp.Value.Raw
+					foundWaiting = setOp.Value
 				}
 			}
 
@@ -373,7 +373,7 @@ func TestParseCreate_WithNotes(t *testing.T) {
 			var foundNotes string
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == nlp.FieldNotes {
-					foundNotes = setOp.Value.Raw
+					foundNotes = setOp.Value
 				}
 			}
 
@@ -527,8 +527,8 @@ func TestParseUpdate_SetOperations(t *testing.T) {
 			for _, op := range cmd.Ops {
 				if setOp, ok := op.(nlp.SetOp); ok && setOp.Field == tt.wantField {
 					found = true
-					if setOp.Value.Raw != tt.wantValue {
-						t.Errorf("value = %q, want %q", setOp.Value.Raw, tt.wantValue)
+					if setOp.Value != tt.wantValue {
+						t.Errorf("value = %q, want %q", setOp.Value, tt.wantValue)
 					}
 				}
 			}
@@ -582,8 +582,8 @@ func TestParseUpdate_AddOperations(t *testing.T) {
 			for _, op := range cmd.Ops {
 				if addOp, ok := op.(nlp.AddOp); ok && addOp.Field == tt.wantField {
 					found = true
-					if addOp.Value.Raw != tt.wantValue {
-						t.Errorf("value = %q, want %q", addOp.Value.Raw, tt.wantValue)
+					if addOp.Value != tt.wantValue {
+						t.Errorf("value = %q, want %q", addOp.Value, tt.wantValue)
 					}
 				}
 			}
@@ -631,8 +631,8 @@ func TestParseUpdate_RemoveOperations(t *testing.T) {
 			for _, op := range cmd.Ops {
 				if removeOp, ok := op.(nlp.RemoveOp); ok && removeOp.Field == tt.wantField {
 					found = true
-					if removeOp.Value.Raw != tt.wantValue {
-						t.Errorf("value = %q, want %q", removeOp.Value.Raw, tt.wantValue)
+					if removeOp.Value != tt.wantValue {
+						t.Errorf("value = %q, want %q", removeOp.Value, tt.wantValue)
 					}
 				}
 			}
@@ -795,6 +795,24 @@ func TestParseFilter_Predicates(t *testing.T) {
 			input:    "find text:report",
 			wantKind: nlp.PredText,
 			wantText: "report",
+		},
+		{
+			name:     "id predicate explicit",
+			input:    "find id:42",
+			wantKind: nlp.PredID,
+			wantText: "42",
+		},
+		{
+			name:     "id predicate numeric",
+			input:    "find 42",
+			wantKind: nlp.PredID,
+			wantText: "42",
+		},
+		{
+			name:     "show numeric is id lookup",
+			input:    "show 3",
+			wantKind: nlp.PredID,
+			wantText: "3",
 		},
 	}
 
@@ -984,6 +1002,86 @@ func TestParseUpdateCommand(t *testing.T) {
 	}
 	if len(cmd.Ops) != 3 {
 		t.Fatalf("ops len = %d, want 3", len(cmd.Ops))
+	}
+}
+
+func TestParseUpdate_TagShorthand(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		input        string
+		wantTarget   nlp.TargetKind
+		wantTagKind  nlp.TagKind
+		wantTagValue string
+	}{
+		{
+			name:         "set project tag shorthand",
+			input:        "set #work",
+			wantTarget:   nlp.TargetSelected,
+			wantTagKind:  nlp.TagProject,
+			wantTagValue: "work",
+		},
+		{
+			name:         "set context tag shorthand",
+			input:        "set @urgent",
+			wantTarget:   nlp.TargetSelected,
+			wantTagKind:  nlp.TagContext,
+			wantTagValue: "urgent",
+		},
+		{
+			name:         "edit with tag shorthand",
+			input:        "edit #personal",
+			wantTarget:   nlp.TargetSelected,
+			wantTagKind:  nlp.TagProject,
+			wantTagValue: "personal",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assertTagShorthand(t, tt.input, tt.wantTarget, tt.wantTagKind, tt.wantTagValue)
+		})
+	}
+}
+
+func assertTagShorthand(
+	t *testing.T,
+	input string,
+	wantTarget nlp.TargetKind,
+	wantTagKind nlp.TagKind,
+	wantTagValue string,
+) {
+	t.Helper()
+	result, err := nlp.Parse(input, nlp.ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+	if result.Intent != nlp.IntentUpdate {
+		t.Fatalf("intent = %v, want %v", result.Intent, nlp.IntentUpdate)
+	}
+
+	cmd, ok := result.Command.(nlp.UpdateCommand)
+	if !ok {
+		t.Fatalf("command type = %T, want UpdateCommand", result.Command)
+	}
+	if cmd.Target.Kind != wantTarget {
+		t.Errorf("target kind = %v, want %v", cmd.Target.Kind, wantTarget)
+	}
+	if len(cmd.Ops) != 1 {
+		t.Fatalf("ops len = %d, want 1", len(cmd.Ops))
+	}
+
+	tagOp, ok := cmd.Ops[0].(nlp.TagOp)
+	if !ok {
+		t.Fatalf("op type = %T, want TagOp", cmd.Ops[0])
+	}
+	if tagOp.Kind != wantTagKind {
+		t.Errorf("tag kind = %v, want %v", tagOp.Kind, wantTagKind)
+	}
+	if tagOp.Value != wantTagValue {
+		t.Errorf("tag value = %q, want %q", tagOp.Value, wantTagValue)
 	}
 }
 

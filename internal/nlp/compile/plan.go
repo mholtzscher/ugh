@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,7 +103,7 @@ func buildUpdateRequest(cmd nlp.UpdateCommand, opts BuildOptions) (service.Updat
 		if opts.SelectedTaskID == nil || *opts.SelectedTaskID <= 0 {
 			return service.UpdateTaskRequest{}, nlp.TargetRef{}, errors.New("selected target requires SelectedTaskID")
 		}
-		resolvedTarget = nlp.TargetRef{Kind: nlp.TargetID, ID: *opts.SelectedTaskID, Span: cmd.Target.Span}
+		resolvedTarget = nlp.TargetRef{Kind: nlp.TargetID, ID: *opts.SelectedTaskID}
 	}
 
 	if resolvedTarget.Kind != nlp.TargetID || resolvedTarget.ID <= 0 {
@@ -170,6 +171,11 @@ func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr) error {
 			req.Search = typed.Text
 		case nlp.PredDue:
 			req.DueOnly = true
+		case nlp.PredID:
+			// Parse the ID from the text
+			if id, err := strconv.ParseInt(typed.Text, 10, 64); err == nil {
+				req.ID = id
+			}
 		default:
 			return fmt.Errorf("unsupported predicate kind %v", typed.Kind)
 		}
@@ -190,7 +196,7 @@ func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr) error {
 }
 
 func applyCreateSet(req *service.CreateTaskRequest, op nlp.SetOp, now time.Time) error {
-	value := strings.TrimSpace(op.Value.Raw)
+	value := strings.TrimSpace(op.Value)
 	switch op.Field {
 	case nlp.FieldTitle:
 		req.Title = value
@@ -224,7 +230,7 @@ func applyCreateSet(req *service.CreateTaskRequest, op nlp.SetOp, now time.Time)
 }
 
 func applyCreateAdd(req *service.CreateTaskRequest, op nlp.AddOp) error {
-	value := strings.TrimSpace(op.Value.Raw)
+	value := strings.TrimSpace(op.Value)
 	switch op.Field {
 	case nlp.FieldTitle, nlp.FieldNotes, nlp.FieldDue, nlp.FieldWaiting, nlp.FieldState:
 		return errors.New("+ supports projects/contexts/meta only")
@@ -272,7 +278,7 @@ func applyTag(req service.CreateTaskRequest, op nlp.TagOp) service.CreateTaskReq
 }
 
 func applyUpdateSet(req *service.UpdateTaskRequest, op nlp.SetOp, now time.Time) error {
-	value := strings.TrimSpace(op.Value.Raw)
+	value := strings.TrimSpace(op.Value)
 	switch op.Field {
 	case nlp.FieldTitle:
 		req.Title = ptr(value)
@@ -309,7 +315,7 @@ func applyUpdateSet(req *service.UpdateTaskRequest, op nlp.SetOp, now time.Time)
 }
 
 func applyUpdateAdd(req *service.UpdateTaskRequest, op nlp.AddOp) error {
-	value := strings.TrimSpace(op.Value.Raw)
+	value := strings.TrimSpace(op.Value)
 	switch op.Field {
 	case nlp.FieldTitle, nlp.FieldNotes, nlp.FieldDue, nlp.FieldWaiting, nlp.FieldState:
 		return fmt.Errorf("unsupported add field %v", op.Field)
@@ -330,7 +336,7 @@ func applyUpdateAdd(req *service.UpdateTaskRequest, op nlp.AddOp) error {
 }
 
 func applyUpdateRemove(req *service.UpdateTaskRequest, op nlp.RemoveOp) error {
-	value := strings.TrimSpace(op.Value.Raw)
+	value := strings.TrimSpace(op.Value)
 	switch op.Field {
 	case nlp.FieldTitle, nlp.FieldNotes, nlp.FieldDue, nlp.FieldWaiting, nlp.FieldState:
 		return fmt.Errorf("unsupported remove field %v", op.Field)

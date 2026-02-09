@@ -4,6 +4,7 @@ go 1.25
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/alecthomas/participle/v2 v2.1.4
 	github.com/chzyer/readline v1.5.1
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/pterm/pterm v0.12.82
