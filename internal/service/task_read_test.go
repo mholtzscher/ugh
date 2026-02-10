@@ -4,6 +4,8 @@ package service
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/mholtzscher/ugh/internal/nlp"
 )
 
@@ -54,9 +56,7 @@ func TestExprReferencesStateDone(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := exprReferencesStateDone(tt.expr)
-			if got != tt.want {
-				t.Fatalf("exprReferencesStateDone() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "exprReferencesStateDone() mismatch")
 		})
 	}
 }
@@ -99,9 +99,7 @@ func TestExprReferencesID(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := exprReferencesID(tt.expr)
-			if got != tt.want {
-				t.Fatalf("exprReferencesID() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "exprReferencesID() mismatch")
 		})
 	}
 }

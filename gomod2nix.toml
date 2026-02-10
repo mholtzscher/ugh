@@ -31,6 +31,9 @@ schema = 3
   [mod."github.com/containerd/console"]
     version = "v1.0.5"
     hash = "sha256-FY3+7lB6KmFEXHKtYZMwTraNkdYBRWTQXVHLwLED9Ys="
+  [mod."github.com/davecgh/go-spew"]
+    version = "v1.1.1"
+    hash = "sha256-nhzSUrE1fCkN0+RL04N4h8jWmRFPPPWbCuDc7Ss0akI="
   [mod."github.com/ebitengine/purego"]
     version = "v0.9.1"
     hash = "sha256-iVfU8vaJ7IPa92dUeHeuW+yKvUbe59F/eV7GlDRIAcE="
@@ -52,6 +55,9 @@ schema = 3
   [mod."github.com/mfridman/interpolate"]
     version = "v0.0.2"
     hash = "sha256-3u04CYOy7PLMctdkum5pltSTkYya8EfXJexbW7j0KB8="
+  [mod."github.com/pmezard/go-difflib"]
+    version = "v1.0.0"
+    hash = "sha256-/FtmHnaGjdvEIKAJtrUfEhV7EVo5A/eYrtdnUkuxLDA="
   [mod."github.com/pressly/goose/v3"]
     version = "v3.26.0"
     hash = "sha256-3BoVYxB7n6wPiNuBNzCM8TTFFZE9/aaNM/IP+nLNK4Q="
@@ -64,6 +70,9 @@ schema = 3
   [mod."github.com/sethvargo/go-retry"]
     version = "v0.3.0"
     hash = "sha256-1ZnFRHAaQjralGKVRoCbiwCXXB3w4kS3f+2hK9S8lbU="
+  [mod."github.com/stretchr/testify"]
+    version = "v1.11.1"
+    hash = "sha256-sWfjkuKJyDllDEtnM8sb/pdLzPQmUYWYtmeWz/5suUc="
   [mod."github.com/tursodatabase/turso-go-platform-libs"]
     version = "v0.4.3"
     hash = "sha256-8dIVrU1Z7GSQ0G+OCdeNZJiAVkc2qgkdHUc3VSe41nI="
@@ -94,6 +103,9 @@ schema = 3
   [mod."golang.org/x/tools"]
     version = "v0.38.0"
     hash = "sha256-GeIkpuKtUfxxrOZLikNlZA3lMKhdyO++PVvXppBGmbw="
+  [mod."gopkg.in/yaml.v3"]
+    version = "v3.0.1"
+    hash = "sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU="
   [mod."modernc.org/libc"]
     version = "v1.67.6"
     hash = "sha256-AmcruJSR6Rd6ORFKTm+xSB6G9aqW2dAw/+mWsG2FwcU="

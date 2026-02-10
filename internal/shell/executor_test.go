@@ -7,6 +7,9 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/mholtzscher/ugh/internal/shell"
@@ -20,16 +23,10 @@ func TestExecuteCreateQuotedHashStillInjectsStickyContext(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"}, true)
 
 	_, err := exec.Execute(context.Background(), `add buy milk "email #hashtag"`)
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
-	if !contains(svc.lastCreate.Projects, "work") {
-		t.Fatalf("projects = %#v, want injected 'work'", svc.lastCreate.Projects)
-	}
-	if !contains(svc.lastCreate.Contexts, "phone") {
-		t.Fatalf("contexts = %#v, want injected 'phone'", svc.lastCreate.Contexts)
-	}
+	assert.True(t, contains(svc.lastCreate.Projects, "work"), "projects should contain injected 'work'")
+	assert.True(t, contains(svc.lastCreate.Contexts, "phone"), "contexts should contain injected 'phone'")
 }
 
 func TestExecuteCreateExplicitProjectSkipsStickyProject(t *testing.T) {
@@ -39,16 +36,10 @@ func TestExecuteCreateExplicitProjectSkipsStickyProject(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
 
 	_, err := exec.Execute(context.Background(), "add buy milk #personal")
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
-	if contains(svc.lastCreate.Projects, "work") {
-		t.Fatalf("projects = %#v, did not expect injected 'work'", svc.lastCreate.Projects)
-	}
-	if !contains(svc.lastCreate.Projects, "personal") {
-		t.Fatalf("projects = %#v, want explicit 'personal'", svc.lastCreate.Projects)
-	}
+	assert.False(t, contains(svc.lastCreate.Projects, "work"), "projects should not contain injected 'work'")
+	assert.True(t, contains(svc.lastCreate.Projects, "personal"), "projects should contain explicit 'personal'")
 }
 
 func TestExecuteFilterInjectsMissingPredicates(t *testing.T) {
@@ -58,16 +49,10 @@ func TestExecuteFilterInjectsMissingPredicates(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"}, true)
 
 	_, err := exec.Execute(context.Background(), "find done")
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
-	if !hasPredicateKind(svc.lastFilter.Filter, nlp.PredProject) {
-		t.Fatalf("filter = %#v, want project predicate", svc.lastFilter.Filter)
-	}
-	if !hasPredicateKind(svc.lastFilter.Filter, nlp.PredContext) {
-		t.Fatalf("filter = %#v, want context predicate", svc.lastFilter.Filter)
-	}
+	assert.True(t, hasPredicateKind(svc.lastFilter.Filter, nlp.PredProject), "filter should have project predicate")
+	assert.True(t, hasPredicateKind(svc.lastFilter.Filter, nlp.PredContext), "filter should have context predicate")
 }
 
 func TestExecuteUpdateInjectsMissingTags(t *testing.T) {
@@ -77,16 +62,10 @@ func TestExecuteUpdateInjectsMissingTags(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"}, true)
 
 	_, err := exec.Execute(context.Background(), "set #7 title: hello")
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
-	if !contains(svc.lastUpdate.AddProjects, "work") {
-		t.Fatalf("add projects = %#v, want injected 'work'", svc.lastUpdate.AddProjects)
-	}
-	if !contains(svc.lastUpdate.AddContexts, "phone") {
-		t.Fatalf("add contexts = %#v, want injected 'phone'", svc.lastUpdate.AddContexts)
-	}
+	assert.True(t, contains(svc.lastUpdate.AddProjects, "work"), "add projects should contain injected 'work'")
+	assert.True(t, contains(svc.lastUpdate.AddContexts, "phone"), "add contexts should contain injected 'phone'")
 }
 
 func TestExecuteFilterStickyProjectWrapsEntireOrExpression(t *testing.T) {
@@ -95,38 +74,26 @@ func TestExecuteFilterStickyProjectWrapsEntireOrExpression(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
 
 	_, err = svc.CreateTask(ctx, service.CreateTaskRequest{Title: "now-home", State: "now", Projects: []string{"home"}})
-	if err != nil {
-		t.Fatalf("create now-home: %v", err)
-	}
+	require.NoError(t, err, "create now-home error")
 	waitingWork, err := svc.CreateTask(ctx, service.CreateTaskRequest{
 		Title:    "waiting-work",
 		State:    "waiting",
 		Projects: []string{"work"},
 	})
-	if err != nil {
-		t.Fatalf("create waiting-work: %v", err)
-	}
+	require.NoError(t, err, "create waiting-work error")
 
 	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
 	result, err := exec.Execute(ctx, "find state:now or state:waiting")
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
-	if len(result.TaskIDs) != 1 {
-		t.Fatalf("task IDs = %#v, want exactly one task", result.TaskIDs)
-	}
-	if result.TaskIDs[0] != waitingWork.ID {
-		t.Fatalf("task IDs = %#v, want [%d]", result.TaskIDs, waitingWork.ID)
-	}
+	require.Len(t, result.TaskIDs, 1, "task IDs should have exactly one task")
+	require.Equal(t, waitingWork.ID, result.TaskIDs[0], "task ID mismatch")
 }
 
 func TestExecuteUpdateStickyProjectStillAllowsExplicitRemoval(t *testing.T) {
@@ -135,30 +102,20 @@ func TestExecuteUpdateStickyProjectStillAllowsExplicitRemoval(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
 	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "cleanup", Projects: []string{"work"}})
-	if err != nil {
-		t.Fatalf("create task: %v", err)
-	}
+	require.NoError(t, err, "create task error")
 
 	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
 	_, err = exec.Execute(ctx, fmt.Sprintf("set #%d -project:work", task.ID))
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
 	updated, err := svc.GetTask(ctx, task.ID)
-	if err != nil {
-		t.Fatalf("get updated task: %v", err)
-	}
-	if contains(updated.Projects, "work") {
-		t.Fatalf("projects = %#v, expected explicit removal to win", updated.Projects)
-	}
+	require.NoError(t, err, "get updated task error")
+	assert.False(t, contains(updated.Projects, "work"), "projects should not contain 'work' after explicit removal")
 }
 
 type recordingService struct {
@@ -272,9 +229,7 @@ func TestExecuteEmptyCommand(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
 
 	_, err := exec.Execute(context.Background(), "")
-	if err == nil {
-		t.Fatal("expected error for empty command, got nil")
-	}
+	require.Error(t, err, "expected error for empty command")
 }
 
 func TestExecuteWhitespaceOnlyCommand(t *testing.T) {
@@ -284,9 +239,7 @@ func TestExecuteWhitespaceOnlyCommand(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
 
 	_, err := exec.Execute(context.Background(), "   \t\n  ")
-	if err == nil {
-		t.Fatal("expected error for whitespace-only command, got nil")
-	}
+	require.Error(t, err, "expected error for whitespace-only command")
 }
 
 func TestExecuteUpdatesLastTaskID(t *testing.T) {
@@ -295,9 +248,7 @@ func TestExecuteUpdatesLastTaskID(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
@@ -306,29 +257,17 @@ func TestExecuteUpdatesLastTaskID(t *testing.T) {
 
 	// Create first task
 	result1, err := exec.Execute(ctx, "add first task")
-	if err != nil {
-		t.Fatalf("execute first: %v", err)
-	}
+	require.NoError(t, err, "execute first error")
 
-	if len(state.LastTaskIDs) != 1 {
-		t.Fatalf("LastTaskIDs = %v, want 1 entry", state.LastTaskIDs)
-	}
-	if state.LastTaskIDs[0] != result1.TaskIDs[0] {
-		t.Errorf("LastTaskIDs[0] = %d, want %d", state.LastTaskIDs[0], result1.TaskIDs[0])
-	}
+	require.Len(t, state.LastTaskIDs, 1, "LastTaskIDs should have 1 entry")
+	assert.Equal(t, result1.TaskIDs[0], state.LastTaskIDs[0], "LastTaskIDs[0] mismatch")
 
 	// Create second task
 	result2, err := exec.Execute(ctx, "add second task")
-	if err != nil {
-		t.Fatalf("execute second: %v", err)
-	}
+	require.NoError(t, err, "execute second error")
 
-	if len(state.LastTaskIDs) != 1 {
-		t.Fatalf("LastTaskIDs = %v, want 1 entry after second create", state.LastTaskIDs)
-	}
-	if state.LastTaskIDs[0] != result2.TaskIDs[0] {
-		t.Errorf("LastTaskIDs[0] = %d, want %d", state.LastTaskIDs[0], result2.TaskIDs[0])
-	}
+	require.Len(t, state.LastTaskIDs, 1, "LastTaskIDs should have 1 entry after second create")
+	assert.Equal(t, result2.TaskIDs[0], state.LastTaskIDs[0], "LastTaskIDs[0] mismatch")
 }
 
 func TestExecuteFilterUpdatesLastTaskIDs(t *testing.T) {
@@ -337,9 +276,7 @@ func TestExecuteFilterUpdatesLastTaskIDs(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
@@ -351,9 +288,7 @@ func TestExecuteFilterUpdatesLastTaskIDs(t *testing.T) {
 			Title: fmt.Sprintf("task %d", i),
 			State: "now",
 		})
-		if createErr != nil {
-			t.Fatalf("create task %d: %v", i, createErr)
-		}
+		require.NoError(t, createErr, "create task %d error", i)
 		taskIDs = append(taskIDs, task.ID)
 	}
 
@@ -361,19 +296,13 @@ func TestExecuteFilterUpdatesLastTaskIDs(t *testing.T) {
 	exec := shell.NewExecutor(svc, state, true)
 
 	_, err = exec.Execute(ctx, "find state:now")
-	if err != nil {
-		t.Fatalf("execute filter: %v", err)
-	}
+	require.NoError(t, err, "execute filter error")
 
-	if len(state.LastTaskIDs) != 3 {
-		t.Fatalf("LastTaskIDs = %v, want 3 entries", state.LastTaskIDs)
-	}
+	require.Len(t, state.LastTaskIDs, 3, "LastTaskIDs should have 3 entries")
 
 	// Check that all task IDs are present
 	for _, id := range taskIDs {
-		if !slices.Contains(state.LastTaskIDs, id) {
-			t.Errorf("task ID %d not found in LastTaskIDs", id)
-		}
+		assert.True(t, slices.Contains(state.LastTaskIDs, id), "task ID %d not found in LastTaskIDs", id)
 	}
 }
 
@@ -383,16 +312,12 @@ func TestExecuteUpdateSetsSelectedTaskID(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
 	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "task to update"})
-	if err != nil {
-		t.Fatalf("create task: %v", err)
-	}
+	require.NoError(t, err, "create task error")
 
 	// Set SelectedTaskID first (required to use "selected" target)
 	state := &shell.SessionState{
@@ -402,16 +327,10 @@ func TestExecuteUpdateSetsSelectedTaskID(t *testing.T) {
 
 	// Update with "selected" target should keep SelectedTaskID set
 	_, err = exec.Execute(ctx, "set selected title:updated")
-	if err != nil {
-		t.Fatalf("execute update: %v", err)
-	}
+	require.NoError(t, err, "execute update error")
 
-	if state.SelectedTaskID == nil {
-		t.Fatal("SelectedTaskID is nil, expected it to be set")
-	}
-	if *state.SelectedTaskID != task.ID {
-		t.Errorf("SelectedTaskID = %d, want %d", *state.SelectedTaskID, task.ID)
-	}
+	require.NotNil(t, state.SelectedTaskID, "SelectedTaskID should be set")
+	assert.Equal(t, task.ID, *state.SelectedTaskID, "SelectedTaskID mismatch")
 }
 
 func TestExecuteUpdateByIDDoesNotSetSelectedTaskID(t *testing.T) {
@@ -420,29 +339,21 @@ func TestExecuteUpdateByIDDoesNotSetSelectedTaskID(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
 	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "task to update"})
-	if err != nil {
-		t.Fatalf("create task: %v", err)
-	}
+	require.NoError(t, err, "create task error")
 
 	state := &shell.SessionState{}
 	exec := shell.NewExecutor(svc, state, true)
 
 	// Update by explicit ID should NOT set SelectedTaskID
 	_, err = exec.Execute(ctx, fmt.Sprintf("set #%d title:updated", task.ID))
-	if err != nil {
-		t.Fatalf("execute update: %v", err)
-	}
+	require.NoError(t, err, "execute update error")
 
-	if state.SelectedTaskID != nil {
-		t.Errorf("SelectedTaskID = %d, expected nil when updating by ID", *state.SelectedTaskID)
-	}
+	assert.Nil(t, state.SelectedTaskID, "SelectedTaskID should be nil when updating by ID")
 }
 
 func TestExecutePronounSubstitution(t *testing.T) {
@@ -451,22 +362,16 @@ func TestExecutePronounSubstitution(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
 
 	// Create two tasks
 	task1, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "first task"})
-	if err != nil {
-		t.Fatalf("create first task: %v", err)
-	}
+	require.NoError(t, err, "create first task error")
 	task2, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "second task"})
-	if err != nil {
-		t.Fatalf("create second task: %v", err)
-	}
+	require.NoError(t, err, "create second task error")
 
 	state := &shell.SessionState{
 		LastTaskIDs: []int64{task1.ID, task2.ID},
@@ -475,31 +380,19 @@ func TestExecutePronounSubstitution(t *testing.T) {
 
 	// "it" and "this" should refer to last task (task2)
 	_, err = exec.Execute(ctx, "set it title:updated via it")
-	if err != nil {
-		t.Fatalf("execute with 'it': %v", err)
-	}
+	require.NoError(t, err, "execute with 'it' error")
 
 	updated, err := svc.GetTask(ctx, task2.ID)
-	if err != nil {
-		t.Fatalf("get updated task: %v", err)
-	}
-	if updated.Title != "updated via it" {
-		t.Errorf("task2 title = %q, want 'updated via it'", updated.Title)
-	}
+	require.NoError(t, err, "get updated task error")
+	assert.Equal(t, "updated via it", updated.Title, "task2 title mismatch")
 
 	// "last" should also refer to task2
 	_, err = exec.Execute(ctx, "set last title:updated via last")
-	if err != nil {
-		t.Fatalf("execute with 'last': %v", err)
-	}
+	require.NoError(t, err, "execute with 'last' error")
 
 	updated, err = svc.GetTask(ctx, task2.ID)
-	if err != nil {
-		t.Fatalf("get updated task: %v", err)
-	}
-	if updated.Title != "updated via last" {
-		t.Errorf("task2 title = %q, want 'updated via last'", updated.Title)
-	}
+	require.NoError(t, err, "get updated task error")
+	assert.Equal(t, "updated via last", updated.Title, "task2 title mismatch")
 }
 
 func TestExecuteThatPronounSubstitution(t *testing.T) {
@@ -508,22 +401,16 @@ func TestExecuteThatPronounSubstitution(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
 
 	// Create two tasks
 	task1, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "first task"})
-	if err != nil {
-		t.Fatalf("create first task: %v", err)
-	}
+	require.NoError(t, err, "create first task error")
 	task2, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "second task"})
-	if err != nil {
-		t.Fatalf("create second task: %v", err)
-	}
+	require.NoError(t, err, "create second task error")
 
 	state := &shell.SessionState{
 		LastTaskIDs: []int64{task1.ID, task2.ID},
@@ -532,17 +419,11 @@ func TestExecuteThatPronounSubstitution(t *testing.T) {
 
 	// "that" should refer to second-to-last task (task1)
 	_, err = exec.Execute(ctx, "set that title:updated via that")
-	if err != nil {
-		t.Fatalf("execute with 'that': %v", err)
-	}
+	require.NoError(t, err, "execute with 'that' error")
 
 	updated, err := svc.GetTask(ctx, task1.ID)
-	if err != nil {
-		t.Fatalf("get updated task: %v", err)
-	}
-	if updated.Title != "updated via that" {
-		t.Errorf("task1 title = %q, want 'updated via that'", updated.Title)
-	}
+	require.NoError(t, err, "get updated task error")
+	assert.Equal(t, "updated via that", updated.Title, "task1 title mismatch")
 }
 
 func TestExecuteSelectedPronounSubstitution(t *testing.T) {
@@ -551,16 +432,12 @@ func TestExecuteSelectedPronounSubstitution(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	st, err := store.Open(ctx, store.Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
+	require.NoError(t, err, "open store error")
 	t.Cleanup(func() { _ = st.Close() })
 
 	svc := service.NewTaskService(st)
 	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "task"})
-	if err != nil {
-		t.Fatalf("create task: %v", err)
-	}
+	require.NoError(t, err, "create task error")
 
 	state := &shell.SessionState{
 		SelectedTaskID: &task.ID,
@@ -569,17 +446,11 @@ func TestExecuteSelectedPronounSubstitution(t *testing.T) {
 
 	// "selected" should refer to selected task
 	_, err = exec.Execute(ctx, "set selected title:updated via selected")
-	if err != nil {
-		t.Fatalf("execute with 'selected': %v", err)
-	}
+	require.NoError(t, err, "execute with 'selected' error")
 
 	updated, err := svc.GetTask(ctx, task.ID)
-	if err != nil {
-		t.Fatalf("get updated task: %v", err)
-	}
-	if updated.Title != "updated via selected" {
-		t.Errorf("task title = %q, want 'updated via selected'", updated.Title)
-	}
+	require.NoError(t, err, "get updated task error")
+	assert.Equal(t, "updated via selected", updated.Title, "task title mismatch")
 }
 
 func TestExecuteCreateWithoutContext(t *testing.T) {
@@ -589,16 +460,10 @@ func TestExecuteCreateWithoutContext(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
 
 	_, err := exec.Execute(context.Background(), "add buy milk")
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
-	if len(svc.lastCreate.Projects) != 0 {
-		t.Errorf("projects = %v, want empty", svc.lastCreate.Projects)
-	}
-	if len(svc.lastCreate.Contexts) != 0 {
-		t.Errorf("contexts = %v, want empty", svc.lastCreate.Contexts)
-	}
+	assert.Empty(t, svc.lastCreate.Projects, "projects should be empty")
+	assert.Empty(t, svc.lastCreate.Contexts, "contexts should be empty")
 }
 
 func TestExecuteFilterWithoutContext(t *testing.T) {
@@ -608,20 +473,14 @@ func TestExecuteFilterWithoutContext(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
 
 	_, err := exec.Execute(context.Background(), "find state:now")
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
 	// Without context, should not inject project/context predicates
 	hasProject := hasPredicateKind(svc.lastFilter.Filter, nlp.PredProject)
 	hasContext := hasPredicateKind(svc.lastFilter.Filter, nlp.PredContext)
 
-	if hasProject {
-		t.Error("filter has project predicate, expected none without context")
-	}
-	if hasContext {
-		t.Error("filter has context predicate, expected none without context")
-	}
+	assert.False(t, hasProject, "filter should not have project predicate without context")
+	assert.False(t, hasContext, "filter should not have context predicate without context")
 }
 
 func TestExecuteInjectContextOnlyProject(t *testing.T) {
@@ -631,16 +490,10 @@ func TestExecuteInjectContextOnlyProject(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
 
 	_, err := exec.Execute(context.Background(), "add buy milk")
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
-	if !contains(svc.lastCreate.Projects, "work") {
-		t.Errorf("projects = %v, want 'work'", svc.lastCreate.Projects)
-	}
-	if len(svc.lastCreate.Contexts) != 0 {
-		t.Errorf("contexts = %v, want empty when only project context set", svc.lastCreate.Contexts)
-	}
+	assert.True(t, contains(svc.lastCreate.Projects, "work"), "projects should contain 'work'")
+	assert.Empty(t, svc.lastCreate.Contexts, "contexts should be empty when only project context set")
 }
 
 func TestExecuteInjectContextOnlyContext(t *testing.T) {
@@ -650,14 +503,8 @@ func TestExecuteInjectContextOnlyContext(t *testing.T) {
 	exec := shell.NewExecutor(svc, &shell.SessionState{ContextContext: "phone"}, true)
 
 	_, err := exec.Execute(context.Background(), "add buy milk")
-	if err != nil {
-		t.Fatalf("execute: %v", err)
-	}
+	require.NoError(t, err, "execute error")
 
-	if len(svc.lastCreate.Projects) != 0 {
-		t.Errorf("projects = %v, want empty when only context context set", svc.lastCreate.Projects)
-	}
-	if !contains(svc.lastCreate.Contexts, "phone") {
-		t.Errorf("contexts = %v, want 'phone'", svc.lastCreate.Contexts)
-	}
+	assert.Empty(t, svc.lastCreate.Projects, "projects should be empty when only context context set")
+	assert.True(t, contains(svc.lastCreate.Contexts, "phone"), "contexts should contain 'phone'")
 }

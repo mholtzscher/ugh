@@ -3,6 +3,8 @@ package shell_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/mholtzscher/ugh/internal/shell"
 )
 
@@ -27,9 +29,7 @@ func TestNewDisplay(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			display := shell.NewDisplay(tt.noColor)
-			if display == nil {
-				t.Fatal("NewDisplay returned nil")
-			}
+			assert.NotNil(t, display, "NewDisplay returned nil")
 		})
 	}
 }

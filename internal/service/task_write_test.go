@@ -2,39 +2,30 @@
 package service
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCopyMeta(t *testing.T) {
 	t.Parallel()
 
-	if got := copyMeta(nil); got != nil {
-		t.Fatalf("copyMeta(nil) = %#v, want nil", got)
-	}
+	assert.Nil(t, copyMeta(nil), "copyMeta(nil) should return nil")
 
 	original := map[string]string{"a": "1", "b": "2"}
 	clone := copyMeta(original)
-	if !reflect.DeepEqual(clone, original) {
-		t.Fatalf("copyMeta(original) = %#v, want %#v", clone, original)
-	}
+	assert.Equal(t, original, clone, "copyMeta(original) should return equal map")
 
 	clone["a"] = "changed"
-	if original["a"] != "1" {
-		t.Fatalf("copyMeta should not mutate original map, got %q", original["a"])
-	}
+	assert.Equal(t, "1", original["a"], "copyMeta should not mutate original map")
 }
 
 func TestContainsString(t *testing.T) {
 	t.Parallel()
 
 	values := []string{"alpha", "beta", "gamma"}
-	if !containsString(values, "beta") {
-		t.Fatal("containsString should return true for existing value")
-	}
-	if containsString(values, "delta") {
-		t.Fatal("containsString should return false for missing value")
-	}
+	assert.True(t, containsString(values, "beta"), "containsString should return true for existing value")
+	assert.False(t, containsString(values, "delta"), "containsString should return false for missing value")
 }
 
 func TestRemoveStrings(t *testing.T) {
@@ -70,11 +61,8 @@ func TestRemoveStrings(t *testing.T) {
 		tc := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-
 			got := removeStrings(tc.input, tc.toRemove)
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Fatalf("removeStrings(%v, %v) = %v, want %v", tc.input, tc.toRemove, got, tc.want)
-			}
+			assert.Equal(t, tc.want, got, "removeStrings(%v, %v) mismatch", tc.input, tc.toRemove)
 		})
 	}
 }

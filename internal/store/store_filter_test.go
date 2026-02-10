@@ -4,9 +4,11 @@ package store
 import (
 	"context"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/mholtzscher/ugh/internal/nlp"
 )
@@ -18,39 +20,25 @@ func TestListTasksByExpr_BooleanSemantics(t *testing.T) {
 	s := openTestStore(t)
 
 	_, err := s.CreateTask(ctx, &Task{Title: "Now Task", State: StateNow, Projects: []string{"work"}})
-	if err != nil {
-		t.Fatalf("CreateTask(now) error = %v", err)
-	}
+	require.NoError(t, err, "CreateTask(now) error")
 	_, err = s.CreateTask(ctx, &Task{Title: "Waiting Task", State: StateWaiting, Projects: []string{"home"}})
-	if err != nil {
-		t.Fatalf("CreateTask(waiting) error = %v", err)
-	}
+	require.NoError(t, err, "CreateTask(waiting) error")
 	_, err = s.CreateTask(ctx, &Task{Title: "Done Task", State: StateDone, Projects: []string{"work"}})
-	if err != nil {
-		t.Fatalf("CreateTask(done) error = %v", err)
-	}
+	require.NoError(t, err, "CreateTask(done) error")
 
 	tasks, err := s.ListTasksByExpr(ctx, nlp.FilterBinary{
 		Op:    nlp.FilterOr,
 		Left:  nlp.Predicate{Kind: nlp.PredState, Text: "now"},
 		Right: nlp.Predicate{Kind: nlp.PredState, Text: "waiting"},
 	}, ListTasksByExprOptions{ExcludeDone: true})
-	if err != nil {
-		t.Fatalf("ListTasksByExpr(or) error = %v", err)
-	}
-	if len(tasks) != 2 {
-		t.Fatalf("ListTasksByExpr(or) count = %d, want 2", len(tasks))
-	}
+	require.NoError(t, err, "ListTasksByExpr(or) error")
+	require.Len(t, tasks, 2, "ListTasksByExpr(or) count mismatch")
 
 	tasks, err = s.ListTasksByExpr(ctx, nlp.FilterNot{
 		Expr: nlp.Predicate{Kind: nlp.PredState, Text: "done"},
 	}, ListTasksByExprOptions{})
-	if err != nil {
-		t.Fatalf("ListTasksByExpr(not) error = %v", err)
-	}
-	if len(tasks) != 2 {
-		t.Fatalf("ListTasksByExpr(not) count = %d, want 2", len(tasks))
-	}
+	require.NoError(t, err, "ListTasksByExpr(not) error")
+	require.Len(t, tasks, 2, "ListTasksByExpr(not) count mismatch")
 }
 
 func TestListTasksByExpr_NestedBooleanFilterIDs(t *testing.T) {
@@ -66,9 +54,7 @@ func TestListTasksByExpr_NestedBooleanFilterIDs(t *testing.T) {
 		Projects: []string{"work"},
 		DueOn:    &nowWorkDue,
 	})
-	if err != nil {
-		t.Fatalf("CreateTask(now work) error = %v", err)
-	}
+	require.NoError(t, err, "CreateTask(now work) error")
 
 	waitingHomeDue := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	_, err = s.CreateTask(ctx, &Task{
@@ -77,9 +63,7 @@ func TestListTasksByExpr_NestedBooleanFilterIDs(t *testing.T) {
 		Projects: []string{"home"},
 		DueOn:    &waitingHomeDue,
 	})
-	if err != nil {
-		t.Fatalf("CreateTask(waiting home) error = %v", err)
-	}
+	require.NoError(t, err, "CreateTask(waiting home) error")
 
 	waitingWorkDue := time.Date(2026, time.January, 3, 0, 0, 0, 0, time.UTC)
 	waitingWork, err := s.CreateTask(ctx, &Task{
@@ -88,9 +72,7 @@ func TestListTasksByExpr_NestedBooleanFilterIDs(t *testing.T) {
 		Projects: []string{"work"},
 		DueOn:    &waitingWorkDue,
 	})
-	if err != nil {
-		t.Fatalf("CreateTask(waiting work) error = %v", err)
-	}
+	require.NoError(t, err, "CreateTask(waiting work) error")
 
 	laterWorkDue := time.Date(2026, time.January, 4, 0, 0, 0, 0, time.UTC)
 	_, err = s.CreateTask(ctx, &Task{
@@ -99,9 +81,7 @@ func TestListTasksByExpr_NestedBooleanFilterIDs(t *testing.T) {
 		Projects: []string{"work"},
 		DueOn:    &laterWorkDue,
 	})
-	if err != nil {
-		t.Fatalf("CreateTask(later work) error = %v", err)
-	}
+	require.NoError(t, err, "CreateTask(later work) error")
 
 	filter := nlp.FilterBinary{
 		Op: nlp.FilterAnd,
@@ -116,15 +96,11 @@ func TestListTasksByExpr_NestedBooleanFilterIDs(t *testing.T) {
 	}
 
 	tasks, err := s.ListTasksByExpr(ctx, filter, ListTasksByExprOptions{ExcludeDone: true})
-	if err != nil {
-		t.Fatalf("ListTasksByExpr(nested) error = %v", err)
-	}
+	require.NoError(t, err, "ListTasksByExpr(nested) error")
 
 	gotIDs := taskIDs(tasks)
 	wantIDs := []int64{nowWork.ID, waitingWork.ID}
-	if !reflect.DeepEqual(gotIDs, wantIDs) {
-		t.Fatalf("ListTasksByExpr(nested) ids = %v, want %v", gotIDs, wantIDs)
-	}
+	assert.Equal(t, wantIDs, gotIDs, "ListTasksByExpr(nested) ids mismatch")
 }
 
 func taskIDs(tasks []*Task) []int64 {
@@ -140,9 +116,7 @@ func openTestStore(t *testing.T) *Store {
 
 	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
 	s, err := Open(context.Background(), Options{Path: dbPath})
-	if err != nil {
-		t.Fatalf("Open() error = %v", err)
-	}
+	require.NoError(t, err, "Open() error")
 	t.Cleanup(func() {
 		_ = s.Close()
 	})
