@@ -37,6 +37,7 @@ type Filters struct {
 	Context    string
 	Search     string
 	DueSetOnly bool
+	DueOn      string // Date in YYYY-MM-DD format for exact due date matching
 }
 
 type NameCount struct {

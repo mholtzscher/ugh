@@ -306,6 +306,12 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 		dueSet = 1
 	}
 
+	// Build due date filter as sql.NullString
+	dueOnNull := sql.NullString{}
+	if filters.DueOn != "" {
+		dueOnNull = sql.NullString{String: filters.DueOn, Valid: true}
+	}
+
 	// For (? IS NULL OR field = ?) pattern, pass the same value twice
 	// When first param is nil, second doesn't matter (OR short-circuits)
 	params := sqlc.ListTasksParams{
@@ -327,6 +333,8 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 		Column14: searchNull,
 
 		Column15: dueSet,
+		Column16: nullAny(filters.DueOn),
+		DueOn:    dueOnNull,
 	}
 	rows, err := s.queries.ListTasks(ctx, params)
 	if err != nil {

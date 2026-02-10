@@ -29,6 +29,7 @@ func (s *TaskService) ListTasks(ctx context.Context, req ListTasksRequest) ([]*s
 		Context:    req.Context,
 		Search:     req.Search,
 		DueSetOnly: req.DueOnly,
+		DueOn:      req.DueOn,
 	}
 
 	if !filters.All && !filters.DoneOnly && !filters.TodoOnly {

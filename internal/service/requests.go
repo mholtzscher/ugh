@@ -20,7 +20,8 @@ type ListTasksRequest struct {
 	Context  string
 	Search   string
 	DueOnly  bool
-	ID       int64 // Specific task ID to fetch (0 means no ID filter)
+	DueOn    string // Date in YYYY-MM-DD format for exact due date matching
+	ID       int64  // Specific task ID to fetch (0 means no ID filter)
 }
 
 type ListTagsRequest struct {
