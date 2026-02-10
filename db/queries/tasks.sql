@@ -114,6 +114,7 @@ WHERE (? = 0 OR t.state != 'done')
     )
   ))
   AND (? = 0 OR (t.due_on IS NOT NULL AND t.due_on != ''))
+  AND (? IS NULL OR t.due_on = ?)
 ORDER BY
   CASE WHEN t.state = 'done' THEN 1 ELSE 0 END,
   CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END,

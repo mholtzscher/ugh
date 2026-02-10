@@ -97,3 +97,104 @@ func TestBuildFilterPlan(t *testing.T) {
 		t.Fatalf("search = %q, want paper", plan.Filter.Search)
 	}
 }
+
+func TestBuildFilterPlanDueDateToday(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
+	parsed, err := nlp.Parse(`find due:today`, nlp.ParseOptions{Now: now})
+	if err != nil {
+		t.Fatalf("Parse(filter) error = %v", err)
+	}
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{Now: now})
+	if err != nil {
+		t.Fatalf("Build(filter) error = %v", err)
+	}
+	if plan.Filter == nil {
+		t.Fatal("filter request is nil")
+	}
+	if !plan.Filter.DueOnly {
+		t.Fatal("DueOnly = false, want true")
+	}
+	if plan.Filter.DueOn != "2026-02-10" {
+		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-10")
+	}
+}
+
+func TestBuildFilterPlanDueDateTomorrow(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
+	parsed, err := nlp.Parse(`find due:tomorrow`, nlp.ParseOptions{Now: now})
+	if err != nil {
+		t.Fatalf("Parse(filter) error = %v", err)
+	}
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{Now: now})
+	if err != nil {
+		t.Fatalf("Build(filter) error = %v", err)
+	}
+	if plan.Filter == nil {
+		t.Fatal("filter request is nil")
+	}
+	if !plan.Filter.DueOnly {
+		t.Fatal("DueOnly = false, want true")
+	}
+	if plan.Filter.DueOn != "2026-02-11" {
+		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-11")
+	}
+}
+
+func TestBuildFilterPlanDueDateExact(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := nlp.Parse(`find due:2026-02-15`, nlp.ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse(filter) error = %v", err)
+	}
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{})
+	if err != nil {
+		t.Fatalf("Build(filter) error = %v", err)
+	}
+	if plan.Filter == nil {
+		t.Fatal("filter request is nil")
+	}
+	if !plan.Filter.DueOnly {
+		t.Fatal("DueOnly = false, want true")
+	}
+	if plan.Filter.DueOn != "2026-02-15" {
+		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-15")
+	}
+}
+
+func TestBuildFilterPlanDueDateCombined(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
+	parsed, err := nlp.Parse(`find state:now and due:tomorrow and project:work`, nlp.ParseOptions{Now: now})
+	if err != nil {
+		t.Fatalf("Parse(filter) error = %v", err)
+	}
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{Now: now})
+	if err != nil {
+		t.Fatalf("Build(filter) error = %v", err)
+	}
+	if plan.Filter == nil {
+		t.Fatal("filter request is nil")
+	}
+	if plan.Filter.State != "now" {
+		t.Fatalf("state = %q, want now", plan.Filter.State)
+	}
+	if plan.Filter.Project != "work" {
+		t.Fatalf("project = %q, want work", plan.Filter.Project)
+	}
+	if !plan.Filter.DueOnly {
+		t.Fatal("DueOnly = false, want true")
+	}
+	if plan.Filter.DueOn != "2026-02-11" {
+		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-11")
+	}
+}

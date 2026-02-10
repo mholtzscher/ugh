@@ -52,7 +52,7 @@ func Build(result nlp.ParseResult, opts BuildOptions) (Plan, error) {
 		}
 		return Plan{Intent: nlp.IntentUpdate, Update: &req, Target: target}, nil
 	case *nlp.FilterCommand:
-		req, err := buildFilterRequest(cmd)
+		req, err := buildFilterRequest(cmd, opts)
 		if err != nil {
 			return Plan{}, err
 		}
@@ -157,15 +157,15 @@ func buildUpdateRequest(cmd *nlp.UpdateCommand, opts BuildOptions) (service.Upda
 	return req, resolvedTarget, nil
 }
 
-func buildFilterRequest(cmd *nlp.FilterCommand) (service.ListTasksRequest, error) {
+func buildFilterRequest(cmd *nlp.FilterCommand, opts BuildOptions) (service.ListTasksRequest, error) {
 	req := service.ListTasksRequest{}
-	if err := applyFilterExpr(&req, cmd.Expr); err != nil {
+	if err := applyFilterExpr(&req, cmd.Expr, opts); err != nil {
 		return service.ListTasksRequest{}, err
 	}
 	return req, nil
 }
 
-func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr) error {
+func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr, opts BuildOptions) error {
 	switch typed := expr.(type) {
 	case nlp.Predicate:
 		switch typed.Kind {
@@ -178,6 +178,15 @@ func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr) error {
 		case nlp.PredText:
 			req.Search = typed.Text
 		case nlp.PredDue:
+			// Handle due date filtering: if value provided, parse and filter by that date
+			// If no value, just check that due date is set
+			if typed.Text != "" {
+				dueDate, err := normalizeDate(typed.Text, opts.Now)
+				if err != nil {
+					return err
+				}
+				req.DueOn = dueDate
+			}
 			req.DueOnly = true
 		case nlp.PredID:
 			// Parse the ID from the text
@@ -192,10 +201,10 @@ func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr) error {
 		if typed.Op != nlp.FilterAnd {
 			return errors.New("OR filters are not supported yet")
 		}
-		if err := applyFilterExpr(req, typed.Left); err != nil {
+		if err := applyFilterExpr(req, typed.Left, opts); err != nil {
 			return err
 		}
-		return applyFilterExpr(req, typed.Right)
+		return applyFilterExpr(req, typed.Right, opts)
 	case nlp.FilterNot:
 		return errors.New("NOT filters are not supported yet")
 	default:

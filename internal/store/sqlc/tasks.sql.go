@@ -592,6 +592,7 @@ WHERE (? = 0 OR t.state != 'done')
     )
   ))
   AND (? = 0 OR (t.due_on IS NOT NULL AND t.due_on != ''))
+  AND (? IS NULL OR t.due_on = ?)
 ORDER BY
   CASE WHEN t.state = 'done' THEN 1 ELSE 0 END,
   CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END,
@@ -615,6 +616,8 @@ type ListTasksParams struct {
 	Column13 sql.NullString `json:"column_13"`
 	Column14 sql.NullString `json:"column_14"`
 	Column15 interface{}    `json:"column_15"`
+	Column16 interface{}    `json:"column_16"`
+	DueOn    sql.NullString `json:"due_on"`
 }
 
 type ListTasksRow struct {
@@ -647,6 +650,8 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 		arg.Column13,
 		arg.Column14,
 		arg.Column15,
+		arg.Column16,
+		arg.DueOn,
 	)
 	if err != nil {
 		return nil, err
