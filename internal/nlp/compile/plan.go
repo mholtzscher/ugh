@@ -159,15 +159,27 @@ func buildUpdateRequest(cmd *nlp.UpdateCommand, opts BuildOptions) (service.Upda
 
 func buildFilterRequest(cmd *nlp.FilterCommand, opts BuildOptions) (service.ListTasksRequest, error) {
 	req := service.ListTasksRequest{}
-	if err := applyFilterExpr(&req, cmd.Expr, opts); err != nil {
+	seen := make(map[nlp.PredicateKind]bool)
+	if err := applyFilterExpr(&req, cmd.Expr, opts, seen); err != nil {
 		return service.ListTasksRequest{}, err
 	}
 	return req, nil
 }
 
-func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr, opts BuildOptions) error {
+//nolint:gocognit // Filter expression compilation is intentionally explicit by predicate type.
+func applyFilterExpr(
+	req *service.ListTasksRequest,
+	expr nlp.FilterExpr,
+	opts BuildOptions,
+	seen map[nlp.PredicateKind]bool,
+) error {
 	switch typed := expr.(type) {
 	case nlp.Predicate:
+		if seen[typed.Kind] {
+			return fmt.Errorf("duplicate filter: '%v' specified more than once", typed.Kind)
+		}
+		seen[typed.Kind] = true
+
 		switch typed.Kind {
 		case nlp.PredState:
 			req.State = typed.Text
@@ -201,10 +213,10 @@ func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr, opts Bu
 		if typed.Op != nlp.FilterAnd {
 			return errors.New("OR filters are not supported yet")
 		}
-		if err := applyFilterExpr(req, typed.Left, opts); err != nil {
+		if err := applyFilterExpr(req, typed.Left, opts, seen); err != nil {
 			return err
 		}
-		return applyFilterExpr(req, typed.Right, opts)
+		return applyFilterExpr(req, typed.Right, opts, seen)
 	case nlp.FilterNot:
 		return errors.New("NOT filters are not supported yet")
 	default:
