@@ -2,6 +2,8 @@ package shell_test
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -84,6 +86,78 @@ func TestExecuteUpdateInjectsMissingTags(t *testing.T) {
 	}
 	if !contains(svc.lastUpdate.AddContexts, "phone") {
 		t.Fatalf("add contexts = %#v, want injected 'phone'", svc.lastUpdate.AddContexts)
+	}
+}
+
+func TestExecuteFilterStickyProjectWrapsEntireOrExpression(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+
+	_, err = svc.CreateTask(ctx, service.CreateTaskRequest{Title: "now-home", State: "now", Projects: []string{"home"}})
+	if err != nil {
+		t.Fatalf("create now-home: %v", err)
+	}
+	waitingWork, err := svc.CreateTask(ctx, service.CreateTaskRequest{
+		Title:    "waiting-work",
+		State:    "waiting",
+		Projects: []string{"work"},
+	})
+	if err != nil {
+		t.Fatalf("create waiting-work: %v", err)
+	}
+
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+	result, err := exec.Execute(ctx, "find state:now or state:waiting")
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	if len(result.TaskIDs) != 1 {
+		t.Fatalf("task IDs = %#v, want exactly one task", result.TaskIDs)
+	}
+	if result.TaskIDs[0] != waitingWork.ID {
+		t.Fatalf("task IDs = %#v, want [%d]", result.TaskIDs, waitingWork.ID)
+	}
+}
+
+func TestExecuteUpdateStickyProjectStillAllowsExplicitRemoval(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "cleanup", Projects: []string{"work"}})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+	_, err = exec.Execute(ctx, fmt.Sprintf("set #%d -project:work", task.ID))
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	updated, err := svc.GetTask(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("get updated task: %v", err)
+	}
+	if contains(updated.Projects, "work") {
+		t.Fatalf("projects = %#v, expected explicit removal to win", updated.Projects)
 	}
 }
 
