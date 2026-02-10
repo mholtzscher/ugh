@@ -82,7 +82,7 @@ func buildCreateRequest(cmd *nlp.CreateCommand, opts BuildOptions) (service.Crea
 				return service.CreateTaskRequest{}, err
 			}
 		case nlp.TagOp:
-			req = applyTag(req, typed)
+			applyTag(&req, typed)
 		case nlp.DueShorthandOp:
 			dueSet := nlp.SetOp{Field: nlp.FieldDue, Value: nlp.OpValue(typed.Value)}
 			if err := applyCreateSet(&req, dueSet, opts.Now); err != nil {
@@ -142,7 +142,7 @@ func buildUpdateRequest(cmd *nlp.UpdateCommand, opts BuildOptions) (service.Upda
 				return service.UpdateTaskRequest{}, nlp.TargetRef{}, err
 			}
 		case nlp.TagOp:
-			req = applyUpdateTag(req, typed)
+			applyUpdateTag(&req, typed)
 		default:
 			return service.UpdateTaskRequest{}, nlp.TargetRef{}, fmt.Errorf("unsupported update op type %T", op)
 		}
@@ -310,13 +310,12 @@ func applyCreateClear(req *service.CreateTaskRequest, op nlp.ClearOp) error {
 	return nil
 }
 
-func applyTag(req service.CreateTaskRequest, op nlp.TagOp) service.CreateTaskRequest {
+func applyTag(req *service.CreateTaskRequest, op nlp.TagOp) {
 	if op.Kind == nlp.TagProject {
 		req.Projects = unique(append(req.Projects, strings.TrimSpace(op.Value)))
-		return req
+		return
 	}
 	req.Contexts = unique(append(req.Contexts, strings.TrimSpace(op.Value)))
-	return req
 }
 
 func applyUpdateSet(req *service.UpdateTaskRequest, op nlp.SetOp, now time.Time) error {
@@ -422,13 +421,12 @@ func applyUpdateClear(req *service.UpdateTaskRequest, op nlp.ClearOp) error {
 	return nil
 }
 
-func applyUpdateTag(req service.UpdateTaskRequest, op nlp.TagOp) service.UpdateTaskRequest {
+func applyUpdateTag(req *service.UpdateTaskRequest, op nlp.TagOp) {
 	if op.Kind == nlp.TagProject {
 		req.AddProjects = append(req.AddProjects, strings.TrimSpace(op.Value))
-		return req
+		return
 	}
 	req.AddContexts = append(req.AddContexts, strings.TrimSpace(op.Value))
-	return req
 }
 
 func normalizeState(value string) (string, error) {
