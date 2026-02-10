@@ -298,23 +298,11 @@ func normalizeOperation(op Operation) (Operation, bool) {
 			return nil, false
 		}
 		return TagOp{Kind: typed.Kind, Value: typed.Value}, true
-	case DueShorthandOp:
-		return typed, true
-	case *DueShorthandOp:
-		if typed == nil {
-			return nil, false
-		}
-		return DueShorthandOp{Value: typed.Value}, true
 	case *tagOpNode:
 		if typed == nil {
 			return nil, false
 		}
 		return TagOp{Kind: typed.Kind, Value: typed.Value}, true
-	case *dueShorthandNode:
-		if typed == nil {
-			return nil, false
-		}
-		return DueShorthandOp{Value: typed.Value}, true
 	default:
 		return op, true
 	}

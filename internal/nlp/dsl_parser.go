@@ -37,7 +37,6 @@ var dslParser = participle.MustBuild[Root](
 		&RemoveOp{},
 		&ClearOp{},
 		&tagOpNode{},
-		&dueShorthandNode{},
 	),
 )
 
