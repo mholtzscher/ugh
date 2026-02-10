@@ -247,3 +247,143 @@ type Predicate struct {
 }
 
 func (Predicate) filterExpr() {}
+
+// HasProjectTag returns true if the command has an explicit project tag.
+func (c *CreateCommand) HasProjectTag() bool {
+	if c == nil {
+		return false
+	}
+	for _, op := range c.Ops {
+		if tag, ok := op.(TagOp); ok && tag.Kind == TagProject {
+			return true
+		}
+	}
+	return false
+}
+
+// HasContextTag returns true if the command has an explicit context tag.
+func (c *CreateCommand) HasContextTag() bool {
+	if c == nil {
+		return false
+	}
+	for _, op := range c.Ops {
+		if tag, ok := op.(TagOp); ok && tag.Kind == TagContext {
+			return true
+		}
+	}
+	return false
+}
+
+// InjectProject adds a project tag if one doesn't already exist.
+func (c *CreateCommand) InjectProject(name string) {
+	if c == nil || c.HasProjectTag() || name == "" {
+		return
+	}
+	c.Ops = append(c.Ops, TagOp{Kind: TagProject, Value: name})
+}
+
+// InjectContext adds a context tag if one doesn't already exist.
+func (c *CreateCommand) InjectContext(name string) {
+	if c == nil || c.HasContextTag() || name == "" {
+		return
+	}
+	c.Ops = append(c.Ops, TagOp{Kind: TagContext, Value: name})
+}
+
+// HasProjectPredicate returns true if the filter has a project predicate.
+func (f *FilterCommand) HasProjectPredicate() bool {
+	if f == nil || f.Expr == nil {
+		return false
+	}
+	return hasPredicate(f.Expr, PredProject)
+}
+
+// HasContextPredicate returns true if the filter has a context predicate.
+func (f *FilterCommand) HasContextPredicate() bool {
+	if f == nil || f.Expr == nil {
+		return false
+	}
+	return hasPredicate(f.Expr, PredContext)
+}
+
+// InjectProject adds a project predicate to the filter expression.
+func (f *FilterCommand) InjectProject(name string) {
+	if f == nil || f.HasProjectPredicate() || name == "" {
+		return
+	}
+	pred := Predicate{Kind: PredProject, Text: name}
+	if f.Expr == nil {
+		f.Expr = pred
+	} else {
+		f.Expr = FilterBinary{Op: FilterAnd, Left: f.Expr, Right: pred}
+	}
+}
+
+// InjectContext adds a context predicate to the filter expression.
+func (f *FilterCommand) InjectContext(name string) {
+	if f == nil || f.HasContextPredicate() || name == "" {
+		return
+	}
+	pred := Predicate{Kind: PredContext, Text: name}
+	if f.Expr == nil {
+		f.Expr = pred
+	} else {
+		f.Expr = FilterBinary{Op: FilterAnd, Left: f.Expr, Right: pred}
+	}
+}
+
+// HasProjectTag returns true if the update has an explicit project tag.
+func (u *UpdateCommand) HasProjectTag() bool {
+	if u == nil {
+		return false
+	}
+	for _, op := range u.Ops {
+		if tag, ok := op.(TagOp); ok && tag.Kind == TagProject {
+			return true
+		}
+	}
+	return false
+}
+
+// HasContextTag returns true if the update has an explicit context tag.
+func (u *UpdateCommand) HasContextTag() bool {
+	if u == nil {
+		return false
+	}
+	for _, op := range u.Ops {
+		if tag, ok := op.(TagOp); ok && tag.Kind == TagContext {
+			return true
+		}
+	}
+	return false
+}
+
+// InjectProject adds a project tag if one doesn't already exist.
+func (u *UpdateCommand) InjectProject(name string) {
+	if u == nil || u.HasProjectTag() || name == "" {
+		return
+	}
+	u.Ops = append(u.Ops, TagOp{Kind: TagProject, Value: name})
+}
+
+// InjectContext adds a context tag if one doesn't already exist.
+func (u *UpdateCommand) InjectContext(name string) {
+	if u == nil || u.HasContextTag() || name == "" {
+		return
+	}
+	u.Ops = append(u.Ops, TagOp{Kind: TagContext, Value: name})
+}
+
+// hasPredicate recursively checks if an expression contains a predicate of the given kind.
+func hasPredicate(expr FilterExpr, kind PredicateKind) bool {
+	switch typed := expr.(type) {
+	case Predicate:
+		return typed.Kind == kind
+	case FilterBinary:
+		return hasPredicate(typed.Left, kind) || hasPredicate(typed.Right, kind)
+	case FilterNot:
+		return hasPredicate(typed.Expr, kind)
+	default:
+		return false
+	}
+}
