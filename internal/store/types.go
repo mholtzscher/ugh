@@ -40,6 +40,11 @@ type Filters struct {
 	DueOn      string // Date in YYYY-MM-DD format for exact due date matching
 }
 
+type ListTasksByExprOptions struct {
+	ExcludeDone bool
+	OnlyDone    bool
+}
+
 type NameCount struct {
 	Name  string
 	Count int64

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 	"github.com/pressly/goose/v3"
 
+	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/store/sqlc"
 )
 
@@ -297,7 +299,7 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 	}
 
 	// If no multi-value filters, run single query
-	if len(states) <= 1 && len(filters.Projects) <= 1 && len(filters.Contexts) <= 1 {
+	if len(states) <= 1 && len(filters.Projects) <= 1 && len(filters.Contexts) <= 1 && len(filters.Search) <= 1 {
 		return s.listTasksSingle(ctx, filters, states, filters.Projects, filters.Contexts)
 	}
 
@@ -343,7 +345,90 @@ func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error)
 		result = filterBySearchTerms(result, filters.Search)
 	}
 
+	sortTasksForList(result)
+
 	return result, nil
+}
+
+func (s *Store) ListTasksByExpr(
+	ctx context.Context,
+	expr nlp.FilterExpr,
+	opts ListTasksByExprOptions,
+) ([]*Task, error) {
+	if expr == nil {
+		return nil, errors.New("filter expression is required")
+	}
+
+	builder := &filterSQLBuilder{}
+	exprClause, args, err := builder.Build(expr)
+	if err != nil {
+		return nil, fmt.Errorf("build filter SQL: %w", err)
+	}
+
+	whereParts := make([]string, 0)
+	if opts.OnlyDone {
+		whereParts = append(whereParts, "t.state = 'done'")
+	} else if opts.ExcludeDone {
+		whereParts = append(whereParts, "t.state != 'done'")
+	}
+	whereParts = append(whereParts, exprClause)
+
+	// #nosec G202 -- query text is generated from a trusted AST and all values are bound parameters.
+	query := `
+SELECT
+  t.id,
+  t.state,
+  t.prev_state,
+  CAST(t.title AS TEXT) AS title,
+  CAST(t.notes AS TEXT) AS notes,
+  t.due_on,
+  t.waiting_for,
+  t.completed_at,
+  t.created_at,
+  t.updated_at
+FROM tasks t
+WHERE ` + strings.Join(whereParts, "\n  AND ") + `
+ORDER BY
+  CASE WHEN t.state = 'done' THEN 1 ELSE 0 END,
+  CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END,
+  t.due_on ASC,
+  t.updated_at DESC`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list tasks by expression: %w", err)
+	}
+	defer rows.Close()
+
+	tasks := make([]*Task, 0)
+	for rows.Next() {
+		var row sqlc.ListTasksRow
+		if scanErr := rows.Scan(
+			&row.ID,
+			&row.State,
+			&row.PrevState,
+			&row.Title,
+			&row.Notes,
+			&row.DueOn,
+			&row.WaitingFor,
+			&row.CompletedAt,
+			&row.CreatedAt,
+			&row.UpdatedAt,
+		); scanErr != nil {
+			return nil, fmt.Errorf("scan task row: %w", scanErr)
+		}
+		tasks = append(tasks, fromListRow(row))
+	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		return nil, fmt.Errorf("iterate task rows: %w", rowsErr)
+	}
+
+	err = s.loadDetails(ctx, tasks)
+	if err != nil {
+		return nil, err
+	}
+
+	return tasks, nil
 }
 
 func (s *Store) listTasksSingle(
@@ -436,9 +521,12 @@ func filterBySearchTerms(tasks []*Task, terms []string) []*Task {
 	for _, task := range tasks {
 		matches := 0
 		for _, term := range terms[1:] { // Skip first term (already filtered by SQL)
-			termLower := strings.ToLower(term)
-			if strings.Contains(strings.ToLower(task.Title), termLower) ||
-				strings.Contains(strings.ToLower(task.Notes), termLower) {
+			termLower := strings.ToLower(strings.TrimSpace(term))
+			if termLower == "" {
+				matches++
+				continue
+			}
+			if taskMatchesSearchTerm(task, termLower) {
 				matches++
 			}
 		}
@@ -447,6 +535,59 @@ func filterBySearchTerms(tasks []*Task, terms []string) []*Task {
 		}
 	}
 	return filtered
+}
+
+func taskMatchesSearchTerm(task *Task, term string) bool {
+	if strings.Contains(strings.ToLower(task.Title), term) || strings.Contains(strings.ToLower(task.Notes), term) {
+		return true
+	}
+	for _, project := range task.Projects {
+		if strings.Contains(strings.ToLower(project), term) {
+			return true
+		}
+	}
+	for _, context := range task.Contexts {
+		if strings.Contains(strings.ToLower(context), term) {
+			return true
+		}
+	}
+	for key, value := range task.Meta {
+		if strings.Contains(strings.ToLower(key), term) || strings.Contains(strings.ToLower(value), term) {
+			return true
+		}
+	}
+	return false
+}
+
+func sortTasksForList(tasks []*Task) {
+	sort.Slice(tasks, func(i, j int) bool {
+		left := tasks[i]
+		right := tasks[j]
+
+		leftDone := left.State == StateDone
+		rightDone := right.State == StateDone
+		if leftDone != rightDone {
+			return !leftDone
+		}
+
+		leftDueMissing := left.DueOn == nil
+		rightDueMissing := right.DueOn == nil
+		if leftDueMissing != rightDueMissing {
+			return !leftDueMissing
+		}
+
+		if left.DueOn != nil && right.DueOn != nil {
+			if !left.DueOn.Equal(*right.DueOn) {
+				return left.DueOn.Before(*right.DueOn)
+			}
+		}
+
+		if !left.UpdatedAt.Equal(right.UpdatedAt) {
+			return left.UpdatedAt.After(right.UpdatedAt)
+		}
+
+		return left.ID < right.ID
+	})
 }
 
 func (s *Store) SetDone(ctx context.Context, ids []int64, done bool) (int64, error) {

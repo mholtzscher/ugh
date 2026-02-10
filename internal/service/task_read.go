@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/mholtzscher/ugh/internal/domain"
+	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
@@ -23,6 +25,21 @@ func (s *TaskService) ListTasks(ctx context.Context, req ListTasksRequest) ([]*s
 		return tasks, nil
 	}
 
+	if req.Filter != nil {
+		if req.All {
+			return s.store.ListTasksByExpr(ctx, req.Filter, store.ListTasksByExprOptions{})
+		}
+		if req.DoneOnly {
+			return s.store.ListTasksByExpr(ctx, req.Filter, store.ListTasksByExprOptions{OnlyDone: true})
+		}
+		if req.TodoOnly {
+			return s.store.ListTasksByExpr(ctx, req.Filter, store.ListTasksByExprOptions{ExcludeDone: true})
+		}
+
+		excludeDone := !exprReferencesStateDone(req.Filter) && !exprReferencesID(req.Filter)
+		return s.store.ListTasksByExpr(ctx, req.Filter, store.ListTasksByExprOptions{ExcludeDone: excludeDone})
+	}
+
 	filters := store.Filters{
 		All:        req.All,
 		DoneOnly:   req.DoneOnly,
@@ -40,6 +57,32 @@ func (s *TaskService) ListTasks(ctx context.Context, req ListTasksRequest) ([]*s
 	}
 
 	return s.store.ListTasks(ctx, filters)
+}
+
+func exprReferencesStateDone(expr nlp.FilterExpr) bool {
+	switch typed := expr.(type) {
+	case nlp.Predicate:
+		return typed.Kind == nlp.PredState && strings.EqualFold(strings.TrimSpace(typed.Text), domain.TaskStateDone)
+	case nlp.FilterBinary:
+		return exprReferencesStateDone(typed.Left) || exprReferencesStateDone(typed.Right)
+	case nlp.FilterNot:
+		return exprReferencesStateDone(typed.Expr)
+	default:
+		return false
+	}
+}
+
+func exprReferencesID(expr nlp.FilterExpr) bool {
+	switch typed := expr.(type) {
+	case nlp.Predicate:
+		return typed.Kind == nlp.PredID
+	case nlp.FilterBinary:
+		return exprReferencesID(typed.Left) || exprReferencesID(typed.Right)
+	case nlp.FilterNot:
+		return exprReferencesID(typed.Expr)
+	default:
+		return false
+	}
 }
 
 func uniqueStrings(values []string) []string {

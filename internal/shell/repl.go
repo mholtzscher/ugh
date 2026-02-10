@@ -225,6 +225,7 @@ func (r *REPL) showHelp() {
 	}
 }
 
+//nolint:funlen // Plain help is intentionally explicit for readability in terminal output.
 func (r *REPL) showPlainHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "Available Commands")
 	_, _ = fmt.Fprintln(os.Stdout)
@@ -247,6 +248,8 @@ func (r *REPL) showPlainHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "  set 123 title:new title +project:work")
 	_, _ = fmt.Fprintln(os.Stdout, "  find state:now")
 	_, _ = fmt.Fprintln(os.Stdout, "  find state:now and project:work")
+	_, _ = fmt.Fprintln(os.Stdout, "  find state:now or not state:done")
+	_, _ = fmt.Fprintln(os.Stdout, "  find (state:now or state:waiting) and project:work")
 	_, _ = fmt.Fprintln(os.Stdout, "  show 3")
 	_, _ = fmt.Fprintln(os.Stdout, "  show #work")
 	_, _ = fmt.Fprintln(os.Stdout, "  filter context:urgent")
@@ -255,7 +258,7 @@ func (r *REPL) showPlainHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "Syntax:")
 	_, _ = fmt.Fprintln(os.Stdout, "  add/create/new <title> [operations...]")
 	_, _ = fmt.Fprintln(os.Stdout, "  set/edit/update <target> [operations...]")
-	_, _ = fmt.Fprintln(os.Stdout, "  find/show/list/filter <predicate> [and/or <predicate>...]")
+	_, _ = fmt.Fprintln(os.Stdout, "  find/show/list/filter <expr>   (and/or/not with parentheses)")
 	_, _ = fmt.Fprintln(os.Stdout)
 
 	_, _ = fmt.Fprintln(os.Stdout, "Operations:")
@@ -272,6 +275,7 @@ func (r *REPL) showPlainHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "  due:today|tomorrow|YYYY-MM-DD")
 	_, _ = fmt.Fprintln(os.Stdout, "  project:name, context:name, text:search")
 	_, _ = fmt.Fprintln(os.Stdout, "  id:123 or just 123  Find by task ID")
+	_, _ = fmt.Fprintln(os.Stdout, "  done visibility: hidden unless expression mentions state:done")
 	_, _ = fmt.Fprintln(os.Stdout)
 
 	_, _ = fmt.Fprintln(os.Stdout, "Targets:")
@@ -312,6 +316,8 @@ func (r *REPL) showColorHelp() {
 			pterm.LightGreen("set 123 title:new title +project:work") + "\n" +
 			pterm.LightGreen("find state:now") + "\n" +
 			pterm.LightGreen("find state:now and project:work") + "\n" +
+			pterm.LightGreen("find state:now or not state:done") + "\n" +
+			pterm.LightGreen("find (state:now or state:waiting) and project:work") + "\n" +
 			pterm.LightGreen("show 3") + "\n" +
 			pterm.LightGreen("show #work") + "\n" +
 			pterm.LightGreen("filter context:urgent"))
@@ -324,10 +330,8 @@ func (r *REPL) showColorHelp() {
 		pterm.White("<target>") + " " +
 		pterm.LightMagenta("[operations...]") + "\n" +
 		pterm.LightYellow("find/show/list/filter") + " " +
-		pterm.LightBlue("<predicate>") + " " +
-		pterm.LightYellow("[and/or") + " " +
-		pterm.LightBlue("<predicate>") +
-		pterm.LightYellow("...]")
+		pterm.LightBlue("<expr>") + " " +
+		pterm.LightYellow("(and/or/not, parentheses)")
 	pterm.DefaultBox.WithTitle(pterm.Yellow("Syntax")).
 		WithRightPadding(1).
 		WithLeftPadding(1).
@@ -347,7 +351,8 @@ func (r *REPL) showColorHelp() {
 		pterm.LightBlue("state:inbox|now|waiting|later|done") + "\n" +
 			pterm.LightBlue("due:today|tomorrow|YYYY-MM-DD") + "\n" +
 			pterm.LightBlue("project:name, context:name, text:search") + "\n" +
-			pterm.LightBlue("id:123 or just 123") + "  Find by task ID")
+			pterm.LightBlue("id:123 or just 123") + "  Find by task ID\n" +
+			pterm.LightBlue("done visibility") + "        Hidden unless expression mentions state:done")
 
 	// Targets panel
 	pterm.DefaultBox.WithTitle(pterm.White("Targets")).WithRightPadding(1).WithLeftPadding(1).Println(

@@ -1,5 +1,7 @@
 package service
 
+import "github.com/mholtzscher/ugh/internal/nlp"
+
 type CreateTaskRequest struct {
 	Title      string
 	Notes      string
@@ -15,6 +17,7 @@ type ListTasksRequest struct {
 	All      bool
 	DoneOnly bool
 	TodoOnly bool
+	Filter   nlp.FilterExpr
 	States   []string // Multiple states (OR semantics)
 	Projects []string // Multiple projects (OR semantics)
 	Contexts []string // Multiple contexts (OR semantics)

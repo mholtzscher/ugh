@@ -72,10 +72,10 @@ func TestBuildUpdatePlanResolvesSelectedTarget(t *testing.T) {
 	}
 }
 
-func TestBuildFilterPlan(t *testing.T) {
+func TestBuildFilterPlanBuildsBooleanExpression(t *testing.T) {
 	t.Parallel()
 
-	parsed, err := nlp.Parse(`find state:now and project:work and text:paper`, nlp.ParseOptions{})
+	parsed, err := nlp.Parse(`find state:todo and project:work and text:paper`, nlp.ParseOptions{})
 	if err != nil {
 		t.Fatalf("Parse(filter) error = %v", err)
 	}
@@ -84,45 +84,37 @@ func TestBuildFilterPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build(filter) error = %v", err)
 	}
-	if plan.Filter == nil {
-		t.Fatal("filter request is nil")
+	if plan.Filter == nil || plan.Filter.Filter == nil {
+		t.Fatal("filter expression is nil")
 	}
-	if len(plan.Filter.States) != 1 || plan.Filter.States[0] != "now" {
-		t.Fatalf("states = %v, want [now]", plan.Filter.States)
+
+	binary, ok := plan.Filter.Filter.(nlp.FilterBinary)
+	if !ok || binary.Op != nlp.FilterAnd {
+		t.Fatalf("filter type = %T, want FilterBinary(AND)", plan.Filter.Filter)
 	}
-	if len(plan.Filter.Projects) != 1 || plan.Filter.Projects[0] != "work" {
-		t.Fatalf("projects = %v, want [work]", plan.Filter.Projects)
+
+	left, ok := binary.Left.(nlp.Predicate)
+	if !ok || left.Kind != nlp.PredState || left.Text != "inbox" {
+		t.Fatalf("left predicate = %#v, want state:inbox", binary.Left)
 	}
-	if len(plan.Filter.Search) != 1 || plan.Filter.Search[0] != "paper" {
-		t.Fatalf("search = %v, want [paper]", plan.Filter.Search)
+
+	right, ok := binary.Right.(nlp.FilterBinary)
+	if !ok || right.Op != nlp.FilterAnd {
+		t.Fatalf("right expression = %#v, want nested AND", binary.Right)
+	}
+
+	project, ok := right.Left.(nlp.Predicate)
+	if !ok || project.Kind != nlp.PredProject || project.Text != "work" {
+		t.Fatalf("project predicate = %#v, want project:work", right.Left)
+	}
+
+	search, ok := right.Right.(nlp.Predicate)
+	if !ok || search.Kind != nlp.PredText || search.Text != "paper" {
+		t.Fatalf("search predicate = %#v, want text:paper", right.Right)
 	}
 }
 
-func TestBuildFilterPlanDueDateToday(t *testing.T) {
-	t.Parallel()
-
-	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
-	parsed, err := nlp.Parse(`find due:today`, nlp.ParseOptions{Now: now})
-	if err != nil {
-		t.Fatalf("Parse(filter) error = %v", err)
-	}
-
-	plan, err := compile.Build(parsed, compile.BuildOptions{Now: now})
-	if err != nil {
-		t.Fatalf("Build(filter) error = %v", err)
-	}
-	if plan.Filter == nil {
-		t.Fatal("filter request is nil")
-	}
-	if !plan.Filter.DueOnly {
-		t.Fatal("DueOnly = false, want true")
-	}
-	if plan.Filter.DueOn != "2026-02-10" {
-		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-10")
-	}
-}
-
-func TestBuildFilterPlanDueDateTomorrow(t *testing.T) {
+func TestBuildFilterPlanNormalizesDueDate(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
@@ -135,21 +127,20 @@ func TestBuildFilterPlanDueDateTomorrow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build(filter) error = %v", err)
 	}
-	if plan.Filter == nil {
-		t.Fatal("filter request is nil")
+
+	pred, ok := plan.Filter.Filter.(nlp.Predicate)
+	if !ok {
+		t.Fatalf("filter type = %T, want Predicate", plan.Filter.Filter)
 	}
-	if !plan.Filter.DueOnly {
-		t.Fatal("DueOnly = false, want true")
-	}
-	if plan.Filter.DueOn != "2026-02-11" {
-		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-11")
+	if pred.Kind != nlp.PredDue || pred.Text != "2026-02-11" {
+		t.Fatalf("due predicate = %#v, want due:2026-02-11", pred)
 	}
 }
 
-func TestBuildFilterPlanDueDateExact(t *testing.T) {
+func TestBuildFilterPlanSupportsOrAndNot(t *testing.T) {
 	t.Parallel()
 
-	parsed, err := nlp.Parse(`find due:2026-02-15`, nlp.ParseOptions{})
+	parsed, err := nlp.Parse(`find state:now or not state:done`, nlp.ParseOptions{})
 	if err != nil {
 		t.Fatalf("Parse(filter) error = %v", err)
 	}
@@ -158,64 +149,33 @@ func TestBuildFilterPlanDueDateExact(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build(filter) error = %v", err)
 	}
-	if plan.Filter == nil {
-		t.Fatal("filter request is nil")
+
+	binary, ok := plan.Filter.Filter.(nlp.FilterBinary)
+	if !ok || binary.Op != nlp.FilterOr {
+		t.Fatalf("filter type = %T, want FilterBinary(OR)", plan.Filter.Filter)
 	}
-	if !plan.Filter.DueOnly {
-		t.Fatal("DueOnly = false, want true")
+
+	rightNot, ok := binary.Right.(nlp.FilterNot)
+	if !ok {
+		t.Fatalf("right expression = %T, want FilterNot", binary.Right)
 	}
-	if plan.Filter.DueOn != "2026-02-15" {
-		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-15")
+
+	pred, ok := rightNot.Expr.(nlp.Predicate)
+	if !ok || pred.Kind != nlp.PredState || pred.Text != "done" {
+		t.Fatalf("not predicate = %#v, want state:done", rightNot.Expr)
 	}
 }
 
-func TestBuildFilterPlanDueDateCombined(t *testing.T) {
+func TestBuildFilterPlanInvalidIDReturnsError(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
-	parsed, err := nlp.Parse(`find state:now and due:tomorrow and project:work`, nlp.ParseOptions{Now: now})
+	parsed, err := nlp.Parse(`find id:abc`, nlp.ParseOptions{})
 	if err != nil {
 		t.Fatalf("Parse(filter) error = %v", err)
 	}
 
-	plan, err := compile.Build(parsed, compile.BuildOptions{Now: now})
-	if err != nil {
-		t.Fatalf("Build(filter) error = %v", err)
-	}
-	if plan.Filter == nil {
-		t.Fatal("filter request is nil")
-	}
-	if len(plan.Filter.States) != 1 || plan.Filter.States[0] != "now" {
-		t.Fatalf("states = %v, want [now]", plan.Filter.States)
-	}
-	if len(plan.Filter.Projects) != 1 || plan.Filter.Projects[0] != "work" {
-		t.Fatalf("projects = %v, want [work]", plan.Filter.Projects)
-	}
-	if !plan.Filter.DueOnly {
-		t.Fatal("DueOnly = false, want true")
-	}
-	if plan.Filter.DueOn != "2026-02-11" {
-		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-11")
-	}
-}
-
-func TestBuildFilterMultiplePredicates(t *testing.T) {
-	t.Parallel()
-
-	parsed, err := nlp.Parse(`find state:now and state:done`, nlp.ParseOptions{})
-	if err != nil {
-		t.Fatalf("Parse(filter) error = %v", err)
-	}
-
-	plan, err := compile.Build(parsed, compile.BuildOptions{})
-	if err != nil {
-		t.Fatalf("Build(filter) error = %v", err)
-	}
-	if plan.Filter == nil {
-		t.Fatal("filter request is nil")
-	}
-	// Multiple states are accumulated
-	if len(plan.Filter.States) != 2 || plan.Filter.States[0] != "now" || plan.Filter.States[1] != "done" {
-		t.Fatalf("states = %v, want [now done]", plan.Filter.States)
+	_, err = compile.Build(parsed, compile.BuildOptions{})
+	if err == nil {
+		t.Fatal("Build(filter) error = nil, want invalid id error")
 	}
 }

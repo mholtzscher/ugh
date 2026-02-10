@@ -1,0 +1,18 @@
+# REPL filter error handling
+exec ugh --db $WORK/db.sqlite add --state now "Seed task"
+
+# Compile-stage error: invalid ID predicate
+! exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-invalid-id.txt
+stderr 'line 1'
+stderr 'compile: invalid id filter "abc"'
+
+# Parse-stage error: missing predicate value
+! exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-missing-value.txt
+stderr 'line 1'
+stderr 'parse: expected value'
+
+-- cmd-invalid-id.txt --
+find id:abc
+
+-- cmd-missing-value.txt --
+find state:
