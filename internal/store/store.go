@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	sq "github.com/Masterminds/squirrel"
 	tursogo "turso.tech/database/tursogo"
 
 	"github.com/pressly/goose/v3"
@@ -290,47 +291,50 @@ func (s *Store) ListTasksByExpr(
 	expr nlp.FilterExpr,
 	opts ListTasksByExprOptions,
 ) ([]*Task, error) {
-	whereParts := make([]string, 0)
+	conditions := make([]sq.Sqlizer, 0)
 	if opts.OnlyDone {
-		whereParts = append(whereParts, "t.state = 'done'")
+		conditions = append(conditions, sq.Expr("t.state = 'done'"))
 	} else if opts.ExcludeDone {
-		whereParts = append(whereParts, "t.state != 'done'")
+		conditions = append(conditions, sq.Expr("t.state != 'done'"))
 	}
 
-	args := make([]any, 0)
 	if expr != nil {
 		builder := &filterSQLBuilder{}
 		exprClause, exprArgs, err := builder.Build(expr)
 		if err != nil {
 			return nil, fmt.Errorf("build filter SQL: %w", err)
 		}
-		whereParts = append(whereParts, exprClause)
-		args = append(args, exprArgs...)
-	}
-	if len(whereParts) == 0 {
-		whereParts = append(whereParts, "1=1")
+		conditions = append(conditions, sq.Expr(exprClause, exprArgs...))
 	}
 
-	// #nosec G202 -- query text is generated from a trusted AST and all values are bound parameters.
-	query := `
-SELECT
-  t.id,
-  t.state,
-  t.prev_state,
-  CAST(t.title AS TEXT) AS title,
-  CAST(t.notes AS TEXT) AS notes,
-  t.due_on,
-  t.waiting_for,
-  t.completed_at,
-  t.created_at,
-  t.updated_at
-FROM tasks t
-WHERE ` + strings.Join(whereParts, "\n  AND ") + `
-ORDER BY
-  CASE WHEN t.state = 'done' THEN 1 ELSE 0 END,
-  CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END,
-  t.due_on ASC,
-  t.updated_at DESC`
+	queryBuilder := sq.Select(
+		"t.id",
+		"t.state",
+		"t.prev_state",
+		"CAST(t.title AS TEXT) AS title",
+		"CAST(t.notes AS TEXT) AS notes",
+		"t.due_on",
+		"t.waiting_for",
+		"t.completed_at",
+		"t.created_at",
+		"t.updated_at",
+	).
+		From("tasks t").
+		OrderBy(
+			"CASE WHEN t.state = 'done' THEN 1 ELSE 0 END",
+			"CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END",
+			"t.due_on ASC",
+			"t.updated_at DESC",
+		)
+
+	for _, condition := range conditions {
+		queryBuilder = queryBuilder.Where(condition)
+	}
+
+	query, args, err := queryBuilder.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build list tasks query: %w", err)
+	}
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {

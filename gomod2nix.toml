@@ -13,6 +13,9 @@ schema = 3
   [mod."github.com/BurntSushi/toml"]
     version = "v1.6.0"
     hash = "sha256-ptdUJvuc21ixeLt+M5way/na3aCnCO4MYHWulWp8NEY="
+  [mod."github.com/Masterminds/squirrel"]
+    version = "v1.5.4"
+    hash = "sha256-7UGz8TLcBI9HjU7zPqj9Gjp9Av+43mu0YCBV1mRy34o="
   [mod."github.com/alecthomas/participle/v2"]
     version = "v2.1.4"
     hash = "sha256-MNNIJGTV6Rqm5rEPQX0Nro0XTzJ9/SmQ24hZ4kJaiIM="
@@ -34,6 +37,12 @@ schema = 3
   [mod."github.com/gookit/color"]
     version = "v1.5.4"
     hash = "sha256-6Xydefyslup+qohzatAdezGWrS065X5mx18wvRef3Rk="
+  [mod."github.com/lann/builder"]
+    version = "v0.0.0-20180802200727-47ae307949d0"
+    hash = "sha256-NDZvsU6T2jVq5pfhp/VoJcMTq8DXKXiEkfZHloOX6c0="
+  [mod."github.com/lann/ps"]
+    version = "v0.0.0-20150810152359-62de8c46ede0"
+    hash = "sha256-fHIjAtshTJWa67PzzgruqN1LdpQ7Zgc1qpEZWhjQTnU="
   [mod."github.com/lithammer/fuzzysearch"]
     version = "v1.1.8"
     hash = "sha256-aMMRcrlUc9CBiiNkcnWWn4hfNMNyVhrAt67kvP4D4Do="
