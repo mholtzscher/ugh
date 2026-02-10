@@ -27,13 +27,13 @@ func (t *tagOpNode) Parse(lex *lexer.PeekingLexer) error {
 	if tok.Type == dslSymbols["ProjectTag"] {
 		lex.Next()
 		t.Kind = TagProject
-		t.Value = strings.TrimPrefix(tok.Value, "#")
+		t.Value = tok.Value
 		return nil
 	}
 	if tok.Type == dslSymbols["ContextTag"] {
 		lex.Next()
 		t.Kind = TagContext
-		t.Value = strings.TrimPrefix(tok.Value, "@")
+		t.Value = tok.Value
 		return nil
 	}
 	return participle.NextMatch

@@ -209,10 +209,10 @@ func (p *FilterTagPredicate) toPredicate() *Predicate {
 		return nil
 	}
 	if p.Project != "" {
-		return &Predicate{Kind: PredProject, Text: strings.TrimPrefix(p.Project, "#")}
+		return &Predicate{Kind: PredProject, Text: p.Project}
 	}
 	if p.Context != "" {
-		return &Predicate{Kind: PredContext, Text: strings.TrimPrefix(p.Context, "@")}
+		return &Predicate{Kind: PredContext, Text: p.Context}
 	}
 	return &Predicate{Kind: PredText, Text: ""}
 }
