@@ -264,3 +264,400 @@ func hasPredicateKind(expr nlp.FilterExpr, kind nlp.PredicateKind) bool {
 		return false
 	}
 }
+
+func TestExecuteEmptyCommand(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	_, err := exec.Execute(context.Background(), "")
+	if err == nil {
+		t.Fatal("expected error for empty command, got nil")
+	}
+}
+
+func TestExecuteWhitespaceOnlyCommand(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	_, err := exec.Execute(context.Background(), "   \t\n  ")
+	if err == nil {
+		t.Fatal("expected error for whitespace-only command, got nil")
+	}
+}
+
+func TestExecuteUpdatesLastTaskID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+	state := &shell.SessionState{}
+	exec := shell.NewExecutor(svc, state, true)
+
+	// Create first task
+	result1, err := exec.Execute(ctx, "add first task")
+	if err != nil {
+		t.Fatalf("execute first: %v", err)
+	}
+
+	if len(state.LastTaskIDs) != 1 {
+		t.Fatalf("LastTaskIDs = %v, want 1 entry", state.LastTaskIDs)
+	}
+	if state.LastTaskIDs[0] != result1.TaskIDs[0] {
+		t.Errorf("LastTaskIDs[0] = %d, want %d", state.LastTaskIDs[0], result1.TaskIDs[0])
+	}
+
+	// Create second task
+	result2, err := exec.Execute(ctx, "add second task")
+	if err != nil {
+		t.Fatalf("execute second: %v", err)
+	}
+
+	if len(state.LastTaskIDs) != 1 {
+		t.Fatalf("LastTaskIDs = %v, want 1 entry after second create", state.LastTaskIDs)
+	}
+	if state.LastTaskIDs[0] != result2.TaskIDs[0] {
+		t.Errorf("LastTaskIDs[0] = %d, want %d", state.LastTaskIDs[0], result2.TaskIDs[0])
+	}
+}
+
+func TestExecuteFilterUpdatesLastTaskIDs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+
+	// Create multiple tasks
+	var taskIDs []int64
+	for i := 1; i <= 3; i++ {
+		task, createErr := svc.CreateTask(ctx, service.CreateTaskRequest{
+			Title: fmt.Sprintf("task %d", i),
+			State: "now",
+		})
+		if createErr != nil {
+			t.Fatalf("create task %d: %v", i, createErr)
+		}
+		taskIDs = append(taskIDs, task.ID)
+	}
+
+	state := &shell.SessionState{}
+	exec := shell.NewExecutor(svc, state, true)
+
+	_, err = exec.Execute(ctx, "find state:now")
+	if err != nil {
+		t.Fatalf("execute filter: %v", err)
+	}
+
+	if len(state.LastTaskIDs) != 3 {
+		t.Fatalf("LastTaskIDs = %v, want 3 entries", state.LastTaskIDs)
+	}
+
+	// Check that all task IDs are present
+	for _, id := range taskIDs {
+		if !slices.Contains(state.LastTaskIDs, id) {
+			t.Errorf("task ID %d not found in LastTaskIDs", id)
+		}
+	}
+}
+
+func TestExecuteUpdateSetsSelectedTaskID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "task to update"})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+
+	// Set SelectedTaskID first (required to use "selected" target)
+	state := &shell.SessionState{
+		SelectedTaskID: &task.ID,
+	}
+	exec := shell.NewExecutor(svc, state, true)
+
+	// Update with "selected" target should keep SelectedTaskID set
+	_, err = exec.Execute(ctx, "set selected title:updated")
+	if err != nil {
+		t.Fatalf("execute update: %v", err)
+	}
+
+	if state.SelectedTaskID == nil {
+		t.Fatal("SelectedTaskID is nil, expected it to be set")
+	}
+	if *state.SelectedTaskID != task.ID {
+		t.Errorf("SelectedTaskID = %d, want %d", *state.SelectedTaskID, task.ID)
+	}
+}
+
+func TestExecuteUpdateByIDDoesNotSetSelectedTaskID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "task to update"})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+
+	state := &shell.SessionState{}
+	exec := shell.NewExecutor(svc, state, true)
+
+	// Update by explicit ID should NOT set SelectedTaskID
+	_, err = exec.Execute(ctx, fmt.Sprintf("set #%d title:updated", task.ID))
+	if err != nil {
+		t.Fatalf("execute update: %v", err)
+	}
+
+	if state.SelectedTaskID != nil {
+		t.Errorf("SelectedTaskID = %d, expected nil when updating by ID", *state.SelectedTaskID)
+	}
+}
+
+func TestExecutePronounSubstitution(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+
+	// Create two tasks
+	task1, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "first task"})
+	if err != nil {
+		t.Fatalf("create first task: %v", err)
+	}
+	task2, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "second task"})
+	if err != nil {
+		t.Fatalf("create second task: %v", err)
+	}
+
+	state := &shell.SessionState{
+		LastTaskIDs: []int64{task1.ID, task2.ID},
+	}
+	exec := shell.NewExecutor(svc, state, true)
+
+	// "it" and "this" should refer to last task (task2)
+	_, err = exec.Execute(ctx, "set it title:updated via it")
+	if err != nil {
+		t.Fatalf("execute with 'it': %v", err)
+	}
+
+	updated, err := svc.GetTask(ctx, task2.ID)
+	if err != nil {
+		t.Fatalf("get updated task: %v", err)
+	}
+	if updated.Title != "updated via it" {
+		t.Errorf("task2 title = %q, want 'updated via it'", updated.Title)
+	}
+
+	// "last" should also refer to task2
+	_, err = exec.Execute(ctx, "set last title:updated via last")
+	if err != nil {
+		t.Fatalf("execute with 'last': %v", err)
+	}
+
+	updated, err = svc.GetTask(ctx, task2.ID)
+	if err != nil {
+		t.Fatalf("get updated task: %v", err)
+	}
+	if updated.Title != "updated via last" {
+		t.Errorf("task2 title = %q, want 'updated via last'", updated.Title)
+	}
+}
+
+func TestExecuteThatPronounSubstitution(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+
+	// Create two tasks
+	task1, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "first task"})
+	if err != nil {
+		t.Fatalf("create first task: %v", err)
+	}
+	task2, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "second task"})
+	if err != nil {
+		t.Fatalf("create second task: %v", err)
+	}
+
+	state := &shell.SessionState{
+		LastTaskIDs: []int64{task1.ID, task2.ID},
+	}
+	exec := shell.NewExecutor(svc, state, true)
+
+	// "that" should refer to second-to-last task (task1)
+	_, err = exec.Execute(ctx, "set that title:updated via that")
+	if err != nil {
+		t.Fatalf("execute with 'that': %v", err)
+	}
+
+	updated, err := svc.GetTask(ctx, task1.ID)
+	if err != nil {
+		t.Fatalf("get updated task: %v", err)
+	}
+	if updated.Title != "updated via that" {
+		t.Errorf("task1 title = %q, want 'updated via that'", updated.Title)
+	}
+}
+
+func TestExecuteSelectedPronounSubstitution(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "test.sqlite")
+	st, err := store.Open(ctx, store.Options{Path: dbPath})
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	svc := service.NewTaskService(st)
+	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "task"})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+
+	state := &shell.SessionState{
+		SelectedTaskID: &task.ID,
+	}
+	exec := shell.NewExecutor(svc, state, true)
+
+	// "selected" should refer to selected task
+	_, err = exec.Execute(ctx, "set selected title:updated via selected")
+	if err != nil {
+		t.Fatalf("execute with 'selected': %v", err)
+	}
+
+	updated, err := svc.GetTask(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("get updated task: %v", err)
+	}
+	if updated.Title != "updated via selected" {
+		t.Errorf("task title = %q, want 'updated via selected'", updated.Title)
+	}
+}
+
+func TestExecuteCreateWithoutContext(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	_, err := exec.Execute(context.Background(), "add buy milk")
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	if len(svc.lastCreate.Projects) != 0 {
+		t.Errorf("projects = %v, want empty", svc.lastCreate.Projects)
+	}
+	if len(svc.lastCreate.Contexts) != 0 {
+		t.Errorf("contexts = %v, want empty", svc.lastCreate.Contexts)
+	}
+}
+
+func TestExecuteFilterWithoutContext(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	_, err := exec.Execute(context.Background(), "find state:now")
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	// Without context, should not inject project/context predicates
+	hasProject := hasPredicateKind(svc.lastFilter.Filter, nlp.PredProject)
+	hasContext := hasPredicateKind(svc.lastFilter.Filter, nlp.PredContext)
+
+	if hasProject {
+		t.Error("filter has project predicate, expected none without context")
+	}
+	if hasContext {
+		t.Error("filter has context predicate, expected none without context")
+	}
+}
+
+func TestExecuteInjectContextOnlyProject(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+
+	_, err := exec.Execute(context.Background(), "add buy milk")
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	if !contains(svc.lastCreate.Projects, "work") {
+		t.Errorf("projects = %v, want 'work'", svc.lastCreate.Projects)
+	}
+	if len(svc.lastCreate.Contexts) != 0 {
+		t.Errorf("contexts = %v, want empty when only project context set", svc.lastCreate.Contexts)
+	}
+}
+
+func TestExecuteInjectContextOnlyContext(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextContext: "phone"}, true)
+
+	_, err := exec.Execute(context.Background(), "add buy milk")
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	if len(svc.lastCreate.Projects) != 0 {
+		t.Errorf("projects = %v, want empty when only context context set", svc.lastCreate.Projects)
+	}
+	if !contains(svc.lastCreate.Contexts, "phone") {
+		t.Errorf("contexts = %v, want 'phone'", svc.lastCreate.Contexts)
+	}
+}
