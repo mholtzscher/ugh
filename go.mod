@@ -4,6 +4,7 @@ go 1.25
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/Masterminds/squirrel v1.5.4
 	github.com/alecthomas/participle/v2 v2.1.4
 	github.com/chzyer/readline v1.5.1
 	github.com/pressly/goose/v3 v3.26.0
@@ -23,6 +24,8 @@ require (
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/gookit/color v1.5.4 // indirect
+	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
+	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
 	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
