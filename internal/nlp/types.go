@@ -35,7 +35,7 @@ type Diagnostic struct {
 
 type ParseResult struct {
 	Intent      Intent
-	Command     any
+	Command     Command
 	Diagnostics []Diagnostic
 	Canonical   string
 }

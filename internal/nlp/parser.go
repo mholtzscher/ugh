@@ -35,7 +35,7 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 		return ParseResult{Intent: IntentUnknown}, errors.New("empty parse result")
 	}
 
-	intent, cmdAny, postErr := postProcess(root.Cmd)
+	intent, cmdResult, postErr := postProcess(root.Cmd)
 	if postErr != nil {
 		return ParseResult{Intent: intent}, postErr
 	}
@@ -53,11 +53,11 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 			want = IntentFilter
 		}
 		if want != IntentUnknown && intent != want {
-			return ParseResult{Intent: intent, Command: cmdAny}, errors.New("command does not match parse mode")
+			return ParseResult{Intent: intent, Command: cmdResult}, errors.New("command does not match parse mode")
 		}
 	}
 
-	return ParseResult{Intent: intent, Command: cmdAny}, nil
+	return ParseResult{Intent: intent, Command: cmdResult}, nil
 }
 
 // Parser interface for dependency injection.
@@ -77,7 +77,7 @@ func (defaultParser) Parse(_ context.Context, input string, opts ParseOptions) (
 	return Parse(input, opts)
 }
 
-func postProcess(cmd Command) (Intent, any, error) {
+func postProcess(cmd Command) (Intent, Command, error) {
 	switch typed := cmd.(type) {
 	case *CreateCommand:
 		if err := typed.postProcess(); err != nil {
