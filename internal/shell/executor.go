@@ -64,6 +64,9 @@ func (e *Executor) Execute(ctx context.Context, input string) (*ExecuteResult, e
 		}
 	}
 
+	// Inject sticky context into the AST (post-parse, pre-compile)
+	e.injectContext(parseResult)
+
 	// Compile the parse result to an execution plan
 	buildOpts := compile.BuildOptions{
 		SelectedTaskID: e.state.SelectedTaskID,
@@ -93,15 +96,21 @@ func (e *Executor) preprocessInput(input string) string {
 		input = strings.ReplaceAll(input, " selected ", fmt.Sprintf(" %d ", selectedID))
 	}
 
-	// Add context filters if set
-	if e.state.ContextProject != "" && !strings.Contains(input, "#") {
-		input = input + " #" + e.state.ContextProject
-	}
-	if e.state.ContextContext != "" && !strings.Contains(input, "@") {
-		input = input + " @" + e.state.ContextContext
-	}
-
 	return input
+}
+
+func (e *Executor) injectContext(parseResult nlp.ParseResult) {
+	switch cmd := parseResult.Command.(type) {
+	case *nlp.CreateCommand:
+		cmd.InjectProject(e.state.ContextProject)
+		cmd.InjectContext(e.state.ContextContext)
+	case *nlp.UpdateCommand:
+		cmd.InjectProject(e.state.ContextProject)
+		cmd.InjectContext(e.state.ContextContext)
+	case *nlp.FilterCommand:
+		cmd.InjectProject(e.state.ContextProject)
+		cmd.InjectContext(e.state.ContextContext)
+	}
 }
 
 func (e *Executor) getLastTaskID() int64 {
