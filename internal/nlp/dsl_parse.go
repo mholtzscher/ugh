@@ -252,8 +252,8 @@ func isFilterValueDelimiter(tok *lexer.Token) bool {
 		return true
 	}
 	if tok.Type == dslSymbols["Ident"] {
-		lower := strings.ToLower(tok.Value)
-		return lower == "and" || lower == "or" || lower == "not"
+		s := strings.ToLower(tok.Value)
+		return s == "and" || s == "or" || s == "not"
 	}
 	return false
 }

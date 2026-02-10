@@ -77,7 +77,7 @@ func andExpr(exprs ...nlp.FilterExpr) nlp.FilterExpr {
 }
 
 func stateExpr(value string) nlp.FilterExpr {
-	value = strings.TrimSpace(value)
+	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
 		return nil
 	}
