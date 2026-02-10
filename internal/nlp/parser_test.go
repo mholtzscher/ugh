@@ -798,6 +798,18 @@ func TestParseFilter_Predicates(t *testing.T) {
 			wantText: "phone",
 		},
 		{
+			name:     "project tag shorthand predicate",
+			input:    "find #work",
+			wantKind: nlp.PredProject,
+			wantText: "work",
+		},
+		{
+			name:     "context tag shorthand predicate",
+			input:    "find @phone",
+			wantKind: nlp.PredContext,
+			wantText: "phone",
+		},
+		{
 			name:     "text predicate",
 			input:    "find text:report",
 			wantKind: nlp.PredText,
