@@ -16,6 +16,11 @@ var inboxCmd = &cli.Command{
 	Usage:    "List inbox tasks",
 	Category: "Lists",
 	Action: func(ctx context.Context, _ *cli.Command) error {
+		filterExpr, err := buildListFilterExpr(listFilterOptions{State: flags.TaskStateInbox})
+		if err != nil {
+			return err
+		}
+
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -24,7 +29,7 @@ var inboxCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			Filter:   stateExpr(flags.TaskStateInbox),
+			Filter:   filterExpr,
 		})
 		if err != nil {
 			return err

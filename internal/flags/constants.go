@@ -37,6 +37,7 @@ const (
 	FlagUndone        = "undone"
 	FlagDueOn         = "due"
 	FlagWaitingFor    = "waiting-for"
+	FlagWhere         = "where"
 )
 
 const (

@@ -1,10 +1,61 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/mholtzscher/ugh/internal/nlp"
+	"github.com/mholtzscher/ugh/internal/nlp/compile"
 )
+
+type listFilterOptions struct {
+	Where   string
+	State   string
+	Project string
+	Context string
+	Search  string
+	DueSet  bool
+}
+
+func buildListFilterExpr(opts listFilterOptions) (nlp.FilterExpr, error) {
+	whereExpr, err := parseWhereExpr(opts.Where)
+	if err != nil {
+		return nil, err
+	}
+
+	expr := andExpr(
+		whereExpr,
+		stateExpr(opts.State),
+		projectExpr(opts.Project),
+		contextExpr(opts.Context),
+		textExpr(opts.Search),
+		dueSetExpr(opts.DueSet),
+	)
+
+	return compile.NormalizeFilterExpr(expr, compile.BuildOptions{Now: time.Now()})
+}
+
+func parseWhereExpr(where string) (nlp.FilterExpr, error) {
+	where = strings.TrimSpace(where)
+	if where == "" {
+		var emptyExpr nlp.FilterExpr
+		return emptyExpr, nil
+	}
+
+	parsed, err := nlp.Parse("find "+where, nlp.ParseOptions{Mode: nlp.ModeFilter, Now: time.Now()})
+	if err != nil {
+		return nil, fmt.Errorf("parse --where: %w", err)
+	}
+
+	filterCmd, ok := parsed.Command.(*nlp.FilterCommand)
+	if !ok || filterCmd.Expr == nil {
+		return nil, errors.New("parse --where: expected filter expression")
+	}
+
+	return filterCmd.Expr, nil
+}
 
 func andExpr(exprs ...nlp.FilterExpr) nlp.FilterExpr {
 	filtered := make([]nlp.FilterExpr, 0, len(exprs))
@@ -30,7 +81,6 @@ func stateExpr(value string) nlp.FilterExpr {
 	if value == "" {
 		return nil
 	}
-	value = strings.ToLower(value)
 	return nlp.Predicate{Kind: nlp.PredState, Text: value}
 }
 
@@ -58,6 +108,9 @@ func textExpr(value string) nlp.FilterExpr {
 	return nlp.Predicate{Kind: nlp.PredText, Text: value}
 }
 
-func dueSetExpr() nlp.FilterExpr {
+func dueSetExpr(enabled bool) nlp.FilterExpr {
+	if !enabled {
+		return nil
+	}
 	return nlp.Predicate{Kind: nlp.PredDue, Text: ""}
 }

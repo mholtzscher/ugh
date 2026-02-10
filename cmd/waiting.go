@@ -16,6 +16,11 @@ var waitingCmd = &cli.Command{
 	Usage:    "List waiting-for items",
 	Category: "Lists",
 	Action: func(ctx context.Context, _ *cli.Command) error {
+		filterExpr, err := buildListFilterExpr(listFilterOptions{State: flags.TaskStateWaiting})
+		if err != nil {
+			return err
+		}
+
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -24,7 +29,7 @@ var waitingCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			Filter:   stateExpr(flags.TaskStateWaiting),
+			Filter:   filterExpr,
 		})
 		if err != nil {
 			return err

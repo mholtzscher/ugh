@@ -62,8 +62,23 @@ var listCmd = &cli.Command{
 			Aliases: []string{"s"},
 			Usage:   "search text",
 		},
+		&cli.StringFlag{
+			Name:  flags.FlagWhere,
+			Usage: "filter expression (e.g. \"state:now or project:work\")",
+		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
+		filterExpr, err := buildListFilterExpr(listFilterOptions{
+			Where:   cmd.String(flags.FlagWhere),
+			State:   cmd.String(flags.FlagState),
+			Project: cmd.String(flags.FlagProject),
+			Context: cmd.String(flags.FlagContext),
+			Search:  cmd.String(flags.FlagSearch),
+		})
+		if err != nil {
+			return err
+		}
+
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -74,12 +89,7 @@ var listCmd = &cli.Command{
 			All:      cmd.Bool(flags.FlagAll),
 			DoneOnly: cmd.Bool(flags.FlagDone),
 			TodoOnly: cmd.Bool(flags.FlagTodo),
-			Filter: andExpr(
-				stateExpr(cmd.String(flags.FlagState)),
-				projectExpr(cmd.String(flags.FlagProject)),
-				contextExpr(cmd.String(flags.FlagContext)),
-				textExpr(cmd.String(flags.FlagSearch)),
-			),
+			Filter:   filterExpr,
 		}
 		tasks, err := svc.ListTasks(ctx, req)
 		if err != nil {

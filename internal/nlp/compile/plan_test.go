@@ -179,3 +179,23 @@ func TestBuildFilterPlanInvalidIDReturnsError(t *testing.T) {
 		t.Fatal("Build(filter) error = nil, want invalid id error")
 	}
 }
+
+func TestNormalizeFilterExpr_AllowsDueSetPredicate(t *testing.T) {
+	t.Parallel()
+
+	expr, err := compile.NormalizeFilterExpr(
+		nlp.Predicate{Kind: nlp.PredDue, Text: ""},
+		compile.BuildOptions{Now: time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)},
+	)
+	if err != nil {
+		t.Fatalf("NormalizeFilterExpr() error = %v", err)
+	}
+
+	pred, ok := expr.(nlp.Predicate)
+	if !ok {
+		t.Fatalf("expr type = %T, want Predicate", expr)
+	}
+	if pred.Kind != nlp.PredDue || pred.Text != "" {
+		t.Fatalf("predicate = %#v, want due predicate with empty text", pred)
+	}
+}

@@ -158,11 +158,21 @@ func buildUpdateRequest(cmd *nlp.UpdateCommand, opts BuildOptions) (service.Upda
 }
 
 func buildFilterRequest(cmd *nlp.FilterCommand, opts BuildOptions) (service.ListTasksRequest, error) {
-	expr, err := compileFilterExpr(cmd.Expr, opts)
+	expr, err := NormalizeFilterExpr(cmd.Expr, opts)
 	if err != nil {
 		return service.ListTasksRequest{}, err
 	}
 	return service.ListTasksRequest{Filter: expr}, nil
+}
+
+func NormalizeFilterExpr(expr nlp.FilterExpr, opts BuildOptions) (nlp.FilterExpr, error) {
+	if expr == nil {
+		return expr, nil
+	}
+	if opts.Now.IsZero() {
+		opts.Now = time.Now()
+	}
+	return compileFilterExpr(expr, opts)
 }
 
 func compileFilterExpr(expr nlp.FilterExpr, opts BuildOptions) (nlp.FilterExpr, error) {
@@ -202,6 +212,9 @@ func compilePredicate(pred nlp.Predicate, opts BuildOptions) (nlp.Predicate, err
 		}
 		compiled.Text = state
 	case nlp.PredDue:
+		if compiled.Text == "" {
+			return compiled, nil
+		}
 		dueDate, err := normalizeDate(compiled.Text, opts.Now)
 		if err != nil {
 			return nlp.Predicate{}, err
