@@ -37,5 +37,4 @@ type ParseResult struct {
 	Intent      Intent
 	Command     Command
 	Diagnostics []Diagnostic
-	Canonical   string
 }
