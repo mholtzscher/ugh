@@ -28,18 +28,6 @@ type Task struct {
 	UpdatedAt   time.Time
 }
 
-type Filters struct {
-	All        bool
-	DoneOnly   bool
-	TodoOnly   bool
-	States     []string // Multiple states (OR)
-	Projects   []string // Multiple projects (OR)
-	Contexts   []string // Multiple contexts (OR)
-	Search     []string // Multiple search terms (AND)
-	DueSetOnly bool
-	DueOn      string // Date in YYYY-MM-DD format for exact due date matching
-}
-
 type ListTasksByExprOptions struct {
 	ExcludeDone bool
 	OnlyDone    bool

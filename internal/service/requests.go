@@ -18,13 +18,6 @@ type ListTasksRequest struct {
 	DoneOnly bool
 	TodoOnly bool
 	Filter   nlp.FilterExpr
-	States   []string // Multiple states (OR semantics)
-	Projects []string // Multiple projects (OR semantics)
-	Contexts []string // Multiple contexts (OR semantics)
-	Search   []string // Multiple search terms (AND semantics)
-	DueOnly  bool
-	DueOn    string  // Date in YYYY-MM-DD format for exact due date matching
-	IDs      []int64 // Specific task IDs to fetch
 }
 
 type ListTagsRequest struct {

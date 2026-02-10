@@ -1052,7 +1052,7 @@ func TestParseErrors(t *testing.T) {
 }
 
 // ============================================================================
-// LEGACY TESTS (keeping original tests for backward compatibility)
+// ADDITIONAL COVERAGE
 // ============================================================================
 
 func TestParseCreateCommand(t *testing.T) {

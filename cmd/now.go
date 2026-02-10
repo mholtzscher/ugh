@@ -24,7 +24,7 @@ var nowCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			States:   []string{flags.TaskStateNow},
+			Filter:   stateExpr(flags.TaskStateNow),
 		})
 		if err != nil {
 			return err

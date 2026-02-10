@@ -7,7 +7,7 @@ import (
 )
 
 // Service defines the interface for task operations.
-// This is implemented by both TaskService (direct DB) and APIService (HTTP client).
+// This is implemented by TaskService.
 type Service interface {
 	CreateTask(ctx context.Context, req CreateTaskRequest) (*store.Task, error)
 	ListTasks(ctx context.Context, req ListTasksRequest) ([]*store.Task, error)

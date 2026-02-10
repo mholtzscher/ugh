@@ -23,7 +23,7 @@ var calendarCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			DueOnly:  true,
+			Filter:   dueSetExpr(),
 		})
 		if err != nil {
 			return err

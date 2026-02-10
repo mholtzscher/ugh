@@ -24,7 +24,7 @@ var inboxCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			States:   []string{flags.TaskStateInbox},
+			Filter:   stateExpr(flags.TaskStateInbox),
 		})
 		if err != nil {
 			return err

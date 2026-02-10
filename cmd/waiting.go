@@ -24,7 +24,7 @@ var waitingCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			States:   []string{flags.TaskStateWaiting},
+			Filter:   stateExpr(flags.TaskStateWaiting),
 		})
 		if err != nil {
 			return err

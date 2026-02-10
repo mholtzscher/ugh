@@ -285,26 +285,6 @@ func (s *Store) GetTask(ctx context.Context, id int64) (*Task, error) {
 	return task, nil
 }
 
-func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error) {
-	states := filters.States
-	if filters.DoneOnly && len(states) == 0 {
-		states = []string{string(StateDone)}
-	}
-	filters.States = states
-
-	expr := buildExprFromFilters(filters)
-
-	opts := ListTasksByExprOptions{}
-	if filters.TodoOnly {
-		opts.ExcludeDone = true
-	}
-	if filters.DoneOnly && len(states) == 0 {
-		opts.OnlyDone = true
-	}
-
-	return s.ListTasksByExpr(ctx, expr, opts)
-}
-
 func (s *Store) ListTasksByExpr(
 	ctx context.Context,
 	expr nlp.FilterExpr,
@@ -360,7 +340,7 @@ ORDER BY
 
 	tasks := make([]*Task, 0)
 	for rows.Next() {
-		var row sqlc.ListTasksRow
+		var row listTaskRow
 		if scanErr := rows.Scan(
 			&row.ID,
 			&row.State,
@@ -387,6 +367,19 @@ ORDER BY
 	}
 
 	return tasks, nil
+}
+
+type listTaskRow struct {
+	ID          int64
+	State       string
+	PrevState   sql.NullString
+	Title       string
+	Notes       string
+	DueOn       sql.NullString
+	WaitingFor  sql.NullString
+	CompletedAt sql.NullInt64
+	CreatedAt   int64
+	UpdatedAt   int64
 }
 
 func (s *Store) SetDone(ctx context.Context, ids []int64, done bool) (int64, error) {
@@ -677,7 +670,7 @@ func fromGetRow(row sqlc.GetTaskRow) *Task {
 	}
 }
 
-func fromListRow(row sqlc.ListTasksRow) *Task {
+func fromListRow(row listTaskRow) *Task {
 	return &Task{
 		ID:          row.ID,
 		State:       State(row.State),

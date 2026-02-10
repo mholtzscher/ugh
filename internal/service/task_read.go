@@ -10,53 +10,23 @@ import (
 )
 
 func (s *TaskService) ListTasks(ctx context.Context, req ListTasksRequest) ([]*store.Task, error) {
-	// If specific IDs requested, fetch those tasks directly
-	if len(req.IDs) > 0 {
-		var tasks []*store.Task
-		for _, id := range req.IDs {
-			task, err := s.GetTask(ctx, id)
-			if err != nil {
-				return nil, err
-			}
-			if task != nil {
-				tasks = append(tasks, task)
-			}
-		}
-		return tasks, nil
+	expr := req.Filter
+
+	opts := store.ListTasksByExprOptions{}
+	switch {
+	case req.All:
+		// no-op
+	case req.DoneOnly:
+		opts.OnlyDone = true
+	case req.TodoOnly:
+		opts.ExcludeDone = true
+	case expr == nil:
+		opts.ExcludeDone = true
+	default:
+		opts.ExcludeDone = !exprReferencesStateDone(expr) && !exprReferencesID(expr)
 	}
 
-	if req.Filter != nil {
-		if req.All {
-			return s.store.ListTasksByExpr(ctx, req.Filter, store.ListTasksByExprOptions{})
-		}
-		if req.DoneOnly {
-			return s.store.ListTasksByExpr(ctx, req.Filter, store.ListTasksByExprOptions{OnlyDone: true})
-		}
-		if req.TodoOnly {
-			return s.store.ListTasksByExpr(ctx, req.Filter, store.ListTasksByExprOptions{ExcludeDone: true})
-		}
-
-		excludeDone := !exprReferencesStateDone(req.Filter) && !exprReferencesID(req.Filter)
-		return s.store.ListTasksByExpr(ctx, req.Filter, store.ListTasksByExprOptions{ExcludeDone: excludeDone})
-	}
-
-	filters := store.Filters{
-		All:        req.All,
-		DoneOnly:   req.DoneOnly,
-		TodoOnly:   req.TodoOnly,
-		States:     uniqueStrings(req.States),
-		Projects:   uniqueStrings(req.Projects),
-		Contexts:   uniqueStrings(req.Contexts),
-		Search:     uniqueStrings(req.Search),
-		DueSetOnly: req.DueOnly,
-		DueOn:      req.DueOn,
-	}
-
-	if !filters.All && !filters.DoneOnly && !filters.TodoOnly {
-		filters.TodoOnly = true
-	}
-
-	return s.store.ListTasks(ctx, filters)
+	return s.store.ListTasksByExpr(ctx, expr, opts)
 }
 
 func exprReferencesStateDone(expr nlp.FilterExpr) bool {
@@ -83,20 +53,6 @@ func exprReferencesID(expr nlp.FilterExpr) bool {
 	default:
 		return false
 	}
-}
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]bool)
-	result := make([]string, 0, len(values))
-	for _, v := range values {
-		v = strings.TrimSpace(v)
-		if v == "" || seen[v] {
-			continue
-		}
-		seen[v] = true
-		result = append(result, v)
-	}
-	return result
 }
 
 func (s *TaskService) GetTask(ctx context.Context, id int64) (*store.Task, error) {

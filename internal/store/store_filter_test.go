@@ -5,7 +5,6 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/mholtzscher/ugh/internal/nlp"
 )
@@ -49,50 +48,6 @@ func TestListTasksByExpr_BooleanSemantics(t *testing.T) {
 	}
 	if len(tasks) != 2 {
 		t.Fatalf("ListTasksByExpr(not) count = %d, want 2", len(tasks))
-	}
-}
-
-func TestListTasks_UsesSQLForLegacyMultiValueFilters(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	s := openTestStore(t)
-
-	due := time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC)
-
-	_, err := s.CreateTask(ctx, &Task{Title: "foo bar", State: StateNow, Projects: []string{"work"}, DueOn: &due})
-	if err != nil {
-		t.Fatalf("CreateTask(1) error = %v", err)
-	}
-	_, err = s.CreateTask(ctx, &Task{Title: "foo", State: StateWaiting, Projects: []string{"home"}, DueOn: &due})
-	if err != nil {
-		t.Fatalf("CreateTask(2) error = %v", err)
-	}
-	_, err = s.CreateTask(ctx, &Task{Title: "foo bar", State: StateDone, Projects: []string{"work"}, DueOn: &due})
-	if err != nil {
-		t.Fatalf("CreateTask(3) error = %v", err)
-	}
-	_, err = s.CreateTask(ctx, &Task{Title: "foo bar", State: StateNow, Projects: []string{"misc"}})
-	if err != nil {
-		t.Fatalf("CreateTask(4) error = %v", err)
-	}
-
-	tasks, err := s.ListTasks(ctx, Filters{
-		TodoOnly:   true,
-		States:     []string{"now", "waiting"},
-		Projects:   []string{"work", "home"},
-		Search:     []string{"foo", "bar"},
-		DueSetOnly: true,
-	})
-	if err != nil {
-		t.Fatalf("ListTasks() error = %v", err)
-	}
-
-	if len(tasks) != 1 {
-		t.Fatalf("ListTasks() count = %d, want 1", len(tasks))
-	}
-	if tasks[0].Title != "foo bar" || tasks[0].State != StateNow {
-		t.Fatalf("task = %#v, want now task with title foo bar", tasks[0])
 	}
 }
 

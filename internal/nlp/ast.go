@@ -240,33 +240,10 @@ const (
 	PredID
 )
 
-type DateCmp int
-
-const (
-	DateEq DateCmp = iota
-	DateGT
-	DateGTE
-	DateLT
-	DateLTE
-)
-
-type DateValueKind int
-
-const (
-	DateAbsolute DateValueKind = iota
-	DateToday
-	DateTomorrow
-	DateNextWeek
-)
-
 type Predicate struct {
 	Kind PredicateKind
 
 	Text string
-
-	DateCmp  DateCmp
-	DateKind DateValueKind
-	DateText string
 }
 
 func (Predicate) filterExpr() {}

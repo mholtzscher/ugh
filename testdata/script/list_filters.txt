@@ -40,3 +40,30 @@ stdout 'Charlie'
 exec ugh --db $WORK/db.sqlite list --all --search phone
 stdout 'Bravo'
 ! stdout 'Alpha'
+
+# State filter (pending state)
+exec ugh --db $WORK/db.sqlite list --state inbox
+stdout 'Alpha'
+stdout 'Charlie'
+stdout 'Delta'
+! stdout 'Bravo'
+
+# State filter (done state should include done without extra flags)
+exec ugh --db $WORK/db.sqlite list --state done
+stdout 'Bravo'
+! stdout 'Alpha'
+
+# Combined project + context (AND semantics)
+exec ugh --db $WORK/db.sqlite list --all --project work --context office
+stdout 'Alpha'
+! stdout 'Charlie'
+
+# Combined project + search (AND semantics)
+exec ugh --db $WORK/db.sqlite list --all --project work --search Charlie
+stdout 'Charlie'
+! stdout 'Alpha'
+
+# State value normalization from CLI builder
+exec ugh --db $WORK/db.sqlite list --state DONE
+stdout 'Bravo'
+! stdout 'Alpha'
