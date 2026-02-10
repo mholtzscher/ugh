@@ -87,14 +87,14 @@ func TestBuildFilterPlan(t *testing.T) {
 	if plan.Filter == nil {
 		t.Fatal("filter request is nil")
 	}
-	if plan.Filter.State != "now" {
-		t.Fatalf("state = %q, want now", plan.Filter.State)
+	if len(plan.Filter.States) != 1 || plan.Filter.States[0] != "now" {
+		t.Fatalf("states = %v, want [now]", plan.Filter.States)
 	}
-	if plan.Filter.Project != "work" {
-		t.Fatalf("project = %q, want work", plan.Filter.Project)
+	if len(plan.Filter.Projects) != 1 || plan.Filter.Projects[0] != "work" {
+		t.Fatalf("projects = %v, want [work]", plan.Filter.Projects)
 	}
-	if plan.Filter.Search != "paper" {
-		t.Fatalf("search = %q, want paper", plan.Filter.Search)
+	if len(plan.Filter.Search) != 1 || plan.Filter.Search[0] != "paper" {
+		t.Fatalf("search = %v, want [paper]", plan.Filter.Search)
 	}
 }
 
@@ -185,16 +185,37 @@ func TestBuildFilterPlanDueDateCombined(t *testing.T) {
 	if plan.Filter == nil {
 		t.Fatal("filter request is nil")
 	}
-	if plan.Filter.State != "now" {
-		t.Fatalf("state = %q, want now", plan.Filter.State)
+	if len(plan.Filter.States) != 1 || plan.Filter.States[0] != "now" {
+		t.Fatalf("states = %v, want [now]", plan.Filter.States)
 	}
-	if plan.Filter.Project != "work" {
-		t.Fatalf("project = %q, want work", plan.Filter.Project)
+	if len(plan.Filter.Projects) != 1 || plan.Filter.Projects[0] != "work" {
+		t.Fatalf("projects = %v, want [work]", plan.Filter.Projects)
 	}
 	if !plan.Filter.DueOnly {
 		t.Fatal("DueOnly = false, want true")
 	}
 	if plan.Filter.DueOn != "2026-02-11" {
 		t.Fatalf("DueOn = %q, want %q", plan.Filter.DueOn, "2026-02-11")
+	}
+}
+
+func TestBuildFilterMultiplePredicates(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := nlp.Parse(`find state:now and state:done`, nlp.ParseOptions{})
+	if err != nil {
+		t.Fatalf("Parse(filter) error = %v", err)
+	}
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{})
+	if err != nil {
+		t.Fatalf("Build(filter) error = %v", err)
+	}
+	if plan.Filter == nil {
+		t.Fatal("filter request is nil")
+	}
+	// Multiple states are accumulated
+	if len(plan.Filter.States) != 2 || plan.Filter.States[0] != "now" || plan.Filter.States[1] != "done" {
+		t.Fatalf("states = %v, want [now done]", plan.Filter.States)
 	}
 }

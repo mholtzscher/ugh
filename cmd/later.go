@@ -24,7 +24,7 @@ var laterCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			State:    flags.TaskStateLater,
+			States:   []string{flags.TaskStateLater},
 		})
 		if err != nil {
 			return err

@@ -32,10 +32,10 @@ type Filters struct {
 	All        bool
 	DoneOnly   bool
 	TodoOnly   bool
-	State      string
-	Project    string
-	Context    string
-	Search     string
+	States     []string // Multiple states (OR)
+	Projects   []string // Multiple projects (OR)
+	Contexts   []string // Multiple contexts (OR)
+	Search     []string // Multiple search terms (AND)
 	DueSetOnly bool
 	DueOn      string // Date in YYYY-MM-DD format for exact due date matching
 }

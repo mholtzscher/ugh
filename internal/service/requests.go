@@ -15,13 +15,13 @@ type ListTasksRequest struct {
 	All      bool
 	DoneOnly bool
 	TodoOnly bool
-	State    string
-	Project  string
-	Context  string
-	Search   string
+	States   []string // Multiple states (OR semantics)
+	Projects []string // Multiple projects (OR semantics)
+	Contexts []string // Multiple contexts (OR semantics)
+	Search   []string // Multiple search terms (AND semantics)
 	DueOnly  bool
-	DueOn    string // Date in YYYY-MM-DD format for exact due date matching
-	ID       int64  // Specific task ID to fetch (0 means no ID filter)
+	DueOn    string  // Date in YYYY-MM-DD format for exact due date matching
+	IDs      []int64 // Specific task IDs to fetch
 }
 
 type ListTagsRequest struct {

@@ -159,8 +159,7 @@ func buildUpdateRequest(cmd *nlp.UpdateCommand, opts BuildOptions) (service.Upda
 
 func buildFilterRequest(cmd *nlp.FilterCommand, opts BuildOptions) (service.ListTasksRequest, error) {
 	req := service.ListTasksRequest{}
-	seen := make(map[nlp.PredicateKind]bool)
-	if err := applyFilterExpr(&req, cmd.Expr, opts, seen); err != nil {
+	if err := applyFilterExpr(&req, cmd.Expr, opts); err != nil {
 		return service.ListTasksRequest{}, err
 	}
 	return req, nil
@@ -171,39 +170,34 @@ func applyFilterExpr(
 	req *service.ListTasksRequest,
 	expr nlp.FilterExpr,
 	opts BuildOptions,
-	seen map[nlp.PredicateKind]bool,
 ) error {
 	switch typed := expr.(type) {
 	case nlp.Predicate:
-		if seen[typed.Kind] {
-			return fmt.Errorf("duplicate filter: '%v' specified more than once", typed.Kind)
-		}
-		seen[typed.Kind] = true
-
 		switch typed.Kind {
 		case nlp.PredState:
-			req.State = typed.Text
+			req.States = append(req.States, typed.Text)
 		case nlp.PredProject:
-			req.Project = typed.Text
+			req.Projects = append(req.Projects, typed.Text)
 		case nlp.PredContext:
-			req.Context = typed.Text
+			req.Contexts = append(req.Contexts, typed.Text)
 		case nlp.PredText:
-			req.Search = typed.Text
+			req.Search = append(req.Search, typed.Text)
 		case nlp.PredDue:
-			// Handle due date filtering: if value provided, parse and filter by that date
-			// If no value, just check that due date is set
-			if typed.Text != "" {
-				dueDate, err := normalizeDate(typed.Text, opts.Now)
-				if err != nil {
-					return err
+			// Due date only supports one value - use first occurrence
+			if req.DueOn == "" {
+				if typed.Text != "" {
+					dueDate, err := normalizeDate(typed.Text, opts.Now)
+					if err != nil {
+						return err
+					}
+					req.DueOn = dueDate
 				}
-				req.DueOn = dueDate
+				req.DueOnly = true
 			}
-			req.DueOnly = true
 		case nlp.PredID:
 			// Parse the ID from the text
 			if id, err := strconv.ParseInt(typed.Text, 10, 64); err == nil {
-				req.ID = id
+				req.IDs = append(req.IDs, id)
 			}
 		default:
 			return fmt.Errorf("unsupported predicate kind %v", typed.Kind)
@@ -213,10 +207,10 @@ func applyFilterExpr(
 		if typed.Op != nlp.FilterAnd {
 			return errors.New("OR filters are not supported yet")
 		}
-		if err := applyFilterExpr(req, typed.Left, opts, seen); err != nil {
+		if err := applyFilterExpr(req, typed.Left, opts); err != nil {
 			return err
 		}
-		return applyFilterExpr(req, typed.Right, opts, seen)
+		return applyFilterExpr(req, typed.Right, opts)
 	case nlp.FilterNot:
 		return errors.New("NOT filters are not supported yet")
 	default:

@@ -70,15 +70,24 @@ var listCmd = &cli.Command{
 		}
 		defer func() { _ = svc.Close() }()
 
-		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
+		req := service.ListTasksRequest{
 			All:      cmd.Bool(flags.FlagAll),
 			DoneOnly: cmd.Bool(flags.FlagDone),
 			TodoOnly: cmd.Bool(flags.FlagTodo),
-			State:    cmd.String(flags.FlagState),
-			Project:  cmd.String(flags.FlagProject),
-			Context:  cmd.String(flags.FlagContext),
-			Search:   cmd.String(flags.FlagSearch),
-		})
+		}
+		if state := cmd.String(flags.FlagState); state != "" {
+			req.States = []string{state}
+		}
+		if project := cmd.String(flags.FlagProject); project != "" {
+			req.Projects = []string{project}
+		}
+		if context := cmd.String(flags.FlagContext); context != "" {
+			req.Contexts = []string{context}
+		}
+		if search := cmd.String(flags.FlagSearch); search != "" {
+			req.Search = []string{search}
+		}
+		tasks, err := svc.ListTasks(ctx, req)
 		if err != nil {
 			return err
 		}
