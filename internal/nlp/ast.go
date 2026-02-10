@@ -195,15 +195,6 @@ type TagOp struct {
 func (TagOp) operation() {}
 func (TagOp) createOp()  {}
 
-// DueShorthandOp is a create-only shorthand for setting due date.
-// It is parsed from tokens like "today", "tomorrow", "next-week".
-type DueShorthandOp struct {
-	Value string
-}
-
-func (DueShorthandOp) operation() {}
-func (DueShorthandOp) createOp()  {}
-
 type FilterExpr interface {
 	filterExpr()
 }

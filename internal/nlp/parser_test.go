@@ -412,9 +412,9 @@ func TestParseCreate_Complex(t *testing.T) {
 
 	now := time.Date(2026, 2, 8, 10, 0, 0, 0, time.UTC)
 
-	// Complex combined create command
+	// Complex combined create command with explicit due date syntax
 	result, err := nlp.Parse(
-		"add buy milk tomorrow #groceries @store waiting:alex notes:organic preferred",
+		"add buy milk due:tomorrow #groceries @store waiting:alex notes:organic preferred",
 		nlp.ParseOptions{Now: now},
 	)
 	if err != nil {
@@ -1071,7 +1071,7 @@ func TestParseCreateCommand(t *testing.T) {
 	t.Parallel()
 
 	result, err := nlp.Parse(
-		`add buy milk tomorrow #home @errands waiting:alex`,
+		`add buy milk due:tomorrow #home @errands waiting:alex`,
 		nlp.ParseOptions{Now: time.Date(2026, 2, 8, 10, 0, 0, 0, time.UTC)},
 	)
 	if err != nil {

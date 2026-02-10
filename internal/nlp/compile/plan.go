@@ -83,11 +83,6 @@ func buildCreateRequest(cmd *nlp.CreateCommand, opts BuildOptions) (service.Crea
 			}
 		case nlp.TagOp:
 			applyTag(&req, typed)
-		case nlp.DueShorthandOp:
-			dueSet := nlp.SetOp{Field: nlp.FieldDue, Value: nlp.OpValue(typed.Value)}
-			if err := applyCreateSet(&req, dueSet, opts.Now); err != nil {
-				return service.CreateTaskRequest{}, err
-			}
 		default:
 			return service.CreateTaskRequest{}, fmt.Errorf("unsupported create op type %T", op)
 		}

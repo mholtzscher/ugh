@@ -11,7 +11,7 @@ import (
 func TestBuildCreatePlan(t *testing.T) {
 	t.Parallel()
 
-	parsed, err := nlp.Parse(`add buy milk tomorrow #home @errands waiting:alex`, nlp.ParseOptions{
+	parsed, err := nlp.Parse(`add buy milk due:tomorrow #home @errands waiting:alex`, nlp.ParseOptions{
 		Now: time.Date(2026, 2, 8, 10, 0, 0, 0, time.UTC),
 	})
 	if err != nil {

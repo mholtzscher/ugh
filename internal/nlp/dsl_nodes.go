@@ -2,7 +2,6 @@ package nlp
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -37,33 +36,4 @@ func (t *tagOpNode) Parse(lex *lexer.PeekingLexer) error {
 		return nil
 	}
 	return participle.NextMatch
-}
-
-type dueShorthandNode struct {
-	Value string
-}
-
-func (*dueShorthandNode) operation() {}
-func (*dueShorthandNode) createOp()  {}
-
-func (d *dueShorthandNode) Parse(lex *lexer.PeekingLexer) error {
-	if d == nil {
-		return errors.New("nil dueShorthandNode")
-	}
-	tok := lex.Peek()
-	if tok == nil {
-		return participle.NextMatch
-	}
-	if tok.Type != dslSymbols["Ident"] {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(strings.TrimSpace(tok.Value))
-	switch s {
-	case "today", "tomorrow", "next-week":
-		lex.Next()
-		d.Value = s
-		return nil
-	default:
-		return participle.NextMatch
-	}
 }
