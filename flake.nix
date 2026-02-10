@@ -52,6 +52,14 @@
           # Set CGO_ENABLED=1 if you need CGO
           CGO_ENABLED = 0;
 
+          # Tests need to find Turso's native libraries in the vendor directory
+          preCheck = ''
+            # Turso extracts native libraries to a cache dir at runtime
+            # In the nix sandbox, there's no HOME, so we set the cache dir explicitly
+            export TURSO_GO_CACHE_DIR="$TMPDIR/turso-cache"
+            mkdir -p "$TURSO_GO_CACHE_DIR"
+          '';
+
           ldflags = [
             "-s"
             "-w"
