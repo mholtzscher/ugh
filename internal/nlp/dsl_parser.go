@@ -12,6 +12,7 @@ var dslParser = participle.MustBuild[Root](
 	participle.Lexer(dslLexer),
 	participle.Elide("Whitespace"),
 	participle.Unquote("Quoted"),
+	participle.CaseInsensitive("Ident"),
 	participle.Map(trimPrefixTokenMapper("#"), "ProjectTag"),
 	participle.Map(trimPrefixTokenMapper("@"), "ContextTag"),
 	participle.Union[Command](
