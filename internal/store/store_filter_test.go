@@ -1,4 +1,4 @@
-//nolint:testpackage // Tests exercise unexported filtering and ordering helpers directly.
+//nolint:testpackage // Tests exercise unexported filter compilation helpers directly.
 package store
 
 import (
@@ -9,66 +9,6 @@ import (
 
 	"github.com/mholtzscher/ugh/internal/nlp"
 )
-
-func TestFilterBySearchTermsMatchesTaskFields(t *testing.T) {
-	t.Parallel()
-
-	now := time.Date(2026, 2, 9, 12, 0, 0, 0, time.UTC)
-	tasks := []*Task{
-		{
-			ID:        1,
-			Title:     "Alpha",
-			Notes:     "Foo note",
-			Projects:  []string{"work"},
-			Contexts:  []string{"office"},
-			Meta:      map[string]string{"priority": "urgent"},
-			UpdatedAt: now,
-		},
-		{
-			ID:        2,
-			Title:     "Beta",
-			Notes:     "Bar note",
-			Projects:  []string{"home"},
-			Contexts:  []string{"garden"},
-			Meta:      map[string]string{"tag": "optional"},
-			UpdatedAt: now,
-		},
-	}
-
-	filtered := filterBySearchTerms(tasks, []string{"foo", "urgent"})
-	if len(filtered) != 1 {
-		t.Fatalf("filtered length = %d, want 1", len(filtered))
-	}
-	if filtered[0].ID != 1 {
-		t.Fatalf("filtered[0].ID = %d, want 1", filtered[0].ID)
-	}
-}
-
-func TestSortTasksForListMatchesQueryOrdering(t *testing.T) {
-	t.Parallel()
-
-	dueSoon := time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC)
-	dueLater := time.Date(2026, 2, 12, 0, 0, 0, 0, time.UTC)
-	newer := time.Date(2026, 2, 9, 15, 0, 0, 0, time.UTC)
-	older := time.Date(2026, 2, 9, 12, 0, 0, 0, time.UTC)
-
-	tasks := []*Task{
-		{ID: 4, State: StateDone, DueOn: &dueSoon, UpdatedAt: newer},
-		{ID: 3, State: StateNow, DueOn: nil, UpdatedAt: newer},
-		{ID: 2, State: StateNow, DueOn: &dueLater, UpdatedAt: older},
-		{ID: 1, State: StateNow, DueOn: &dueSoon, UpdatedAt: newer},
-	}
-
-	sortTasksForList(tasks)
-
-	got := []int64{tasks[0].ID, tasks[1].ID, tasks[2].ID, tasks[3].ID}
-	want := []int64{1, 2, 3, 4}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("order = %v, want %v", got, want)
-		}
-	}
-}
 
 func TestListTasksByExpr_BooleanSemantics(t *testing.T) {
 	t.Parallel()
@@ -109,6 +49,50 @@ func TestListTasksByExpr_BooleanSemantics(t *testing.T) {
 	}
 	if len(tasks) != 2 {
 		t.Fatalf("ListTasksByExpr(not) count = %d, want 2", len(tasks))
+	}
+}
+
+func TestListTasks_UsesSQLForLegacyMultiValueFilters(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	s := openTestStore(t)
+
+	due := time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC)
+
+	_, err := s.CreateTask(ctx, &Task{Title: "foo bar", State: StateNow, Projects: []string{"work"}, DueOn: &due})
+	if err != nil {
+		t.Fatalf("CreateTask(1) error = %v", err)
+	}
+	_, err = s.CreateTask(ctx, &Task{Title: "foo", State: StateWaiting, Projects: []string{"home"}, DueOn: &due})
+	if err != nil {
+		t.Fatalf("CreateTask(2) error = %v", err)
+	}
+	_, err = s.CreateTask(ctx, &Task{Title: "foo bar", State: StateDone, Projects: []string{"work"}, DueOn: &due})
+	if err != nil {
+		t.Fatalf("CreateTask(3) error = %v", err)
+	}
+	_, err = s.CreateTask(ctx, &Task{Title: "foo bar", State: StateNow, Projects: []string{"misc"}})
+	if err != nil {
+		t.Fatalf("CreateTask(4) error = %v", err)
+	}
+
+	tasks, err := s.ListTasks(ctx, Filters{
+		TodoOnly:   true,
+		States:     []string{"now", "waiting"},
+		Projects:   []string{"work", "home"},
+		Search:     []string{"foo", "bar"},
+		DueSetOnly: true,
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+
+	if len(tasks) != 1 {
+		t.Fatalf("ListTasks() count = %d, want 1", len(tasks))
+	}
+	if tasks[0].Title != "foo bar" || tasks[0].State != StateNow {
+		t.Fatalf("task = %#v, want now task with title foo bar", tasks[0])
 	}
 }
 

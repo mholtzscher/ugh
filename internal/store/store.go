@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -286,68 +285,24 @@ func (s *Store) GetTask(ctx context.Context, id int64) (*Task, error) {
 	return task, nil
 }
 
-//nolint:gocognit // Multi-value filter handling requires nested loops for OR semantics.
 func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error) {
-	// Handle multi-value filters by running multiple queries and merging results
-	// For states, projects, contexts: use OR semantics (union of results)
-	// For search: use AND semantics (intersection of results)
-
-	// Normalize filter values
 	states := filters.States
 	if filters.DoneOnly && len(states) == 0 {
 		states = []string{string(StateDone)}
 	}
+	filters.States = states
 
-	// If no multi-value filters, run single query
-	if len(states) <= 1 && len(filters.Projects) <= 1 && len(filters.Contexts) <= 1 && len(filters.Search) <= 1 {
-		return s.listTasksSingle(ctx, filters, states, filters.Projects, filters.Contexts)
+	expr := buildExprFromFilters(filters)
+
+	opts := ListTasksByExprOptions{}
+	if filters.TodoOnly {
+		opts.ExcludeDone = true
+	}
+	if filters.DoneOnly && len(states) == 0 {
+		opts.OnlyDone = true
 	}
 
-	// Run queries for each combination and merge
-	allTasks := make(map[int64]*Task)
-
-	// Generate all combinations
-	stateList := states
-	if len(stateList) == 0 {
-		stateList = []string{""}
-	}
-	projectList := filters.Projects
-	if len(projectList) == 0 {
-		projectList = []string{""}
-	}
-	contextList := filters.Contexts
-	if len(contextList) == 0 {
-		contextList = []string{""}
-	}
-
-	for _, state := range stateList {
-		for _, project := range projectList {
-			for _, context := range contextList {
-				tasks, err := s.listTasksSingle(ctx, filters, []string{state}, []string{project}, []string{context})
-				if err != nil {
-					return nil, err
-				}
-				for _, task := range tasks {
-					allTasks[task.ID] = task
-				}
-			}
-		}
-	}
-
-	// Convert map to slice
-	result := make([]*Task, 0, len(allTasks))
-	for _, task := range allTasks {
-		result = append(result, task)
-	}
-
-	// Apply multi-term search filter in memory (AND semantics)
-	if len(filters.Search) > 1 {
-		result = filterBySearchTerms(result, filters.Search)
-	}
-
-	sortTasksForList(result)
-
-	return result, nil
+	return s.ListTasksByExpr(ctx, expr, opts)
 }
 
 func (s *Store) ListTasksByExpr(
@@ -355,23 +310,26 @@ func (s *Store) ListTasksByExpr(
 	expr nlp.FilterExpr,
 	opts ListTasksByExprOptions,
 ) ([]*Task, error) {
-	if expr == nil {
-		return nil, errors.New("filter expression is required")
-	}
-
-	builder := &filterSQLBuilder{}
-	exprClause, args, err := builder.Build(expr)
-	if err != nil {
-		return nil, fmt.Errorf("build filter SQL: %w", err)
-	}
-
 	whereParts := make([]string, 0)
 	if opts.OnlyDone {
 		whereParts = append(whereParts, "t.state = 'done'")
 	} else if opts.ExcludeDone {
 		whereParts = append(whereParts, "t.state != 'done'")
 	}
-	whereParts = append(whereParts, exprClause)
+
+	args := make([]any, 0)
+	if expr != nil {
+		builder := &filterSQLBuilder{}
+		exprClause, exprArgs, err := builder.Build(expr)
+		if err != nil {
+			return nil, fmt.Errorf("build filter SQL: %w", err)
+		}
+		whereParts = append(whereParts, exprClause)
+		args = append(args, exprArgs...)
+	}
+	if len(whereParts) == 0 {
+		whereParts = append(whereParts, "1=1")
+	}
 
 	// #nosec G202 -- query text is generated from a trusted AST and all values are bound parameters.
 	query := `
@@ -429,165 +387,6 @@ ORDER BY
 	}
 
 	return tasks, nil
-}
-
-func (s *Store) listTasksSingle(
-	ctx context.Context,
-	filters Filters,
-	states, projects, contexts []string,
-) ([]*Task, error) {
-	excludeDone := int64(0)
-	if filters.TodoOnly {
-		excludeDone = 1
-	}
-
-	dueSet := int64(0)
-	if filters.DueSetOnly {
-		dueSet = 1
-	}
-
-	// Build due date filter as sql.NullString
-	dueOnNull := sql.NullString{}
-	if filters.DueOn != "" {
-		dueOnNull = sql.NullString{String: filters.DueOn, Valid: true}
-	}
-
-	// Get single values (first or empty)
-	state := ""
-	if len(states) > 0 {
-		state = states[0]
-	}
-	project := ""
-	if len(projects) > 0 {
-		project = projects[0]
-	}
-	context := ""
-	if len(contexts) > 0 {
-		context = contexts[0]
-	}
-
-	// For search, combine all terms with space for SQL LIKE
-	search := ""
-	if len(filters.Search) > 0 {
-		search = filters.Search[0]
-	}
-
-	searchNull := sql.NullString{}
-	if search != "" {
-		searchNull = sql.NullString{String: search, Valid: true}
-	}
-
-	params := sqlc.ListTasksParams{
-		Column1:  excludeDone,
-		Column2:  nullAny(state),
-		State:    state,
-		Column4:  nullAny(project),
-		Name:     project,
-		Column6:  nullAny(context),
-		Name_2:   context,
-		Column8:  nullAny(search),
-		Column9:  searchNull,
-		Column10: searchNull,
-		Column11: searchNull,
-		Column12: searchNull,
-		Column13: searchNull,
-		Column14: searchNull,
-		Column15: dueSet,
-		Column16: nullAny(filters.DueOn),
-		DueOn:    dueOnNull,
-	}
-	rows, err := s.queries.ListTasks(ctx, params)
-	if err != nil {
-		return nil, fmt.Errorf("list tasks: %w", err)
-	}
-
-	tasks := make([]*Task, 0, len(rows))
-	for _, row := range rows {
-		tasks = append(tasks, fromListRow(row))
-	}
-	err = s.loadDetails(ctx, tasks)
-	if err != nil {
-		return nil, err
-	}
-	return tasks, nil
-}
-
-func filterBySearchTerms(tasks []*Task, terms []string) []*Task {
-	if len(terms) <= 1 {
-		return tasks
-	}
-
-	filtered := make([]*Task, 0, len(tasks))
-	for _, task := range tasks {
-		matches := 0
-		for _, term := range terms[1:] { // Skip first term (already filtered by SQL)
-			termLower := strings.ToLower(strings.TrimSpace(term))
-			if termLower == "" {
-				matches++
-				continue
-			}
-			if taskMatchesSearchTerm(task, termLower) {
-				matches++
-			}
-		}
-		if matches >= len(terms)-1 {
-			filtered = append(filtered, task)
-		}
-	}
-	return filtered
-}
-
-func taskMatchesSearchTerm(task *Task, term string) bool {
-	if strings.Contains(strings.ToLower(task.Title), term) || strings.Contains(strings.ToLower(task.Notes), term) {
-		return true
-	}
-	for _, project := range task.Projects {
-		if strings.Contains(strings.ToLower(project), term) {
-			return true
-		}
-	}
-	for _, context := range task.Contexts {
-		if strings.Contains(strings.ToLower(context), term) {
-			return true
-		}
-	}
-	for key, value := range task.Meta {
-		if strings.Contains(strings.ToLower(key), term) || strings.Contains(strings.ToLower(value), term) {
-			return true
-		}
-	}
-	return false
-}
-
-func sortTasksForList(tasks []*Task) {
-	sort.Slice(tasks, func(i, j int) bool {
-		left := tasks[i]
-		right := tasks[j]
-
-		leftDone := left.State == StateDone
-		rightDone := right.State == StateDone
-		if leftDone != rightDone {
-			return !leftDone
-		}
-
-		leftDueMissing := left.DueOn == nil
-		rightDueMissing := right.DueOn == nil
-		if leftDueMissing != rightDueMissing {
-			return !leftDueMissing
-		}
-
-		if left.DueOn != nil && right.DueOn != nil {
-			if !left.DueOn.Equal(*right.DueOn) {
-				return left.DueOn.Before(*right.DueOn)
-			}
-		}
-
-		if !left.UpdatedAt.Equal(right.UpdatedAt) {
-			return left.UpdatedAt.After(right.UpdatedAt)
-		}
-
-		return left.ID < right.ID
-	})
 }
 
 func (s *Store) SetDone(ctx context.Context, ids []int64, done bool) (int64, error) {
@@ -947,13 +746,6 @@ func nullUnixTime(value *time.Time) sql.NullInt64 {
 		return sql.NullInt64{}
 	}
 	return sql.NullInt64{Int64: value.UTC().Unix(), Valid: true}
-}
-
-func nullAny(value string) any {
-	if value == "" {
-		return nil
-	}
-	return value
 }
 
 func uniqueStrings(values []string) []string {
