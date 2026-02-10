@@ -4,6 +4,9 @@ package service
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
@@ -28,18 +31,12 @@ func TestNormalizeState(t *testing.T) {
 
 			got, err := normalizeState(tc.input)
 			if tc.wantErr {
-				if err == nil {
-					t.Fatalf("normalizeState(%q) error = nil, want error", tc.input)
-				}
+				require.Error(t, err, "normalizeState(%q) should return error", tc.input)
 				return
 			}
 
-			if err != nil {
-				t.Fatalf("normalizeState(%q) error = %v", tc.input, err)
-			}
-			if got != tc.want {
-				t.Fatalf("normalizeState(%q) = %q, want %q", tc.input, got, tc.want)
-			}
+			require.NoError(t, err, "normalizeState(%q) error", tc.input)
+			assert.Equal(t, tc.want, got, "normalizeState(%q) mismatch", tc.input)
 		})
 	}
 }
@@ -48,44 +45,24 @@ func TestParseDay(t *testing.T) {
 	t.Parallel()
 
 	got, err := parseDay("2026-02-05")
-	if err != nil {
-		t.Fatalf("parseDay(valid) error = %v", err)
-	}
-	if got == nil {
-		t.Fatal("parseDay(valid) returned nil date")
-	}
-	if got.Format("2006-01-02") != "2026-02-05" {
-		t.Fatalf("parseDay(valid) date = %s, want 2026-02-05", got.Format("2006-01-02"))
-	}
-	if got.Location().String() != "UTC" {
-		t.Fatalf("parseDay(valid) location = %s, want UTC", got.Location())
-	}
+	require.NoError(t, err, "parseDay(valid) error")
+	require.NotNil(t, got, "parseDay(valid) returned nil date")
+	assert.Equal(t, "2026-02-05", got.Format("2006-01-02"), "parseDay(valid) date mismatch")
+	assert.Equal(t, "UTC", got.Location().String(), "parseDay(valid) location mismatch")
 
 	_, err = parseDay("02/05/2026")
-	if err == nil {
-		t.Fatal("parseDay(invalid) error = nil, want error")
-	}
+	require.Error(t, err, "parseDay(invalid) should return error")
 }
 
 func TestParseMetaFlags(t *testing.T) {
 	t.Parallel()
 
 	meta, err := parseMetaFlags([]string{"a:1", " b : 2 "})
-	if err != nil {
-		t.Fatalf("parseMetaFlags(valid) error = %v", err)
-	}
-	if len(meta) != 2 {
-		t.Fatalf("parseMetaFlags(valid) len = %d, want 2", len(meta))
-	}
-	if meta["a"] != "1" {
-		t.Fatalf("parseMetaFlags(valid) a = %q, want %q", meta["a"], "1")
-	}
-	if meta["b"] != "2" {
-		t.Fatalf("parseMetaFlags(valid) b = %q, want %q", meta["b"], "2")
-	}
+	require.NoError(t, err, "parseMetaFlags(valid) error")
+	require.Len(t, meta, 2, "parseMetaFlags(valid) len mismatch")
+	assert.Equal(t, "1", meta["a"], "parseMetaFlags(valid) a value mismatch")
+	assert.Equal(t, "2", meta["b"], "parseMetaFlags(valid) b value mismatch")
 
 	_, err = parseMetaFlags([]string{"missing-separator"})
-	if err == nil {
-		t.Fatal("parseMetaFlags(invalid) error = nil, want error")
-	}
+	require.Error(t, err, "parseMetaFlags(invalid) should return error")
 }

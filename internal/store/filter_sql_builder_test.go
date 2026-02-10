@@ -2,8 +2,10 @@
 package store
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/mholtzscher/ugh/internal/nlp"
 )
@@ -24,26 +26,14 @@ func TestFilterSQLBuilder_BuildBooleanExpression(t *testing.T) {
 	}
 
 	clause, args, err := b.Build(expr)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
-	if !strings.Contains(clause, "t.state = ?") {
-		t.Fatalf("clause = %q, want state predicate", clause)
-	}
-	if !strings.Contains(clause, "NOT") {
-		t.Fatalf("clause = %q, want NOT operator", clause)
-	}
-	if !strings.Contains(clause, "task_project_links") {
-		t.Fatalf("clause = %q, want project EXISTS subquery", clause)
-	}
-
-	if len(args) != 2 {
-		t.Fatalf("args len = %d, want 2", len(args))
-	}
-	if args[0] != "now" || args[1] != "work" {
-		t.Fatalf("args = %#v, want [now work]", args)
-	}
+	assert.Contains(t, clause, "t.state = ?", "clause should contain state predicate")
+	assert.Contains(t, clause, "NOT", "clause should contain NOT operator")
+	assert.Contains(t, clause, "task_project_links", "clause should contain project EXISTS subquery")
+	require.Len(t, args, 2, "args len mismatch")
+	assert.Equal(t, "now", args[0], "args[0] mismatch")
+	assert.Equal(t, "work", args[1], "args[1] mismatch")
 }
 
 func TestFilterSQLBuilder_TextSearchAddsLikeArgs(t *testing.T) {
@@ -51,20 +41,12 @@ func TestFilterSQLBuilder_TextSearchAddsLikeArgs(t *testing.T) {
 
 	b := &filterSQLBuilder{}
 	clause, args, err := b.Build(nlp.Predicate{Kind: nlp.PredText, Text: "paper"})
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
-	if !strings.Contains(clause, "t.title LIKE ?") {
-		t.Fatalf("clause = %q, want title LIKE", clause)
-	}
-	if len(args) != 6 {
-		t.Fatalf("args len = %d, want 6", len(args))
-	}
+	assert.Contains(t, clause, "t.title LIKE ?", "clause should contain title LIKE")
+	require.Len(t, args, 6, "args len mismatch")
 	for i, arg := range args {
-		if arg != "%paper%" {
-			t.Fatalf("args[%d] = %#v, want %%paper%%", i, arg)
-		}
+		assert.Equal(t, "%paper%", arg, "args[%d] mismatch", i)
 	}
 }
 
@@ -73,9 +55,7 @@ func TestFilterSQLBuilder_InvalidIDReturnsError(t *testing.T) {
 
 	b := &filterSQLBuilder{}
 	_, _, err := b.Build(nlp.Predicate{Kind: nlp.PredID, Text: "abc"})
-	if err == nil {
-		t.Fatal("Build() error = nil, want invalid id error")
-	}
+	require.Error(t, err, "Build() should return invalid id error")
 }
 
 func TestFilterSQLBuilder_EmptyDuePredicateHasNoArgs(t *testing.T) {
@@ -83,19 +63,11 @@ func TestFilterSQLBuilder_EmptyDuePredicateHasNoArgs(t *testing.T) {
 
 	b := &filterSQLBuilder{}
 	clause, args, err := b.Build(nlp.Predicate{Kind: nlp.PredDue, Text: ""})
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
-	if !strings.Contains(clause, "t.due_on IS NOT NULL") {
-		t.Fatalf("clause = %q, want IS NOT NULL", clause)
-	}
-	if !strings.Contains(clause, "t.due_on != ''") {
-		t.Fatalf("clause = %q, want non-empty due check", clause)
-	}
-	if len(args) != 0 {
-		t.Fatalf("args len = %d, want 0", len(args))
-	}
+	assert.Contains(t, clause, "t.due_on IS NOT NULL", "clause should contain IS NOT NULL")
+	assert.Contains(t, clause, "t.due_on != ''", "clause should contain non-empty due check")
+	assert.Empty(t, args, "args should be empty")
 }
 
 func TestFilterSQLBuilder_NotWrapsNestedOrExpression(t *testing.T) {
@@ -111,20 +83,11 @@ func TestFilterSQLBuilder_NotWrapsNestedOrExpression(t *testing.T) {
 	}
 
 	clause, args, err := b.Build(expr)
-	if err != nil {
-		t.Fatalf("Build() error = %v", err)
-	}
+	require.NoError(t, err, "Build() error")
 
-	if !strings.Contains(clause, "NOT") {
-		t.Fatalf("clause = %q, want NOT", clause)
-	}
-	if !strings.Contains(clause, "t.state = ? OR t.state = ?") {
-		t.Fatalf("clause = %q, want nested OR", clause)
-	}
-	if len(args) != 2 {
-		t.Fatalf("args len = %d, want 2", len(args))
-	}
-	if args[0] != "now" || args[1] != "waiting" {
-		t.Fatalf("args = %#v, want [now waiting]", args)
-	}
+	assert.Contains(t, clause, "NOT", "clause should contain NOT")
+	assert.Contains(t, clause, "t.state = ? OR t.state = ?", "clause should contain nested OR")
+	require.Len(t, args, 2, "args len mismatch")
+	assert.Equal(t, "now", args[0], "args[0] mismatch")
+	assert.Equal(t, "waiting", args[1], "args[1] mismatch")
 }

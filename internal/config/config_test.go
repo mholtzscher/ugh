@@ -2,23 +2,19 @@
 package config
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDefaultPath(t *testing.T) {
 	path, err := DefaultPath()
-	if err != nil {
-		t.Fatalf("DefaultPath() error = %v", err)
-	}
-	if path == "" {
-		t.Fatal("DefaultPath() returned empty string")
-	}
-	if filepath.IsAbs(path) != true {
-		t.Fatalf("DefaultPath() returned relative path: %s", path)
-	}
+	require.NoError(t, err, "DefaultPath() error")
+	require.NotEmpty(t, path, "DefaultPath() returned empty string")
+	require.True(t, filepath.IsAbs(path), "DefaultPath() returned relative path: %s", path)
 }
 
 func TestLoad_NotFound(t *testing.T) {
@@ -26,12 +22,8 @@ func TestLoad_NotFound(t *testing.T) {
 	missingPath := filepath.Join(tmpDir, "does-not-exist.toml")
 
 	_, err := Load(missingPath, false)
-	if err == nil {
-		t.Fatal("Load() should return error for missing file")
-	}
-	if !errors.Is(err, ErrNotFound) {
-		t.Fatalf("Load() wrong error: %v", err)
-	}
+	require.Error(t, err, "Load() should return error for missing file")
+	assert.ErrorIs(t, err, ErrNotFound, "Load() wrong error")
 }
 
 func TestLoad_AllowMissing(t *testing.T) {
@@ -39,15 +31,9 @@ func TestLoad_AllowMissing(t *testing.T) {
 	missingPath := filepath.Join(tmpDir, "does-not-exist.toml")
 
 	result, err := Load(missingPath, true)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-	if result.WasLoaded {
-		t.Fatal("Load() should report WasLoaded = false")
-	}
-	if result.Config.Version != DefaultVersion {
-		t.Fatalf("Load() version = %d, want %d", result.Config.Version, DefaultVersion)
-	}
+	require.NoError(t, err, "Load() error")
+	assert.False(t, result.WasLoaded, "Load() should report WasLoaded = false")
+	assert.Equal(t, DefaultVersion, result.Config.Version, "Load() version mismatch")
 }
 
 func TestLoad_Valid(t *testing.T) {
@@ -58,23 +44,13 @@ func TestLoad_Valid(t *testing.T) {
 [db]
 path = "~/.local/share/ugh/ugh.sqlite"
 `
-	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0o644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
+	require.NoError(t, os.WriteFile(cfgPath, []byte(cfgContent), 0o644), "write config error")
 
 	result, err := Load(cfgPath, false)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-	if !result.WasLoaded {
-		t.Fatal("Load() should report WasLoaded = true")
-	}
-	if result.Config.DB.Path == "" {
-		t.Fatal("Load() DB.Path is empty")
-	}
-	if result.UsedPath != cfgPath {
-		t.Fatalf("Load() UsedPath = %s, want %s", result.UsedPath, cfgPath)
-	}
+	require.NoError(t, err, "Load() error")
+	assert.True(t, result.WasLoaded, "Load() should report WasLoaded = true")
+	assert.NotEmpty(t, result.Config.DB.Path, "Load() DB.Path is empty")
+	assert.Equal(t, cfgPath, result.UsedPath, "Load() UsedPath mismatch")
 }
 
 func TestLoad_Invalid(t *testing.T) {
@@ -83,122 +59,74 @@ func TestLoad_Invalid(t *testing.T) {
 	invalidContent := `[invalid section
 something = "value"
 `
-	if err := os.WriteFile(cfgPath, []byte(invalidContent), 0o644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
+	require.NoError(t, os.WriteFile(cfgPath, []byte(invalidContent), 0o644), "write config error")
 
 	_, err := Load(cfgPath, false)
-	if err == nil {
-		t.Fatal("Load() should return error for invalid TOML")
-	}
-	if !errors.Is(err, ErrInvalid) {
-		t.Fatalf("Load() wrong error: %v", err)
-	}
+	require.Error(t, err, "Load() should return error for invalid TOML")
+	assert.ErrorIs(t, err, ErrInvalid, "Load() wrong error")
 }
 
 func TestResolveDBPath_ExpandEnv(t *testing.T) {
 	t.Setenv("HOME", "/test/home")
 
 	path, err := ResolveDBPath("", "$HOME/data/ugh.sqlite")
-	if err != nil {
-		t.Fatalf("ResolveDBPath() error = %v", err)
-	}
-	if path != "/test/home/data/ugh.sqlite" {
-		t.Fatalf("ResolveDBPath() = %s, want /test/home/data/ugh.sqlite", path)
-	}
+	require.NoError(t, err, "ResolveDBPath() error")
+	assert.Equal(t, "/test/home/data/ugh.sqlite", path, "ResolveDBPath() mismatch")
 }
 
 func TestResolveDBPath_ExpandHome(t *testing.T) {
 	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("get home dir: %v", err)
-	}
+	require.NoError(t, err, "get home dir error")
 
 	path, err := ResolveDBPath("", "~/data/ugh.sqlite")
-	if err != nil {
-		t.Fatalf("ResolveDBPath() error = %v", err)
-	}
-	expected := filepath.Join(homeDir, "data/ugh.sqlite")
-	if path != expected {
-		t.Fatalf("ResolveDBPath() = %s, want %s", path, expected)
-	}
+	require.NoError(t, err, "ResolveDBPath() error")
+	assert.Equal(t, filepath.Join(homeDir, "data/ugh.sqlite"), path, "ResolveDBPath() mismatch")
 }
 
 func TestResolveDBPath_ExpandHomeAlone(t *testing.T) {
 	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("get home dir: %v", err)
-	}
+	require.NoError(t, err, "get home dir error")
 
 	path, err := ResolveDBPath("", "~")
-	if err != nil {
-		t.Fatalf("ResolveDBPath() error = %v", err)
-	}
-	if path != homeDir {
-		t.Fatalf("ResolveDBPath() = %s, want %s", path, homeDir)
-	}
+	require.NoError(t, err, "ResolveDBPath() error")
+	assert.Equal(t, homeDir, path, "ResolveDBPath() mismatch")
 }
 
 func TestResolveDBPath_RelativeToConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "config", "ugh-config.toml")
-	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
+	require.NoError(t, os.MkdirAll(filepath.Dir(cfgPath), 0o755), "mkdir error")
 
 	path, err := ResolveDBPath(cfgPath, "data/ugh.sqlite")
-	if err != nil {
-		t.Fatalf("ResolveDBPath() error = %v", err)
-	}
-	expected := filepath.Join(tmpDir, "config", "data", "ugh.sqlite")
-	if path != expected {
-		t.Fatalf("ResolveDBPath() = %s, want %s", path, expected)
-	}
+	require.NoError(t, err, "ResolveDBPath() error")
+	assert.Equal(t, filepath.Join(tmpDir, "config", "data", "ugh.sqlite"), path, "ResolveDBPath() mismatch")
 }
 
 func TestResolveDBPath_RelativeNoConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Chdir(tmpDir)
 	err := os.WriteFile("ugh.sqlite", []byte{}, 0o644)
-	if err != nil {
-		t.Fatalf("create sqlite file: %v", err)
-	}
+	require.NoError(t, err, "create sqlite file error")
 
 	path, err := ResolveDBPath("", "ugh.sqlite")
-	if err != nil {
-		t.Fatalf("ResolveDBPath() error = %v", err)
-	}
+	require.NoError(t, err, "ResolveDBPath() error")
 
 	expected := filepath.Join(tmpDir, "ugh.sqlite")
 	expectedInfo, err := os.Stat(expected)
-	if err != nil {
-		t.Fatalf("stat expected sqlite file: %v", err)
-	}
+	require.NoError(t, err, "stat expected sqlite file error")
 	gotInfo, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("stat resolved sqlite file: %v", err)
-	}
-	if !os.SameFile(expectedInfo, gotInfo) {
-		t.Fatalf("ResolveDBPath() = %s, want same file as %s", path, expected)
-	}
+	require.NoError(t, err, "stat resolved sqlite file error")
+	assert.True(t, os.SameFile(expectedInfo, gotInfo), "ResolveDBPath() should return same file")
 }
 
 func TestResolveDBPath_ErrorEmpty(t *testing.T) {
 	_, err := ResolveDBPath("", "")
-	if err == nil {
-		t.Fatal("ResolveDBPath() should return error for empty path")
-	}
+	require.Error(t, err, "ResolveDBPath() should return error for empty path")
 }
 
 func TestUserConfigDir(t *testing.T) {
 	dir, err := userConfigDir()
-	if err != nil {
-		t.Fatalf("userConfigDir() error = %v", err)
-	}
-	if dir == "" {
-		t.Fatal("userConfigDir() returned empty string")
-	}
-	if filepath.IsAbs(dir) != true {
-		t.Fatalf("userConfigDir() returned relative path: %s", dir)
-	}
+	require.NoError(t, err, "userConfigDir() error")
+	require.NotEmpty(t, dir, "userConfigDir() returned empty string")
+	require.True(t, filepath.IsAbs(dir), "userConfigDir() returned relative path: %s", dir)
 }

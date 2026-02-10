@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
@@ -20,9 +21,8 @@ func TestScripts(t *testing.T) {
 
 	cmd := exec.Command("go", "build", "-o", binPath, ".")
 	cmd.Env = os.Environ()
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("build failed: %v\n%s", err, output)
-	}
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "build failed: %v\n%s", err, output)
 
 	params := testscript.Params{
 		Dir: filepath.Join("testdata", "script"),
