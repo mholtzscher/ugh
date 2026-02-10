@@ -15,6 +15,11 @@ var calendarCmd = &cli.Command{
 	Usage:    "List items with due dates",
 	Category: "Lists",
 	Action: func(ctx context.Context, _ *cli.Command) error {
+		filterExpr, err := buildListFilterExpr(listFilterOptions{DueSet: true})
+		if err != nil {
+			return err
+		}
+
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -23,7 +28,7 @@ var calendarCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			DueOnly:  true,
+			Filter:   filterExpr,
 		})
 		if err != nil {
 			return err

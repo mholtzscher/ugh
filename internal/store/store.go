@@ -16,6 +16,7 @@ import (
 
 	"github.com/pressly/goose/v3"
 
+	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/store/sqlc"
 )
 
@@ -284,72 +285,101 @@ func (s *Store) GetTask(ctx context.Context, id int64) (*Task, error) {
 	return task, nil
 }
 
-func (s *Store) ListTasks(ctx context.Context, filters Filters) ([]*Task, error) {
-	state := strings.TrimSpace(filters.State)
-	if filters.DoneOnly {
-		state = string(StateDone)
+func (s *Store) ListTasksByExpr(
+	ctx context.Context,
+	expr nlp.FilterExpr,
+	opts ListTasksByExprOptions,
+) ([]*Task, error) {
+	whereParts := make([]string, 0)
+	if opts.OnlyDone {
+		whereParts = append(whereParts, "t.state = 'done'")
+	} else if opts.ExcludeDone {
+		whereParts = append(whereParts, "t.state != 'done'")
 	}
 
-	excludeDone := int64(0)
-	if filters.TodoOnly {
-		excludeDone = 1
+	args := make([]any, 0)
+	if expr != nil {
+		builder := &filterSQLBuilder{}
+		exprClause, exprArgs, err := builder.Build(expr)
+		if err != nil {
+			return nil, fmt.Errorf("build filter SQL: %w", err)
+		}
+		whereParts = append(whereParts, exprClause)
+		args = append(args, exprArgs...)
+	}
+	if len(whereParts) == 0 {
+		whereParts = append(whereParts, "1=1")
 	}
 
-	// Build search filter as sql.NullString
-	searchNull := sql.NullString{}
-	if filters.Search != "" {
-		searchNull = sql.NullString{String: filters.Search, Valid: true}
-	}
+	// #nosec G202 -- query text is generated from a trusted AST and all values are bound parameters.
+	query := `
+SELECT
+  t.id,
+  t.state,
+  t.prev_state,
+  CAST(t.title AS TEXT) AS title,
+  CAST(t.notes AS TEXT) AS notes,
+  t.due_on,
+  t.waiting_for,
+  t.completed_at,
+  t.created_at,
+  t.updated_at
+FROM tasks t
+WHERE ` + strings.Join(whereParts, "\n  AND ") + `
+ORDER BY
+  CASE WHEN t.state = 'done' THEN 1 ELSE 0 END,
+  CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END,
+  t.due_on ASC,
+  t.updated_at DESC`
 
-	dueSet := int64(0)
-	if filters.DueSetOnly {
-		dueSet = 1
-	}
-
-	// Build due date filter as sql.NullString
-	dueOnNull := sql.NullString{}
-	if filters.DueOn != "" {
-		dueOnNull = sql.NullString{String: filters.DueOn, Valid: true}
-	}
-
-	// For (? IS NULL OR field = ?) pattern, pass the same value twice
-	// When first param is nil, second doesn't matter (OR short-circuits)
-	params := sqlc.ListTasksParams{
-		Column1: excludeDone,
-		Column2: nullAny(state),
-		State:   state,
-
-		Column4: nullAny(filters.Project),
-		Name:    filters.Project,
-		Column6: nullAny(filters.Context),
-		Name_2:  filters.Context,
-
-		Column8:  nullAny(filters.Search),
-		Column9:  searchNull,
-		Column10: searchNull,
-		Column11: searchNull,
-		Column12: searchNull,
-		Column13: searchNull,
-		Column14: searchNull,
-
-		Column15: dueSet,
-		Column16: nullAny(filters.DueOn),
-		DueOn:    dueOnNull,
-	}
-	rows, err := s.queries.ListTasks(ctx, params)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list tasks: %w", err)
+		return nil, fmt.Errorf("list tasks by expression: %w", err)
 	}
+	defer rows.Close()
 
-	tasks := make([]*Task, 0, len(rows))
-	for _, row := range rows {
+	tasks := make([]*Task, 0)
+	for rows.Next() {
+		var row listTaskRow
+		if scanErr := rows.Scan(
+			&row.ID,
+			&row.State,
+			&row.PrevState,
+			&row.Title,
+			&row.Notes,
+			&row.DueOn,
+			&row.WaitingFor,
+			&row.CompletedAt,
+			&row.CreatedAt,
+			&row.UpdatedAt,
+		); scanErr != nil {
+			return nil, fmt.Errorf("scan task row: %w", scanErr)
+		}
 		tasks = append(tasks, fromListRow(row))
 	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		return nil, fmt.Errorf("iterate task rows: %w", rowsErr)
+	}
+
 	err = s.loadDetails(ctx, tasks)
 	if err != nil {
 		return nil, err
 	}
+
 	return tasks, nil
+}
+
+type listTaskRow struct {
+	ID          int64
+	State       string
+	PrevState   sql.NullString
+	Title       string
+	Notes       string
+	DueOn       sql.NullString
+	WaitingFor  sql.NullString
+	CompletedAt sql.NullInt64
+	CreatedAt   int64
+	UpdatedAt   int64
 }
 
 func (s *Store) SetDone(ctx context.Context, ids []int64, done bool) (int64, error) {
@@ -640,7 +670,7 @@ func fromGetRow(row sqlc.GetTaskRow) *Task {
 	}
 }
 
-func fromListRow(row sqlc.ListTasksRow) *Task {
+func fromListRow(row listTaskRow) *Task {
 	return &Task{
 		ID:          row.ID,
 		State:       State(row.State),
@@ -709,13 +739,6 @@ func nullUnixTime(value *time.Time) sql.NullInt64 {
 		return sql.NullInt64{}
 	}
 	return sql.NullInt64{Int64: value.UTC().Unix(), Valid: true}
-}
-
-func nullAny(value string) any {
-	if value == "" {
-		return nil
-	}
-	return value
 }
 
 func uniqueStrings(values []string) []string {

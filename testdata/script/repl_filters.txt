@@ -1,0 +1,56 @@
+# REPL filter boolean semantics
+exec ugh --db $WORK/db.sqlite add --state now -p work "Now work report"
+exec ugh --db $WORK/db.sqlite add --state waiting -p home "Waiting home report"
+exec ugh --db $WORK/db.sqlite add --state done -p work "Done work archived"
+exec ugh --db $WORK/db.sqlite add --state now -p home "Now home misc"
+
+# Explicit ID lookup should still return done tasks
+exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-show-done-id.txt
+stdout 'Done work archived'
+
+# Hybrid done behavior: done tasks are hidden when expression does not mention state:done
+exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-project-work.txt
+stdout 'Now work report'
+! stdout 'Done work archived'
+
+# Mentioning state:done disables implicit done exclusion
+exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-project-work-or-done.txt
+stdout 'Now work report'
+stdout 'Done work archived'
+
+# Precedence: AND binds tighter than OR
+exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-precedence.txt
+stdout 'Now work report'
+stdout 'Waiting home report'
+stdout 'Now home misc'
+
+# Parentheses override precedence
+exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-parentheses.txt
+stdout 'Waiting home report'
+stdout 'Now home misc'
+! stdout 'Now work report'
+
+# NOT works as a real boolean operator
+exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-not.txt
+stdout 'Now work report'
+stdout 'Waiting home report'
+! stdout 'Done work archived'
+! stdout 'Now home misc'
+
+-- cmd-project-work.txt --
+find project:work
+
+-- cmd-project-work-or-done.txt --
+find project:work or state:done
+
+-- cmd-precedence.txt --
+find state:now or state:waiting and project:home
+
+-- cmd-parentheses.txt --
+find (state:now or state:waiting) and project:home
+
+-- cmd-not.txt --
+find not state:done and text:report
+
+-- cmd-show-done-id.txt --
+show 3

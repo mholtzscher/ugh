@@ -16,6 +16,11 @@ var laterCmd = &cli.Command{
 	Usage:    "List tasks you are not doing now",
 	Category: "Lists",
 	Action: func(ctx context.Context, _ *cli.Command) error {
+		filterExpr, err := buildListFilterExpr(listFilterOptions{State: flags.TaskStateLater})
+		if err != nil {
+			return err
+		}
+
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -24,7 +29,7 @@ var laterCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			State:    flags.TaskStateLater,
+			Filter:   filterExpr,
 		})
 		if err != nil {
 			return err

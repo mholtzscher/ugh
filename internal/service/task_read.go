@@ -4,39 +4,55 @@ import (
 	"context"
 	"strings"
 
+	"github.com/mholtzscher/ugh/internal/domain"
+	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
 func (s *TaskService) ListTasks(ctx context.Context, req ListTasksRequest) ([]*store.Task, error) {
-	// If specific ID requested, fetch that task directly
-	if req.ID > 0 {
-		task, err := s.GetTask(ctx, req.ID)
-		if err != nil {
-			return nil, err
-		}
-		if task == nil {
-			return []*store.Task{}, nil
-		}
-		return []*store.Task{task}, nil
+	expr := req.Filter
+
+	opts := store.ListTasksByExprOptions{}
+	switch {
+	case req.All:
+		// no-op
+	case req.DoneOnly:
+		opts.OnlyDone = true
+	case req.TodoOnly:
+		opts.ExcludeDone = true
+	case expr == nil:
+		opts.ExcludeDone = true
+	default:
+		opts.ExcludeDone = !exprReferencesStateDone(expr) && !exprReferencesID(expr)
 	}
 
-	filters := store.Filters{
-		All:        req.All,
-		DoneOnly:   req.DoneOnly,
-		TodoOnly:   req.TodoOnly,
-		State:      strings.TrimSpace(req.State),
-		Project:    req.Project,
-		Context:    req.Context,
-		Search:     req.Search,
-		DueSetOnly: req.DueOnly,
-		DueOn:      req.DueOn,
-	}
+	return s.store.ListTasksByExpr(ctx, expr, opts)
+}
 
-	if !filters.All && !filters.DoneOnly && !filters.TodoOnly {
-		filters.TodoOnly = true
+func exprReferencesStateDone(expr nlp.FilterExpr) bool {
+	switch typed := expr.(type) {
+	case nlp.Predicate:
+		return typed.Kind == nlp.PredState && strings.EqualFold(strings.TrimSpace(typed.Text), domain.TaskStateDone)
+	case nlp.FilterBinary:
+		return exprReferencesStateDone(typed.Left) || exprReferencesStateDone(typed.Right)
+	case nlp.FilterNot:
+		return exprReferencesStateDone(typed.Expr)
+	default:
+		return false
 	}
+}
 
-	return s.store.ListTasks(ctx, filters)
+func exprReferencesID(expr nlp.FilterExpr) bool {
+	switch typed := expr.(type) {
+	case nlp.Predicate:
+		return typed.Kind == nlp.PredID
+	case nlp.FilterBinary:
+		return exprReferencesID(typed.Left) || exprReferencesID(typed.Right)
+	case nlp.FilterNot:
+		return exprReferencesID(typed.Expr)
+	default:
+		return false
+	}
 }
 
 func (s *TaskService) GetTask(ctx context.Context, id int64) (*store.Task, error) {

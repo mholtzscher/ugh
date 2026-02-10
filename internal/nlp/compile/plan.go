@@ -158,58 +158,83 @@ func buildUpdateRequest(cmd *nlp.UpdateCommand, opts BuildOptions) (service.Upda
 }
 
 func buildFilterRequest(cmd *nlp.FilterCommand, opts BuildOptions) (service.ListTasksRequest, error) {
-	req := service.ListTasksRequest{}
-	if err := applyFilterExpr(&req, cmd.Expr, opts); err != nil {
+	expr, err := NormalizeFilterExpr(cmd.Expr, opts)
+	if err != nil {
 		return service.ListTasksRequest{}, err
 	}
-	return req, nil
+	return service.ListTasksRequest{Filter: expr}, nil
 }
 
-func applyFilterExpr(req *service.ListTasksRequest, expr nlp.FilterExpr, opts BuildOptions) error {
+func NormalizeFilterExpr(expr nlp.FilterExpr, opts BuildOptions) (nlp.FilterExpr, error) {
+	if expr == nil {
+		return expr, nil
+	}
+	if opts.Now.IsZero() {
+		opts.Now = time.Now()
+	}
+	return compileFilterExpr(expr, opts)
+}
+
+func compileFilterExpr(expr nlp.FilterExpr, opts BuildOptions) (nlp.FilterExpr, error) {
 	switch typed := expr.(type) {
 	case nlp.Predicate:
-		switch typed.Kind {
-		case nlp.PredState:
-			req.State = typed.Text
-		case nlp.PredProject:
-			req.Project = typed.Text
-		case nlp.PredContext:
-			req.Context = typed.Text
-		case nlp.PredText:
-			req.Search = typed.Text
-		case nlp.PredDue:
-			// Handle due date filtering: if value provided, parse and filter by that date
-			// If no value, just check that due date is set
-			if typed.Text != "" {
-				dueDate, err := normalizeDate(typed.Text, opts.Now)
-				if err != nil {
-					return err
-				}
-				req.DueOn = dueDate
-			}
-			req.DueOnly = true
-		case nlp.PredID:
-			// Parse the ID from the text
-			if id, err := strconv.ParseInt(typed.Text, 10, 64); err == nil {
-				req.ID = id
-			}
-		default:
-			return fmt.Errorf("unsupported predicate kind %v", typed.Kind)
-		}
-		return nil
+		return compilePredicate(typed, opts)
 	case nlp.FilterBinary:
-		if typed.Op != nlp.FilterAnd {
-			return errors.New("OR filters are not supported yet")
+		left, err := compileFilterExpr(typed.Left, opts)
+		if err != nil {
+			return nil, err
 		}
-		if err := applyFilterExpr(req, typed.Left, opts); err != nil {
-			return err
+		right, err := compileFilterExpr(typed.Right, opts)
+		if err != nil {
+			return nil, err
 		}
-		return applyFilterExpr(req, typed.Right, opts)
+		return nlp.FilterBinary{Op: typed.Op, Left: left, Right: right}, nil
 	case nlp.FilterNot:
-		return errors.New("NOT filters are not supported yet")
+		inner, err := compileFilterExpr(typed.Expr, opts)
+		if err != nil {
+			return nil, err
+		}
+		return nlp.FilterNot{Expr: inner}, nil
 	default:
-		return fmt.Errorf("unsupported filter expression type %T", expr)
+		return nil, fmt.Errorf("unsupported filter expression type %T", expr)
 	}
+}
+
+func compilePredicate(pred nlp.Predicate, opts BuildOptions) (nlp.Predicate, error) {
+	compiled := pred
+	compiled.Text = strings.TrimSpace(pred.Text)
+
+	switch pred.Kind {
+	case nlp.PredState:
+		state, err := normalizeState(compiled.Text)
+		if err != nil {
+			return nlp.Predicate{}, err
+		}
+		compiled.Text = state
+	case nlp.PredDue:
+		if compiled.Text == "" {
+			return compiled, nil
+		}
+		dueDate, err := normalizeDate(compiled.Text, opts.Now)
+		if err != nil {
+			return nlp.Predicate{}, err
+		}
+		compiled.Text = dueDate
+	case nlp.PredProject, nlp.PredContext, nlp.PredText:
+		if compiled.Text == "" {
+			return nlp.Predicate{}, errors.New("filter value cannot be empty")
+		}
+	case nlp.PredID:
+		id, err := strconv.ParseInt(compiled.Text, 10, 64)
+		if err != nil || id <= 0 {
+			return nlp.Predicate{}, fmt.Errorf("invalid id filter %q", pred.Text)
+		}
+		compiled.Text = strconv.FormatInt(id, 10)
+	default:
+		return nlp.Predicate{}, fmt.Errorf("unsupported predicate kind %v", pred.Kind)
+	}
+
+	return compiled, nil
 }
 
 func applyCreateSet(req *service.CreateTaskRequest, op nlp.SetOp, now time.Time) error {

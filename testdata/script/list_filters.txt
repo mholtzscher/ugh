@@ -40,3 +40,65 @@ stdout 'Charlie'
 exec ugh --db $WORK/db.sqlite list --all --search phone
 stdout 'Bravo'
 ! stdout 'Alpha'
+
+# State filter (pending state)
+exec ugh --db $WORK/db.sqlite list --state inbox
+stdout 'Alpha'
+stdout 'Charlie'
+stdout 'Delta'
+! stdout 'Bravo'
+
+# State filter (done state should include done without extra flags)
+exec ugh --db $WORK/db.sqlite list --state done
+stdout 'Bravo'
+! stdout 'Alpha'
+
+# Combined project + context (AND semantics)
+exec ugh --db $WORK/db.sqlite list --all --project work --context office
+stdout 'Alpha'
+! stdout 'Charlie'
+
+# Combined project + search (AND semantics)
+exec ugh --db $WORK/db.sqlite list --all --project work --search Charlie
+stdout 'Charlie'
+! stdout 'Alpha'
+
+# State value normalization from CLI builder
+exec ugh --db $WORK/db.sqlite list --state DONE
+stdout 'Bravo'
+! stdout 'Alpha'
+
+# --where expression filter
+exec ugh --db $WORK/db.sqlite list --all --where 'project:work or state:done'
+stdout 'Alpha'
+stdout 'Bravo'
+stdout 'Charlie'
+! stdout 'Delta'
+
+# --where combines with standard flags using AND
+exec ugh --db $WORK/db.sqlite list --all --project work --where 'state:done or text:Charlie'
+stdout 'Charlie'
+! stdout 'Alpha'
+! stdout 'Bravo'
+
+# Invalid --where expression surfaces parse error
+! exec ugh --db $WORK/db.sqlite list --where 'state:'
+stderr 'parse --where'
+
+# --where supports NOT and nested grouping
+exec ugh --db $WORK/db.sqlite list --all --where 'not state:done and (project:work or context:home)'
+stdout 'Alpha'
+stdout 'Charlie'
+! stdout 'Bravo'
+
+# Default list visibility with --where still excludes done unless state:done is mentioned
+exec ugh --db $WORK/db.sqlite list --where 'project:work'
+stdout 'Alpha'
+stdout 'Charlie'
+! stdout 'Bravo'
+
+# Mentioning state:done in --where disables implicit done exclusion
+exec ugh --db $WORK/db.sqlite list --where 'project:work or state:done'
+stdout 'Alpha'
+stdout 'Charlie'
+stdout 'Bravo'

@@ -929,6 +929,92 @@ func TestParseFilter_LogicalOr(t *testing.T) {
 	}
 }
 
+func TestParseFilter_LogicalNot(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "not keyword",
+			input: "find not state:done",
+		},
+		{
+			name:  "bang operator",
+			input: "find ! state:done",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
+			if err != nil {
+				t.Fatalf("Parse error = %v", err)
+			}
+			cmd := result.Command.(*nlp.FilterCommand)
+
+			notExpr, ok := cmd.Expr.(nlp.FilterNot)
+			if !ok {
+				t.Fatalf("expr type = %T, want FilterNot", cmd.Expr)
+			}
+
+			pred, ok := notExpr.Expr.(nlp.Predicate)
+			if !ok {
+				t.Fatalf("nested expr type = %T, want Predicate", notExpr.Expr)
+			}
+			if pred.Kind != nlp.PredState || pred.Text != "done" {
+				t.Fatalf("predicate = %#v, want state:done", pred)
+			}
+		})
+	}
+}
+
+func TestParseFilter_PrecedenceAndParentheses(t *testing.T) {
+	t.Parallel()
+
+	t.Run("and has higher precedence than or", func(t *testing.T) {
+		t.Parallel()
+
+		result, err := nlp.Parse("find state:now or state:waiting and project:work", nlp.ParseOptions{})
+		if err != nil {
+			t.Fatalf("Parse error = %v", err)
+		}
+		cmd := result.Command.(*nlp.FilterCommand)
+
+		root, ok := cmd.Expr.(nlp.FilterBinary)
+		if !ok || root.Op != nlp.FilterOr {
+			t.Fatalf("root = %#v, want OR binary", cmd.Expr)
+		}
+
+		right, ok := root.Right.(nlp.FilterBinary)
+		if !ok || right.Op != nlp.FilterAnd {
+			t.Fatalf("right = %#v, want AND binary", root.Right)
+		}
+	})
+
+	t.Run("parentheses override precedence", func(t *testing.T) {
+		t.Parallel()
+
+		result, err := nlp.Parse("find (state:now or state:waiting) and project:work", nlp.ParseOptions{})
+		if err != nil {
+			t.Fatalf("Parse error = %v", err)
+		}
+		cmd := result.Command.(*nlp.FilterCommand)
+
+		root, ok := cmd.Expr.(nlp.FilterBinary)
+		if !ok || root.Op != nlp.FilterAnd {
+			t.Fatalf("root = %#v, want AND binary", cmd.Expr)
+		}
+
+		left, ok := root.Left.(nlp.FilterBinary)
+		if !ok || left.Op != nlp.FilterOr {
+			t.Fatalf("left = %#v, want OR binary", root.Left)
+		}
+	})
+}
+
 // ============================================================================
 // ERROR CASES
 // ============================================================================
@@ -966,7 +1052,7 @@ func TestParseErrors(t *testing.T) {
 }
 
 // ============================================================================
-// LEGACY TESTS (keeping original tests for backward compatibility)
+// ADDITIONAL COVERAGE
 // ============================================================================
 
 func TestParseCreateCommand(t *testing.T) {

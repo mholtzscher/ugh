@@ -28,16 +28,9 @@ type Task struct {
 	UpdatedAt   time.Time
 }
 
-type Filters struct {
-	All        bool
-	DoneOnly   bool
-	TodoOnly   bool
-	State      string
-	Project    string
-	Context    string
-	Search     string
-	DueSetOnly bool
-	DueOn      string // Date in YYYY-MM-DD format for exact due date matching
+type ListTasksByExprOptions struct {
+	ExcludeDone bool
+	OnlyDone    bool
 }
 
 type NameCount struct {

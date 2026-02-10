@@ -1,5 +1,7 @@
 package service
 
+import "github.com/mholtzscher/ugh/internal/nlp"
+
 type CreateTaskRequest struct {
 	Title      string
 	Notes      string
@@ -15,13 +17,7 @@ type ListTasksRequest struct {
 	All      bool
 	DoneOnly bool
 	TodoOnly bool
-	State    string
-	Project  string
-	Context  string
-	Search   string
-	DueOnly  bool
-	DueOn    string // Date in YYYY-MM-DD format for exact due date matching
-	ID       int64  // Specific task ID to fetch (0 means no ID filter)
+	Filter   nlp.FilterExpr
 }
 
 type ListTagsRequest struct {

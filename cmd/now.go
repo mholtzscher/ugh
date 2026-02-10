@@ -16,6 +16,11 @@ var nowCmd = &cli.Command{
 	Usage:    "List tasks you can act on now",
 	Category: "Lists",
 	Action: func(ctx context.Context, _ *cli.Command) error {
+		filterExpr, err := buildListFilterExpr(listFilterOptions{State: flags.TaskStateNow})
+		if err != nil {
+			return err
+		}
+
 		svc, err := newService(ctx)
 		if err != nil {
 			return err
@@ -24,7 +29,7 @@ var nowCmd = &cli.Command{
 
 		tasks, err := svc.ListTasks(ctx, service.ListTasksRequest{
 			TodoOnly: true,
-			State:    flags.TaskStateNow,
+			Filter:   filterExpr,
 		})
 		if err != nil {
 			return err
