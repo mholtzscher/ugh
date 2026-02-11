@@ -16,6 +16,16 @@ import (
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
+const (
+	contextNoneValue = "none"
+
+	viewNameInbox    = "inbox"
+	viewNameNow      = "now"
+	viewNameWaiting  = "waiting"
+	viewNameLater    = "later"
+	viewNameCalendar = "calendar"
+)
+
 // Executor bridges NLP parsing to service execution.
 type Executor struct {
 	svc     service.Service
@@ -79,7 +89,7 @@ func (e *Executor) Execute(ctx context.Context, input string) (*ExecuteResult, e
 	}
 
 	// Execute the plan
-	return e.executePlan(ctx, plan, parseResult.Intent)
+	return e.executePlan(ctx, plan, parseResult)
 }
 
 func (e *Executor) preprocessInput(input string) string {
@@ -134,8 +144,12 @@ func (e *Executor) getSelectedTaskID() int64 {
 	return 0
 }
 
-func (e *Executor) executePlan(ctx context.Context, plan compile.Plan, intent nlp.Intent) (*ExecuteResult, error) {
-	switch intent {
+func (e *Executor) executePlan(
+	ctx context.Context,
+	plan compile.Plan,
+	parseResult nlp.ParseResult,
+) (*ExecuteResult, error) {
+	switch parseResult.Intent {
 	case nlp.IntentCreate:
 		return e.executeCreate(ctx, plan)
 	case nlp.IntentUpdate:
@@ -143,13 +157,178 @@ func (e *Executor) executePlan(ctx context.Context, plan compile.Plan, intent nl
 	case nlp.IntentFilter:
 		return e.executeFilter(ctx, plan)
 	case nlp.IntentView:
-		return nil, errors.New("view commands are handled by the interactive shell")
+		return e.executeView(ctx, parseResult)
 	case nlp.IntentContext:
-		return nil, errors.New("context commands are handled by the interactive shell")
+		return e.executeContext(parseResult)
 	case nlp.IntentUnknown:
 		return nil, errors.New("unknown intent: could not determine command type")
 	default:
-		return nil, fmt.Errorf("unsupported intent: %v", intent)
+		return nil, fmt.Errorf("unsupported intent: %v", parseResult.Intent)
+	}
+}
+
+func (e *Executor) executeView(ctx context.Context, parseResult nlp.ParseResult) (*ExecuteResult, error) {
+	cmd, ok := parseResult.Command.(*nlp.ViewCommand)
+	if !ok || cmd == nil {
+		return nil, errors.New("invalid view command")
+	}
+
+	if cmd.Target == nil {
+		return e.showViewHelp(), nil
+	}
+
+	filterQuery, err := viewFilterQuery(cmd.Target.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return e.Execute(ctx, filterQuery)
+}
+
+func (e *Executor) executeContext(parseResult nlp.ParseResult) (*ExecuteResult, error) {
+	cmd, ok := parseResult.Command.(*nlp.ContextCommand)
+	if !ok || cmd == nil {
+		return nil, errors.New("invalid context command")
+	}
+
+	if cmd.Arg == nil {
+		return e.showContext(), nil
+	}
+
+	if cmd.Arg.Clear {
+		e.state.ContextProject = ""
+		e.state.ContextContext = ""
+		return &ExecuteResult{
+			Intent:    "context",
+			Message:   "Context filters cleared",
+			Summary:   "cleared context",
+			Timestamp: time.Now(),
+		}, nil
+	}
+
+	if cmd.Arg.Project != "" {
+		e.state.ContextProject = cmd.Arg.Project
+		return &ExecuteResult{
+			Intent:    "context",
+			Message:   fmt.Sprintf("Set project context to #%s", cmd.Arg.Project),
+			Summary:   fmt.Sprintf("context project #%s", cmd.Arg.Project),
+			Timestamp: time.Now(),
+		}, nil
+	}
+
+	if cmd.Arg.Context != "" {
+		e.state.ContextContext = cmd.Arg.Context
+		return &ExecuteResult{
+			Intent:    "context",
+			Message:   fmt.Sprintf("Set context filter to @%s", cmd.Arg.Context),
+			Summary:   fmt.Sprintf("context @%s", cmd.Arg.Context),
+			Timestamp: time.Now(),
+		}, nil
+	}
+
+	return nil, errors.New("invalid context command argument")
+}
+
+func viewFilterQuery(viewName string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(viewName)) {
+	case viewNameInbox:
+		return "find state:inbox", nil
+	case viewNameNow:
+		return "find state:now", nil
+	case viewNameWaiting:
+		return "find state:waiting", nil
+	case viewNameLater:
+		return "find state:later", nil
+	case viewNameCalendar:
+		return "find due:today", nil
+	default:
+		return "", fmt.Errorf("unknown view: %s", viewName)
+	}
+}
+
+func (e *Executor) showContext() *ExecuteResult {
+	selected := contextNoneValue
+	if e.state.SelectedTaskID != nil {
+		selected = fmt.Sprintf("#%d", *e.state.SelectedTaskID)
+	}
+
+	last := formatTaskIDs(e.state.LastTaskIDs)
+	project := formatContextValue(e.state.ContextProject, "#")
+	ctx := formatContextValue(e.state.ContextContext, "@")
+
+	data := pterm.TableData{
+		{"Selected", selected},
+		{"Last", last},
+		{"Project", project},
+		{"Context", ctx},
+	}
+
+	var msg string
+	if !e.noColor {
+		table, _ := pterm.DefaultTable.WithData(data).Srender()
+		msg = pterm.Yellow("Current Context:\n") + table
+	} else {
+		var b strings.Builder
+		b.WriteString("Current Context:\n")
+		for _, row := range data {
+			_, _ = fmt.Fprintf(&b, "  %s: %s\n", row[0], row[1])
+		}
+		msg = b.String()
+	}
+
+	return &ExecuteResult{
+		Intent:    "context",
+		Message:   msg,
+		Summary:   "showing context",
+		Timestamp: time.Now(),
+	}
+}
+
+func formatTaskIDs(ids []int64) string {
+	if len(ids) == 0 {
+		return contextNoneValue
+	}
+	strs := make([]string, len(ids))
+	for i, id := range ids {
+		strs[i] = fmt.Sprintf("#%d", id)
+	}
+	return strings.Join(strs, ", ")
+}
+
+func formatContextValue(value, prefix string) string {
+	if value == "" {
+		return contextNoneValue
+	}
+	return prefix + value
+}
+
+func (e *Executor) showViewHelp() *ExecuteResult {
+	var msg string
+	if !e.noColor {
+		msg = pterm.Green("Available Views:\n") +
+			"  " + pterm.LightGreen("i, inbox") + "     Inbox tasks\n" +
+			"  " + pterm.LightGreen("n, now") + "       Now tasks\n" +
+			"  " + pterm.LightGreen("w, waiting") + "   Waiting tasks\n" +
+			"  " + pterm.LightGreen("l, later") + "     Later tasks\n" +
+			"  " + pterm.LightGreen("c, calendar") + "  Tasks due today\n" +
+			"\nUsage: view <name> (e.g., view i or view inbox)"
+	} else {
+		var b strings.Builder
+		b.WriteString("Available Views:\n")
+		b.WriteString("  i, inbox     Inbox tasks\n")
+		b.WriteString("  n, now       Now tasks\n")
+		b.WriteString("  w, waiting   Waiting tasks\n")
+		b.WriteString("  l, later     Later tasks\n")
+		b.WriteString("  c, calendar  Tasks due today\n")
+		b.WriteString("\nUsage: view <name> (e.g., view i or view inbox)")
+		msg = b.String()
+	}
+
+	return &ExecuteResult{
+		Intent:    "view",
+		Message:   msg,
+		Summary:   "showing view help",
+		Timestamp: time.Now(),
 	}
 }
 
