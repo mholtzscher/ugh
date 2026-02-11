@@ -277,44 +277,28 @@ func (Predicate) filterExpr() {}
 
 // HasProjectTag returns true if the command has an explicit project tag.
 func (c *CreateCommand) HasProjectTag() bool {
-	if c == nil {
-		return false
-	}
-	for _, op := range c.Ops {
-		if tag, ok := op.(TagOp); ok && tag.Kind == TagProject {
-			return true
-		}
-	}
-	return false
+	return c != nil && hasTag(c.Ops, TagProject)
 }
 
 // HasContextTag returns true if the command has an explicit context tag.
 func (c *CreateCommand) HasContextTag() bool {
-	if c == nil {
-		return false
-	}
-	for _, op := range c.Ops {
-		if tag, ok := op.(TagOp); ok && tag.Kind == TagContext {
-			return true
-		}
-	}
-	return false
+	return c != nil && hasTag(c.Ops, TagContext)
 }
 
 // InjectProject adds a project tag if one doesn't already exist.
 func (c *CreateCommand) InjectProject(name string) {
-	if c == nil || c.HasProjectTag() || name == "" {
+	if c == nil {
 		return
 	}
-	c.Ops = append(c.Ops, TagOp{Kind: TagProject, Value: name})
+	injectTag(&c.Ops, TagProject, name)
 }
 
 // InjectContext adds a context tag if one doesn't already exist.
 func (c *CreateCommand) InjectContext(name string) {
-	if c == nil || c.HasContextTag() || name == "" {
+	if c == nil {
 		return
 	}
-	c.Ops = append(c.Ops, TagOp{Kind: TagContext, Value: name})
+	injectTag(&c.Ops, TagContext, name)
 }
 
 // HasProjectPredicate returns true if the filter has a project predicate.
@@ -361,44 +345,44 @@ func (f *FilterCommand) InjectContext(name string) {
 
 // HasProjectTag returns true if the update has an explicit project tag.
 func (u *UpdateCommand) HasProjectTag() bool {
-	if u == nil {
-		return false
-	}
-	for _, op := range u.Ops {
-		if tag, ok := op.(TagOp); ok && tag.Kind == TagProject {
-			return true
-		}
-	}
-	return false
+	return u != nil && hasTag(u.Ops, TagProject)
 }
 
 // HasContextTag returns true if the update has an explicit context tag.
 func (u *UpdateCommand) HasContextTag() bool {
+	return u != nil && hasTag(u.Ops, TagContext)
+}
+
+// InjectProject adds a project tag if one doesn't already exist.
+func (u *UpdateCommand) InjectProject(name string) {
 	if u == nil {
-		return false
+		return
 	}
-	for _, op := range u.Ops {
-		if tag, ok := op.(TagOp); ok && tag.Kind == TagContext {
+	injectTag(&u.Ops, TagProject, name)
+}
+
+// InjectContext adds a context tag if one doesn't already exist.
+func (u *UpdateCommand) InjectContext(name string) {
+	if u == nil {
+		return
+	}
+	injectTag(&u.Ops, TagContext, name)
+}
+
+func hasTag(ops []Operation, kind TagKind) bool {
+	for _, op := range ops {
+		if tag, ok := op.(TagOp); ok && tag.Kind == kind {
 			return true
 		}
 	}
 	return false
 }
 
-// InjectProject adds a project tag if one doesn't already exist.
-func (u *UpdateCommand) InjectProject(name string) {
-	if u == nil || u.HasProjectTag() || name == "" {
+func injectTag(ops *[]Operation, kind TagKind, name string) {
+	if name == "" || hasTag(*ops, kind) {
 		return
 	}
-	u.Ops = append(u.Ops, TagOp{Kind: TagProject, Value: name})
-}
-
-// InjectContext adds a context tag if one doesn't already exist.
-func (u *UpdateCommand) InjectContext(name string) {
-	if u == nil || u.HasContextTag() || name == "" {
-		return
-	}
-	u.Ops = append(u.Ops, TagOp{Kind: TagContext, Value: name})
+	*ops = append(*ops, TagOp{Kind: kind, Value: name})
 }
 
 // hasPredicate recursively checks if an expression contains a predicate of the given kind.
