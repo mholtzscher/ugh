@@ -51,6 +51,10 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 			want = IntentUpdate
 		case ModeFilter:
 			want = IntentFilter
+		case ModeView:
+			want = IntentView
+		case ModeContext:
+			want = IntentContext
 		}
 		if want != IntentUnknown && intent != want {
 			return ParseResult{Intent: intent, Command: cmdResult}, errors.New("command does not match parse mode")
@@ -92,6 +96,16 @@ func postProcess(cmd Command) (Intent, Command, error) {
 			return IntentFilter, typed, err
 		}
 		return IntentFilter, typed, nil
+	case *ViewCommand:
+		if err := typed.postProcess(); err != nil {
+			return IntentView, typed, err
+		}
+		return IntentView, typed, nil
+	case *ContextCommand:
+		if err := typed.postProcess(); err != nil {
+			return IntentContext, typed, err
+		}
+		return IntentContext, typed, nil
 	default:
 		return IntentUnknown, cmd, errors.New("unknown command type")
 	}

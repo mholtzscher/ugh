@@ -112,8 +112,11 @@ func (c *shellCompleter) suggest(tokens []nlp.LexToken, fragment string, fragmen
 		return filterCandidates(fragment, commandSuggestions())
 	}
 
-	if isContextCommand(nonWhitespace) {
-		return c.contextCommandSuggestions(fragment, fragmentLower)
+	if fragment == "" && nonWhitespace[0].Name == "Ident" && strings.EqualFold(nonWhitespace[0].Value, "context") {
+		candidates := []string{"clear"}
+		candidates = append(candidates, prefixed(c.projectNames(), "#")...)
+		candidates = append(candidates, prefixed(c.contextNames(), "@")...)
+		return dedupe(candidates)
 	}
 
 	if strings.HasPrefix(fragmentLower, "#") {
@@ -148,20 +151,6 @@ func (c *shellCompleter) suggest(tokens []nlp.LexToken, fragment string, fragmen
 
 	candidates := append([]string{}, commandSuggestions()...)
 	candidates = append(candidates, genericSuggestions()...)
-	return filterCandidates(fragment, dedupe(candidates))
-}
-
-func (c *shellCompleter) contextCommandSuggestions(fragment string, fragmentLower string) []string {
-	if strings.HasPrefix(fragmentLower, "#") {
-		return filterCandidates(fragment, prefixed(c.projectNames(), "#"))
-	}
-	if strings.HasPrefix(fragmentLower, "@") {
-		return filterCandidates(fragment, prefixed(c.contextNames(), "@"))
-	}
-
-	candidates := []string{"clear"}
-	candidates = append(candidates, prefixed(c.projectNames(), "#")...)
-	candidates = append(candidates, prefixed(c.contextNames(), "@")...)
 	return filterCandidates(fragment, dedupe(candidates))
 }
 
@@ -291,13 +280,6 @@ func splitFieldValuePrefix(fragmentLower string) (string, string, bool) {
 	return field, valuePrefix, true
 }
 
-func isContextCommand(tokens []nlp.LexToken) bool {
-	if len(tokens) == 0 {
-		return false
-	}
-	return tokens[0].Name == "Ident" && strings.EqualFold(tokens[0].Value, "context")
-}
-
 func splitFragment(prefix []rune) (int, string) {
 	i := len(prefix)
 	for i > 0 && !isFragmentDelimiter(prefix[i-1]) {
@@ -410,7 +392,8 @@ func colorForToken(tok nlp.LexToken) string {
 		}
 		if lower == "add" || lower == "create" || lower == "new" ||
 			lower == "set" || lower == "edit" || lower == "update" ||
-			lower == "find" || lower == "show" || lower == "list" || lower == "filter" {
+			lower == "find" || lower == "show" || lower == "list" || lower == "filter" ||
+			lower == "view" || lower == "context" {
 			return ansiYellow
 		}
 	}

@@ -10,6 +10,10 @@ import (
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
+const (
+	contextCommandVerb = "context"
+)
+
 func (v *CreateVerb) Parse(lex *lexer.PeekingLexer) error {
 	if v == nil {
 		return errors.New("nil CreateVerb")
@@ -74,6 +78,102 @@ func (v *FilterVerb) Parse(lex *lexer.PeekingLexer) error {
 	default:
 		return participle.NextMatch
 	}
+}
+
+func (v *ViewVerb) Parse(lex *lexer.PeekingLexer) error {
+	if v == nil {
+		return errors.New("nil ViewVerb")
+	}
+	tok := lex.Peek()
+	if tok == nil {
+		return participle.NextMatch
+	}
+	if tok.Type != dslSymbols["Ident"] {
+		return participle.NextMatch
+	}
+	s := strings.ToLower(tok.Value)
+	if s != "view" {
+		return participle.NextMatch
+	}
+
+	lex.Next()
+	*v = ViewVerb(s)
+	return nil
+}
+
+func (v *ContextVerb) Parse(lex *lexer.PeekingLexer) error {
+	if v == nil {
+		return errors.New("nil ContextVerb")
+	}
+	tok := lex.Peek()
+	if tok == nil {
+		return participle.NextMatch
+	}
+	if tok.Type != dslSymbols["Ident"] {
+		return participle.NextMatch
+	}
+	s := strings.ToLower(tok.Value)
+	if s != contextCommandVerb {
+		return participle.NextMatch
+	}
+
+	lex.Next()
+	*v = ContextVerb(s)
+	return nil
+}
+
+func (t *ViewTarget) Parse(lex *lexer.PeekingLexer) error {
+	if t == nil {
+		return errors.New("nil ViewTarget")
+	}
+	tok := lex.Peek()
+	if tok == nil {
+		return participle.NextMatch
+	}
+	if tok.Type != dslSymbols["Ident"] {
+		return fmt.Errorf("invalid view: %s", tok.Value)
+	}
+
+	s := strings.ToLower(strings.TrimSpace(tok.Value))
+	switch s {
+	case "i", viewNameInbox, "n", viewNameNow, "w", viewNameWaiting, "l", viewNameLater, "c", viewNameCalendar, "today":
+		lex.Next()
+		t.Name = s
+		return nil
+	default:
+		return fmt.Errorf("invalid view: %s", tok.Value)
+	}
+}
+
+func (a *ContextArg) Parse(lex *lexer.PeekingLexer) error {
+	if a == nil {
+		return errors.New("nil ContextArg")
+	}
+	tok := lex.Peek()
+	if tok == nil {
+		return participle.NextMatch
+	}
+
+	if tok.Type == dslSymbols["ProjectTag"] {
+		lex.Next()
+		a.Project = tok.Value
+		return nil
+	}
+	if tok.Type == dslSymbols["ContextTag"] {
+		lex.Next()
+		a.Context = tok.Value
+		return nil
+	}
+	if tok.Type == dslSymbols["Ident"] {
+		s := strings.ToLower(strings.TrimSpace(tok.Value))
+		if s == "clear" {
+			lex.Next()
+			a.Clear = true
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid context argument: %s", tok.Value)
 }
 
 func (t *TargetRef) Parse(lex *lexer.PeekingLexer) error {

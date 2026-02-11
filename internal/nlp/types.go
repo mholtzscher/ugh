@@ -7,6 +7,8 @@ const (
 	ModeCreate
 	ModeUpdate
 	ModeFilter
+	ModeView
+	ModeContext
 )
 
 type Intent int
@@ -16,6 +18,8 @@ const (
 	IntentCreate
 	IntentUpdate
 	IntentFilter
+	IntentView
+	IntentContext
 )
 
 type Severity int

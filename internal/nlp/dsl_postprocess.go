@@ -81,6 +81,65 @@ func (f *FilterCommand) postProcess() error {
 	return nil
 }
 
+func (v *ViewCommand) postProcess() error {
+	if v == nil {
+		return errors.New("nil view command")
+	}
+	if v.Target == nil {
+		return nil
+	}
+
+	v.Target.Name = canonicalViewName(v.Target.Name)
+	if v.Target.Name == "" {
+		return errors.New("view command requires a valid view name")
+	}
+	return nil
+}
+
+func (c *ContextCommand) postProcess() error {
+	if c == nil {
+		return errors.New("nil context command")
+	}
+	if c.Arg == nil {
+		return nil
+	}
+
+	nonEmpty := 0
+	if c.Arg.Clear {
+		nonEmpty++
+	}
+	if strings.TrimSpace(c.Arg.Project) != "" {
+		nonEmpty++
+	}
+	if strings.TrimSpace(c.Arg.Context) != "" {
+		nonEmpty++
+	}
+	if nonEmpty != 1 {
+		return errors.New("context command requires exactly one argument")
+	}
+
+	c.Arg.Project = strings.TrimSpace(c.Arg.Project)
+	c.Arg.Context = strings.TrimSpace(c.Arg.Context)
+	return nil
+}
+
+func canonicalViewName(name string) string {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "i", viewNameInbox:
+		return viewNameInbox
+	case "n", viewNameNow:
+		return viewNameNow
+	case "w", viewNameWaiting:
+		return viewNameWaiting
+	case "l", viewNameLater:
+		return viewNameLater
+	case "c", viewNameCalendar, "today":
+		return viewNameCalendar
+	default:
+		return ""
+	}
+}
+
 func (o *FilterOrChain) toExpr() FilterExpr {
 	if o == nil || o.Left == nil {
 		return nil

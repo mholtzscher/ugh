@@ -142,6 +142,10 @@ func (e *Executor) executePlan(ctx context.Context, plan compile.Plan, intent nl
 		return e.executeUpdate(ctx, plan)
 	case nlp.IntentFilter:
 		return e.executeFilter(ctx, plan)
+	case nlp.IntentView:
+		return nil, errors.New("view commands are handled by the interactive shell")
+	case nlp.IntentContext:
+		return nil, errors.New("context commands are handled by the interactive shell")
 	case nlp.IntentUnknown:
 		return nil, errors.New("unknown intent: could not determine command type")
 	default:
