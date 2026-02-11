@@ -1,5 +1,7 @@
 package nlp
 
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=Mode,Intent,Severity -output=types_string.go
+
 type Mode int
 
 const (
