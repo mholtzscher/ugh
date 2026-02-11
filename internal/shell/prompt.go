@@ -26,6 +26,10 @@ func NewPrompt(svc service.Service, noColor bool) (*Prompt, error) {
 		Prompt:          promptText,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
+		AutoComplete:    newShellCompleter(svc),
+	}
+	if !noColor {
+		cfg.Painter = newShellPainter()
 	}
 
 	rl, err := readline.NewEx(cfg)

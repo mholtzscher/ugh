@@ -918,6 +918,10 @@ func TestParseErrors(t *testing.T) {
 			name:  "invalid tag token",
 			input: "add task #",
 		},
+		{
+			name:  "unterminated quoted string",
+			input: `add task "email #hashtag`,
+		},
 	}
 
 	for _, tt := range tests {
