@@ -20,6 +20,9 @@ const (
 	ansiYellow  = "\033[33m"
 	ansiMagenta = "\033[35m"
 	ansiCyan    = "\033[36m"
+
+	identTokenName   = "Ident"
+	maxViewTokenArgs = 2
 )
 
 func commandSuggestions() []string {
@@ -48,6 +51,16 @@ func stateSuggestions() []string {
 
 func dueSuggestions() []string {
 	return []string{"due:today", "due:tomorrow"}
+}
+
+func viewSuggestions() []string {
+	return []string{
+		"i", "inbox",
+		"n", "now",
+		"w", "waiting",
+		"l", "later",
+		"c", "calendar", "today",
+	}
 }
 
 type shellCompleter struct {
@@ -112,8 +125,12 @@ func (c *shellCompleter) suggest(tokens []nlp.LexToken, fragment string, fragmen
 		return filterCandidates(fragment, commandSuggestions())
 	}
 
-	if isContextCommand(nonWhitespace) {
-		return c.contextCommandSuggestions(fragment, fragmentLower)
+	if suggestions, handled := c.viewCommandSuggestions(nonWhitespace, fragment); handled {
+		return suggestions
+	}
+
+	if suggestions, handled := c.contextCommandSuggestions(nonWhitespace, fragment); handled {
+		return suggestions
 	}
 
 	if strings.HasPrefix(fragmentLower, "#") {
@@ -151,18 +168,45 @@ func (c *shellCompleter) suggest(tokens []nlp.LexToken, fragment string, fragmen
 	return filterCandidates(fragment, dedupe(candidates))
 }
 
-func (c *shellCompleter) contextCommandSuggestions(fragment string, fragmentLower string) []string {
-	if strings.HasPrefix(fragmentLower, "#") {
-		return filterCandidates(fragment, prefixed(c.projectNames(), "#"))
+func (c *shellCompleter) viewCommandSuggestions(nonWhitespace []nlp.LexToken, fragment string) ([]string, bool) {
+	if len(nonWhitespace) == 0 ||
+		nonWhitespace[0].Name != identTokenName ||
+		!strings.EqualFold(nonWhitespace[0].Value, "view") {
+		return nil, false
 	}
-	if strings.HasPrefix(fragmentLower, "@") {
-		return filterCandidates(fragment, prefixed(c.contextNames(), "@"))
+
+	if fragment != "" && len(nonWhitespace) == 1 {
+		return nil, false
+	}
+
+	if fragment == "" {
+		if len(nonWhitespace) == 1 {
+			return filterCandidates(fragment, viewSuggestions()), true
+		}
+		return nil, true
+	}
+
+	if len(nonWhitespace) > maxViewTokenArgs {
+		return nil, true
+	}
+
+	return filterCandidates(fragment, viewSuggestions()), true
+}
+
+func (c *shellCompleter) contextCommandSuggestions(nonWhitespace []nlp.LexToken, fragment string) ([]string, bool) {
+	if fragment != "" {
+		return nil, false
+	}
+	if len(nonWhitespace) == 0 ||
+		nonWhitespace[0].Name != identTokenName ||
+		!strings.EqualFold(nonWhitespace[0].Value, "context") {
+		return nil, false
 	}
 
 	candidates := []string{"clear"}
 	candidates = append(candidates, prefixed(c.projectNames(), "#")...)
 	candidates = append(candidates, prefixed(c.contextNames(), "@")...)
-	return filterCandidates(fragment, dedupe(candidates))
+	return filterCandidates(fragment, dedupe(candidates)), true
 }
 
 func (c *shellCompleter) projectNames() []string {
@@ -291,13 +335,6 @@ func splitFieldValuePrefix(fragmentLower string) (string, string, bool) {
 	return field, valuePrefix, true
 }
 
-func isContextCommand(tokens []nlp.LexToken) bool {
-	if len(tokens) == 0 {
-		return false
-	}
-	return tokens[0].Name == "Ident" && strings.EqualFold(tokens[0].Value, "context")
-}
-
 func splitFragment(prefix []rune) (int, string) {
 	i := len(prefix)
 	for i > 0 && !isFragmentDelimiter(prefix[i-1]) {
@@ -410,7 +447,8 @@ func colorForToken(tok nlp.LexToken) string {
 		}
 		if lower == "add" || lower == "create" || lower == "new" ||
 			lower == "set" || lower == "edit" || lower == "update" ||
-			lower == "find" || lower == "show" || lower == "list" || lower == "filter" {
+			lower == "find" || lower == "show" || lower == "list" || lower == "filter" ||
+			lower == "view" || lower == "context" {
 			return ansiYellow
 		}
 	}

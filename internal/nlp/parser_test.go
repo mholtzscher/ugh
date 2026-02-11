@@ -1044,6 +1044,97 @@ func TestParseFilterCommand(t *testing.T) {
 	require.Equal(t, nlp.FilterAnd, binary.Op, "binary op mismatch")
 }
 
+func TestParseViewCommand(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		input      string
+		wantTarget string
+	}{
+		{name: "help view", input: "view", wantTarget: ""},
+		{name: "short alias", input: "view i", wantTarget: "inbox"},
+		{name: "calendar alias", input: "view today", wantTarget: "calendar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
+			require.NoError(t, err, "Parse(view) error")
+			require.Equal(t, nlp.IntentView, result.Intent, "Parse(view) intent mismatch")
+
+			cmd, ok := result.Command.(*nlp.ViewCommand)
+			require.True(t, ok, "command type should be ViewCommand, got %T", result.Command)
+			if tt.wantTarget == "" {
+				require.Nil(t, cmd.Target, "view target should be empty")
+				return
+			}
+			require.NotNil(t, cmd.Target, "view target should be present")
+			assert.Equal(t, tt.wantTarget, cmd.Target.Name, "view target mismatch")
+		})
+	}
+}
+
+func TestParseContextCommand(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		input       string
+		wantClear   bool
+		wantProject string
+		wantContext string
+	}{
+		{name: "show context", input: "context"},
+		{name: "clear context", input: "context clear", wantClear: true},
+		{name: "project context", input: "context #work", wantProject: "work"},
+		{name: "context filter", input: "context @urgent", wantContext: "urgent"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
+			require.NoError(t, err, "Parse(context) error")
+			require.Equal(t, nlp.IntentContext, result.Intent, "Parse(context) intent mismatch")
+
+			cmd, ok := result.Command.(*nlp.ContextCommand)
+			require.True(t, ok, "command type should be ContextCommand, got %T", result.Command)
+			if !tt.wantClear && tt.wantProject == "" && tt.wantContext == "" {
+				require.Nil(t, cmd.Arg, "context argument should be empty")
+				return
+			}
+			require.NotNil(t, cmd.Arg, "context argument should be present")
+			assert.Equal(t, tt.wantClear, cmd.Arg.Clear, "clear mismatch")
+			assert.Equal(t, tt.wantProject, cmd.Arg.Project, "project mismatch")
+			assert.Equal(t, tt.wantContext, cmd.Arg.Context, "context mismatch")
+		})
+	}
+}
+
+func TestParseViewAndContextErrors(t *testing.T) {
+	t.Parallel()
+
+	_, err := nlp.Parse("view maybe", nlp.ParseOptions{})
+	require.Error(t, err, "expected parse error for invalid view")
+
+	_, err = nlp.Parse("context maybe", nlp.ParseOptions{})
+	require.Error(t, err, "expected parse error for invalid context argument")
+}
+
+func TestParseModeViewAndContext(t *testing.T) {
+	t.Parallel()
+
+	result, err := nlp.Parse("view inbox", nlp.ParseOptions{Mode: nlp.ModeView})
+	require.NoError(t, err, "view parse with ModeView should succeed")
+	require.Equal(t, nlp.IntentView, result.Intent, "view intent mismatch")
+
+	result, err = nlp.Parse("context #work", nlp.ParseOptions{Mode: nlp.ModeContext})
+	require.NoError(t, err, "context parse with ModeContext should succeed")
+	require.Equal(t, nlp.IntentContext, result.Intent, "context intent mismatch")
+}
+
 func TestParseInvalidUpdateTarget(t *testing.T) {
 	t.Parallel()
 

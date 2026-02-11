@@ -15,6 +15,18 @@ type UpdateVerb string
 
 type FilterVerb string
 
+type ViewVerb string
+
+type ContextVerb string
+
+const (
+	viewNameInbox    = "inbox"
+	viewNameNow      = "now"
+	viewNameWaiting  = "waiting"
+	viewNameLater    = "later"
+	viewNameCalendar = "calendar"
+)
+
 type CreateCommand struct {
 	Verb  CreateVerb   `parser:"@@"`
 	Parts []CreatePart `parser:"@@*"`
@@ -61,6 +73,30 @@ type FilterCommand struct {
 }
 
 func (*FilterCommand) command() {}
+
+type ViewCommand struct {
+	Verb   ViewVerb    `parser:"@@"`
+	Target *ViewTarget `parser:"@@?"`
+}
+
+func (*ViewCommand) command() {}
+
+type ContextCommand struct {
+	Verb ContextVerb `parser:"@@"`
+	Arg  *ContextArg `parser:"@@?"`
+}
+
+func (*ContextCommand) command() {}
+
+type ViewTarget struct {
+	Name string
+}
+
+type ContextArg struct {
+	Clear   bool
+	Project string
+	Context string
+}
 
 // FilterOrChain and related types build a parse tree that is converted into
 // FilterExpr after parsing.

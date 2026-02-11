@@ -19,6 +19,8 @@ var dslParser = participle.MustBuild[Root](
 		&CreateCommand{},
 		&UpdateCommand{},
 		&FilterCommand{},
+		&ViewCommand{},
+		&ContextCommand{},
 	),
 	participle.Union[CreatePart](
 		&CreateOpPart{},

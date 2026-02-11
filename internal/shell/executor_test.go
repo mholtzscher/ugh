@@ -508,3 +508,78 @@ func TestExecuteInjectContextOnlyContext(t *testing.T) {
 	assert.Empty(t, svc.lastCreate.Projects, "projects should be empty when only context context set")
 	assert.True(t, contains(svc.lastCreate.Contexts, "phone"), "contexts should contain 'phone'")
 }
+
+func TestExecuteViewShowsHelp(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	result, err := exec.Execute(context.Background(), "view")
+	require.NoError(t, err, "execute error")
+	require.NotNil(t, result, "result should not be nil")
+	assert.Equal(t, "view", result.Intent, "intent mismatch")
+	assert.Contains(t, result.Message, "Available Views:", "message should contain view help")
+}
+
+func TestExecuteViewRunsFilterQuery(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	result, err := exec.Execute(context.Background(), "view now")
+	require.NoError(t, err, "execute error")
+	require.NotNil(t, result, "result should not be nil")
+	assert.Equal(t, "filter", result.Intent, "view now should execute as filter")
+	assert.True(t, hasPredicateKind(svc.lastFilter.Filter, nlp.PredState), "filter should include state predicate")
+}
+
+func TestExecuteViewRespectsStickyContext(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+
+	_, err := exec.Execute(context.Background(), "view now")
+	require.NoError(t, err, "execute error")
+	assert.True(
+		t,
+		hasPredicateKind(svc.lastFilter.Filter, nlp.PredProject),
+		"view filter should include sticky project",
+	)
+}
+
+func TestExecuteContextSetShowAndClear(t *testing.T) {
+	t.Parallel()
+
+	selectedID := int64(9)
+	state := &shell.SessionState{
+		SelectedTaskID: &selectedID,
+		LastTaskIDs:    []int64{3, 7},
+	}
+	exec := shell.NewExecutor(&recordingService{}, state, true)
+
+	result, err := exec.Execute(context.Background(), "context #work")
+	require.NoError(t, err, "set project context error")
+	assert.Equal(t, "context", result.Intent, "intent mismatch")
+	assert.Equal(t, "work", state.ContextProject, "project context mismatch")
+
+	result, err = exec.Execute(context.Background(), "context @urgent")
+	require.NoError(t, err, "set context filter error")
+	assert.Equal(t, "context", result.Intent, "intent mismatch")
+	assert.Equal(t, "urgent", state.ContextContext, "context filter mismatch")
+
+	result, err = exec.Execute(context.Background(), "context")
+	require.NoError(t, err, "show context error")
+	assert.Contains(t, result.Message, "Selected: #9", "context output should include selected task")
+	assert.Contains(t, result.Message, "Last: #3, #7", "context output should include last tasks")
+	assert.Contains(t, result.Message, "Project: #work", "context output should include project")
+	assert.Contains(t, result.Message, "Context: @urgent", "context output should include context")
+
+	result, err = exec.Execute(context.Background(), "context clear")
+	require.NoError(t, err, "clear context error")
+	assert.Equal(t, "context", result.Intent, "intent mismatch")
+	assert.Empty(t, state.ContextProject, "project context should be cleared")
+	assert.Empty(t, state.ContextContext, "context filter should be cleared")
+}
