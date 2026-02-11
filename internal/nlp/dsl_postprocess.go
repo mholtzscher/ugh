@@ -322,41 +322,26 @@ func normalizeOperation(op Operation) (Operation, bool) {
 	}
 
 	switch typed := op.(type) {
-	case SetOp:
-		return typed, true
 	case *SetOp:
 		if typed == nil {
 			return nil, false
 		}
-		return SetOp{Field: typed.Field, Value: typed.Value}, true
-	case AddOp:
-		return typed, true
+		return *typed, true
 	case *AddOp:
 		if typed == nil {
 			return nil, false
 		}
-		return AddOp{Field: typed.Field, Value: typed.Value}, true
-	case RemoveOp:
-		return typed, true
+		return *typed, true
 	case *RemoveOp:
 		if typed == nil {
 			return nil, false
 		}
-		return RemoveOp{Field: typed.Field, Value: typed.Value}, true
-	case ClearOp:
-		return typed, true
+		return *typed, true
 	case *ClearOp:
 		if typed == nil {
 			return nil, false
 		}
-		return ClearOp{Field: typed.Field}, true
-	case TagOp:
-		return typed, true
-	case *TagOp:
-		if typed == nil {
-			return nil, false
-		}
-		return TagOp{Kind: typed.Kind, Value: typed.Value}, true
+		return *typed, true
 	case *tagOpNode:
 		if typed == nil {
 			return nil, false
