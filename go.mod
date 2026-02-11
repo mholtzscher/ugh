@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/alecthomas/participle/v2 v2.1.4
+	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/chzyer/readline v1.5.1
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/pterm/pterm v0.12.82

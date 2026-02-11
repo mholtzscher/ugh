@@ -37,17 +37,18 @@ test-pkg PKG:
 fmt:
     go fmt ./...
 
-# Run static analysis
+# Run static analysis (excluding generated ANTLR code)
 vet:
-    go vet ./...
+    go vet $(go list ./... | grep -v /nlp/antlr/parser)
 
 # Run comprehensive linting
 lint:
     golangci-lint run
 
-# Generate code (sqlc)
+# Generate code (sqlc + antlr)
 generate:
    sqlc generate
+   @command -v antlr4 >/dev/null 2>&1 && (cd internal/nlp/antlr && antlr4 -Dlanguage=Go -package parser -visitor -listener -o parser UghLexer.g4 UghParser.g4) || echo "antlr4 not found, skipping ANTLR generation (add antlr to devShell or run: nix shell nixpkgs#antlr -c just generate)"
 
 # Run all checks (generate, format, vet, lint, test, tidy, gomod2nix)
 check: generate fmt vet lint test tidy gomod2nix

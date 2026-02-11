@@ -87,6 +87,7 @@
             pkgs.sqlc
             pkgs.just
             pkgs.cruft
+            pkgs.antlr
           ]
           ++ buildInputs
           ++ darwinBuildInputs;

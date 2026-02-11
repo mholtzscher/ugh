@@ -462,6 +462,10 @@ linters:
       - text: 'comment on exported \S+ \S+ should be of the form ".+"'
         source: '// ?(nolint|TODO)'
         linters: [ revive, staticcheck ]
+      # Exclude ANTLR-generated parser code from all linters.
+      - path: 'internal/nlp/antlr/parser/'
+        linters:
+          - all
       - path: '_test\.go'
         linters:
           - bodyclose
