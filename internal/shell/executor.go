@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pterm/pterm"
 
@@ -49,6 +50,14 @@ func (e *Executor) Execute(ctx context.Context, input string) (*ExecuteResult, e
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return nil, errors.New("empty command")
+	}
+
+	if badRune, runePos, ok := firstDisallowedControlRune(input); ok {
+		return nil, fmt.Errorf(
+			"command contains non-printable control character %s at rune position %d; paste plain text and try again",
+			formatControlRune(badRune),
+			runePos,
+		)
 	}
 
 	// Pre-process: resolve pronouns and context
@@ -300,6 +309,34 @@ func formatContextValue(value, prefix string) string {
 		return contextNoneValue
 	}
 	return prefix + value
+}
+
+func firstDisallowedControlRune(input string) (rune, int, bool) {
+	position := 1
+	for _, r := range input {
+		if isDisallowedControlRune(r) {
+			return r, position, true
+		}
+		position++
+	}
+
+	return 0, 0, false
+}
+
+func isDisallowedControlRune(r rune) bool {
+	if r == '\n' || r == '\r' || r == '\t' {
+		return false
+	}
+
+	return unicode.IsControl(r)
+}
+
+func formatControlRune(r rune) string {
+	if r >= 0 && r <= 0xFF {
+		return fmt.Sprintf("U+%04X (\\x%02X)", r, r)
+	}
+
+	return fmt.Sprintf("U+%04X", r)
 }
 
 func (e *Executor) showViewHelp() *ExecuteResult {
