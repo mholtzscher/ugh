@@ -1,6 +1,7 @@
 package nlp
 
-//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=Field,PredicateKind,TargetKind,TagKind,FilterBoolOp -output=ast_string.go
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=Field -trimprefix=Field -output=ast_field_string.go
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=PredicateKind,TargetKind,TagKind,FilterBoolOp -output=ast_string.go
 
 // Root is the top-level grammar entrypoint for the DSL.
 type Root struct {
