@@ -3,6 +3,7 @@ package nlp
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,110 +15,113 @@ const (
 	contextCommandVerb = "context"
 )
 
-func (v *CreateVerb) Parse(lex *lexer.PeekingLexer) error {
-	if v == nil {
-		return errors.New("nil CreateVerb")
+func parseIdent(lex *lexer.PeekingLexer) (string, error) {
+	tok := lex.Peek()
+	if tok == nil {
+		return "", participle.NextMatch
 	}
+	if tok.Type != dslSymbols["Ident"] {
+		return "", participle.NextMatch
+	}
+	return strings.ToLower(tok.Value), nil
+}
+
+func parseVerb(lex *lexer.PeekingLexer, allowed []string) (string, error) {
+	s, err := parseIdent(lex)
+	if err != nil {
+		return "", err
+	}
+	if slices.Contains(allowed, s) {
+		lex.Next()
+		return s, nil
+	}
+	return "", participle.NextMatch
+}
+
+func matchToken(lex *lexer.PeekingLexer, allowed []string) error {
 	tok := lex.Peek()
 	if tok == nil {
 		return participle.NextMatch
 	}
-	if tok.Type != dslSymbols["Ident"] {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(tok.Value)
-	switch s {
-	case "add", "create", "new":
+	s := strings.ToLower(strings.TrimSpace(tok.Value))
+	if slices.Contains(allowed, s) {
 		lex.Next()
-		*v = CreateVerb(s)
 		return nil
-	default:
-		return participle.NextMatch
 	}
+	return participle.NextMatch
 }
+
+//nolint:gochecknoglobals // constant lookup table for verb synonyms
+var createVerbs = []string{"add", "create", "new"}
+
+func (v *CreateVerb) Parse(lex *lexer.PeekingLexer) error {
+	if v == nil {
+		return errors.New("nil CreateVerb")
+	}
+	s, err := parseVerb(lex, createVerbs)
+	if err != nil {
+		return err
+	}
+	*v = CreateVerb(s)
+	return nil
+}
+
+//nolint:gochecknoglobals // constant lookup table for verb synonyms
+var updateVerbs = []string{"set", "edit", "update"}
 
 func (v *UpdateVerb) Parse(lex *lexer.PeekingLexer) error {
 	if v == nil {
 		return errors.New("nil UpdateVerb")
 	}
-	tok := lex.Peek()
-	if tok == nil {
-		return participle.NextMatch
+	s, err := parseVerb(lex, updateVerbs)
+	if err != nil {
+		return err
 	}
-	if tok.Type != dslSymbols["Ident"] {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(tok.Value)
-	switch s {
-	case "set", "edit", "update":
-		lex.Next()
-		*v = UpdateVerb(s)
-		return nil
-	default:
-		return participle.NextMatch
-	}
+	*v = UpdateVerb(s)
+	return nil
 }
+
+//nolint:gochecknoglobals // constant lookup table for verb synonyms
+var filterVerbs = []string{"find", "show", "list", "filter"}
 
 func (v *FilterVerb) Parse(lex *lexer.PeekingLexer) error {
 	if v == nil {
 		return errors.New("nil FilterVerb")
 	}
-	tok := lex.Peek()
-	if tok == nil {
-		return participle.NextMatch
+	s, err := parseVerb(lex, filterVerbs)
+	if err != nil {
+		return err
 	}
-	if tok.Type != dslSymbols["Ident"] {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(tok.Value)
-	switch s {
-	case "find", "show", "list", "filter":
-		lex.Next()
-		*v = FilterVerb(s)
-		return nil
-	default:
-		return participle.NextMatch
-	}
+	*v = FilterVerb(s)
+	return nil
 }
+
+//nolint:gochecknoglobals // constant lookup table for verb synonyms
+var viewVerbs = []string{"view"}
 
 func (v *ViewVerb) Parse(lex *lexer.PeekingLexer) error {
 	if v == nil {
 		return errors.New("nil ViewVerb")
 	}
-	tok := lex.Peek()
-	if tok == nil {
-		return participle.NextMatch
+	s, err := parseVerb(lex, viewVerbs)
+	if err != nil {
+		return err
 	}
-	if tok.Type != dslSymbols["Ident"] {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(tok.Value)
-	if s != "view" {
-		return participle.NextMatch
-	}
-
-	lex.Next()
 	*v = ViewVerb(s)
 	return nil
 }
+
+//nolint:gochecknoglobals // constant lookup table for verb synonyms
+var contextVerbs = []string{contextCommandVerb}
 
 func (v *ContextVerb) Parse(lex *lexer.PeekingLexer) error {
 	if v == nil {
 		return errors.New("nil ContextVerb")
 	}
-	tok := lex.Peek()
-	if tok == nil {
-		return participle.NextMatch
+	s, err := parseVerb(lex, contextVerbs)
+	if err != nil {
+		return err
 	}
-	if tok.Type != dslSymbols["Ident"] {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(tok.Value)
-	if s != contextCommandVerb {
-		return participle.NextMatch
-	}
-
-	lex.Next()
 	*v = ContextVerb(s)
 	return nil
 }
@@ -223,52 +227,34 @@ func (t *TargetRef) Parse(lex *lexer.PeekingLexer) error {
 	return fmt.Errorf("invalid update target: %s", tok.Value)
 }
 
+//nolint:gochecknoglobals // constant lookup table for operator symbols and keywords
+var orTokens = []string{"||", "or"}
+
 func (o *OrOperator) Parse(lex *lexer.PeekingLexer) error {
 	if o == nil {
 		return errors.New("nil OrOperator")
 	}
-	tok := lex.Peek()
-	if tok == nil {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(strings.TrimSpace(tok.Value))
-	if s == "||" || s == "or" {
-		lex.Next()
-		return nil
-	}
-	return participle.NextMatch
+	return matchToken(lex, orTokens)
 }
+
+//nolint:gochecknoglobals // constant lookup table for operator symbols and keywords
+var andTokens = []string{"&&", "and"}
 
 func (a *AndOperator) Parse(lex *lexer.PeekingLexer) error {
 	if a == nil {
 		return errors.New("nil AndOperator")
 	}
-	tok := lex.Peek()
-	if tok == nil {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(strings.TrimSpace(tok.Value))
-	if s == "&&" || s == "and" {
-		lex.Next()
-		return nil
-	}
-	return participle.NextMatch
+	return matchToken(lex, andTokens)
 }
+
+//nolint:gochecknoglobals // constant lookup table for operator symbols and keywords
+var notTokens = []string{"!", "not"}
 
 func (n *NotOperator) Parse(lex *lexer.PeekingLexer) error {
 	if n == nil {
 		return errors.New("nil NotOperator")
 	}
-	tok := lex.Peek()
-	if tok == nil {
-		return participle.NextMatch
-	}
-	s := strings.ToLower(strings.TrimSpace(tok.Value))
-	if s == "!" || s == "not" {
-		lex.Next()
-		return nil
-	}
-	return participle.NextMatch
+	return matchToken(lex, notTokens)
 }
 
 func (f *Field) Capture(values []string) error {
