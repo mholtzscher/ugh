@@ -40,25 +40,22 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 		return ParseResult{Intent: intent}, postErr
 	}
 
-	if opts.Mode != ModeAuto {
-		want := IntentUnknown
-		switch opts.Mode {
-		case ModeAuto:
-			want = IntentUnknown
-		case ModeCreate:
-			want = IntentCreate
-		case ModeUpdate:
-			want = IntentUpdate
-		case ModeFilter:
-			want = IntentFilter
-		case ModeView:
-			want = IntentView
-		case ModeContext:
-			want = IntentContext
-		}
-		if want != IntentUnknown && intent != want {
-			return ParseResult{Intent: intent, Command: cmdResult}, errors.New("command does not match parse mode")
-		}
+	want := IntentUnknown
+	switch opts.Mode {
+	case ModeAuto:
+	case ModeCreate:
+		want = IntentCreate
+	case ModeUpdate:
+		want = IntentUpdate
+	case ModeFilter:
+		want = IntentFilter
+	case ModeView:
+		want = IntentView
+	case ModeContext:
+		want = IntentContext
+	}
+	if want != IntentUnknown && intent != want {
+		return ParseResult{Intent: intent, Command: cmdResult}, errors.New("command does not match parse mode")
 	}
 
 	return ParseResult{Intent: intent, Command: cmdResult}, nil

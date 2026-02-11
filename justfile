@@ -19,7 +19,7 @@ run *ARGS:
 
 # Run all tests
 test:
-    go test ./...
+    go test -p 1 ./...
 
 # Run tests with verbose output
 test-verbose:
