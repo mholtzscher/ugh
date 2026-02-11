@@ -402,13 +402,7 @@ func trimEmpty(in []string) []string {
 }
 
 func isDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
+	return s != "" && !strings.ContainsFunc(s, func(r rune) bool {
+		return r < '0' || r > '9'
+	})
 }
