@@ -1,5 +1,7 @@
 package nlp
 
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=Field,PredicateKind,TargetKind,TagKind,FilterBoolOp -output=ast_string.go
+
 // Root is the top-level grammar entrypoint for the DSL.
 type Root struct {
 	Cmd Command `parser:"@@"`
@@ -168,6 +170,7 @@ type OpValue string
 // delimiters used in filter expressions.
 type FilterValue string
 
+//nolint:recvcheck // Field uses pointer Capture for parser decoding and value String for enum formatting.
 type Field int
 
 const (

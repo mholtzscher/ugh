@@ -47,7 +47,8 @@ lint:
 
 # Generate code (sqlc)
 generate:
-   sqlc generate
+    sqlc generate
+    go generate ./internal/nlp/...
 
 # Run all checks (generate, format, vet, lint, test, tidy, gomod2nix)
 check: generate fmt vet lint test tidy gomod2nix
