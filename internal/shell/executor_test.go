@@ -251,7 +251,21 @@ func TestExecuteRejectsControlCharacters(t *testing.T) {
 	_, err := exec.Execute(context.Background(), "\x16set #1 projects:work")
 	require.Error(t, err, "expected error for control character input")
 	assert.Contains(t, err.Error(), "control character", "error should explain invalid control character")
+	assert.Contains(t, err.Error(), "U+0016", "error should include Unicode control code")
 	assert.Contains(t, err.Error(), `\x16`, "error should include escaped control character")
+	assert.Contains(t, err.Error(), "rune position 1", "error should include 1-based rune position")
+}
+
+func TestExecuteRejectsControlCharactersReportsRunePosition(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	_, err := exec.Execute(context.Background(), "é\x16set #1 projects:work")
+	require.Error(t, err, "expected error for control character input")
+	assert.Contains(t, err.Error(), "U+0016", "error should include Unicode control code")
+	assert.Contains(t, err.Error(), "rune position 2", "error should report rune-based position")
 }
 
 func TestExecuteUpdatesLastTaskID(t *testing.T) {

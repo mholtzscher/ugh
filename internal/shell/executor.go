@@ -52,11 +52,11 @@ func (e *Executor) Execute(ctx context.Context, input string) (*ExecuteResult, e
 		return nil, errors.New("empty command")
 	}
 
-	if badRune, pos, ok := firstDisallowedControlRune(input); ok {
+	if badRune, runePos, ok := firstDisallowedControlRune(input); ok {
 		return nil, fmt.Errorf(
-			"command contains non-printable control character %s at character %d; paste plain text and try again",
+			"command contains non-printable control character %s at rune position %d; paste plain text and try again",
 			formatControlRune(badRune),
-			pos,
+			runePos,
 		)
 	}
 
