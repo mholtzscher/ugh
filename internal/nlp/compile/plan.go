@@ -437,20 +437,15 @@ func normalizeDate(value string, now time.Time) (string, error) {
 	}
 
 	day := now
-	switch lower {
-	case "today":
-		return day.Format(domain.DateLayoutYYYYMMDD), nil
-	case "tomorrow":
-		return day.AddDate(0, 0, 1).Format(domain.DateLayoutYYYYMMDD), nil
-	case "next-week":
+	if lower == "next-week" {
 		return day.AddDate(0, 0, nextWeekDaySpan).Format(domain.DateLayoutYYYYMMDD), nil
-	default:
-		normalized, err := naturaldate.Parse(lower, day)
-		if err != nil {
-			return "", domain.InvalidDateFormatError(value)
-		}
-		return normalized.Format(domain.DateLayoutYYYYMMDD), nil
 	}
+
+	normalized, err := naturaldate.Parse(lower, day)
+	if err != nil {
+		return "", domain.InvalidDateFormatError(value)
+	}
+	return normalized.Format(domain.DateLayoutYYYYMMDD), nil
 }
 
 func parseList(value string) []string {
