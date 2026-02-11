@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tj/go-naturaldate"
+
 	"github.com/mholtzscher/ugh/internal/domain"
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/service"
@@ -430,20 +432,20 @@ func applyUpdateTag(req *service.UpdateTaskRequest, op nlp.TagOp) {
 
 func normalizeDate(value string, now time.Time) (string, error) {
 	lower := strings.ToLower(strings.TrimSpace(value))
-	day := now
-	switch lower {
-	case "today":
-		return day.Format(domain.DateLayoutYYYYMMDD), nil
-	case "tomorrow":
-		return day.AddDate(0, 0, 1).Format(domain.DateLayoutYYYYMMDD), nil
-	case "next-week":
-		return day.AddDate(0, 0, nextWeekDaySpan).Format(domain.DateLayoutYYYYMMDD), nil
-	default:
-		if _, err := time.Parse(domain.DateLayoutYYYYMMDD, lower); err != nil {
-			return "", domain.InvalidDateFormatError(value)
-		}
+	if _, err := time.Parse(domain.DateLayoutYYYYMMDD, lower); err == nil {
 		return lower, nil
 	}
+
+	day := now
+	if lower == "next-week" {
+		return day.AddDate(0, 0, nextWeekDaySpan).Format(domain.DateLayoutYYYYMMDD), nil
+	}
+
+	normalized, err := naturaldate.Parse(lower, day)
+	if err != nil {
+		return "", domain.InvalidDateFormatError(value)
+	}
+	return normalized.Format(domain.DateLayoutYYYYMMDD), nil
 }
 
 func parseList(value string) []string {

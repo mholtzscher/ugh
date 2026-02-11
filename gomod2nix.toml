@@ -73,6 +73,9 @@ schema = 3
   [mod."github.com/stretchr/testify"]
     version = "v1.11.1"
     hash = "sha256-sWfjkuKJyDllDEtnM8sb/pdLzPQmUYWYtmeWz/5suUc="
+  [mod."github.com/tj/go-naturaldate"]
+    version = "v1.3.0"
+    hash = "sha256-YUkBNda/RJ3zEzzWrF5YntSjgsgwWBdRTtOeJoOzp4k="
   [mod."github.com/tursodatabase/turso-go-platform-libs"]
     version = "v0.4.3"
     hash = "sha256-8dIVrU1Z7GSQ0G+OCdeNZJiAVkc2qgkdHUc3VSe41nI="
