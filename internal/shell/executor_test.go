@@ -242,6 +242,18 @@ func TestExecuteWhitespaceOnlyCommand(t *testing.T) {
 	require.Error(t, err, "expected error for whitespace-only command")
 }
 
+func TestExecuteRejectsControlCharacters(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	_, err := exec.Execute(context.Background(), "\x16set #1 projects:work")
+	require.Error(t, err, "expected error for control character input")
+	assert.Contains(t, err.Error(), "control character", "error should explain invalid control character")
+	assert.Contains(t, err.Error(), `\x16`, "error should include escaped control character")
+}
+
 func TestExecuteUpdatesLastTaskID(t *testing.T) {
 	t.Parallel()
 
