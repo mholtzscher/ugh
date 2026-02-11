@@ -1,6 +1,9 @@
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	TaskStateInbox   = "inbox"
@@ -27,6 +30,19 @@ func IsTaskState(value string) bool {
 	default:
 		return false
 	}
+}
+
+// NormalizeState normalizes a state value, handling defaults and aliases.
+// Empty values and "todo" are treated as "inbox".
+func NormalizeState(value string) (string, error) {
+	state := strings.ToLower(strings.TrimSpace(value))
+	if state == "" || state == "todo" {
+		return TaskStateInbox, nil
+	}
+	if !IsTaskState(state) {
+		return "", InvalidStateExpectedError(value)
+	}
+	return state, nil
 }
 
 func InvalidStateExpectedError(value string) error {
