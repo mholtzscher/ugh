@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tj/go-naturaldate"
+
 	"github.com/mholtzscher/ugh/internal/domain"
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/service"
@@ -430,6 +432,10 @@ func applyUpdateTag(req *service.UpdateTaskRequest, op nlp.TagOp) {
 
 func normalizeDate(value string, now time.Time) (string, error) {
 	lower := strings.ToLower(strings.TrimSpace(value))
+	if _, err := time.Parse(domain.DateLayoutYYYYMMDD, lower); err == nil {
+		return lower, nil
+	}
+
 	day := now
 	switch lower {
 	case "today":
@@ -439,10 +445,11 @@ func normalizeDate(value string, now time.Time) (string, error) {
 	case "next-week":
 		return day.AddDate(0, 0, nextWeekDaySpan).Format(domain.DateLayoutYYYYMMDD), nil
 	default:
-		if _, err := time.Parse(domain.DateLayoutYYYYMMDD, lower); err != nil {
+		normalized, err := naturaldate.Parse(lower, day)
+		if err != nil {
 			return "", domain.InvalidDateFormatError(value)
 		}
-		return lower, nil
+		return normalized.Format(domain.DateLayoutYYYYMMDD), nil
 	}
 }
 

@@ -29,6 +29,19 @@ func TestBuildCreatePlan(t *testing.T) {
 	require.Equal(t, []string{"errands"}, plan.Create.Contexts, "contexts mismatch")
 }
 
+func TestBuildCreatePlanNormalizesNaturalLanguageDueDate(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
+	parsed, err := nlp.Parse(`add buy milk due:next monday`, nlp.ParseOptions{Now: now})
+	require.NoError(t, err, "Parse(create) error")
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{Now: now})
+	require.NoError(t, err, "Build(create) error")
+	require.NotNil(t, plan.Create, "create request is nil")
+	require.Equal(t, "2026-02-16", plan.Create.DueOn, "due mismatch")
+}
+
 func TestBuildUpdatePlanResolvesSelectedTarget(t *testing.T) {
 	t.Parallel()
 
@@ -174,6 +187,47 @@ func TestBuildFilterPlanNormalizesNextWeekDate(t *testing.T) {
 	require.True(t, ok, "filter type should be Predicate, got %T", plan.Filter.Filter)
 	require.Equal(t, nlp.PredDue, pred.Kind, "predicate kind mismatch")
 	require.Equal(t, "2026-02-17", pred.Text, "due predicate text mismatch")
+}
+
+func TestBuildFilterPlanNormalizesNaturalLanguageDate(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
+	parsed, err := nlp.Parse(`find due:next monday`, nlp.ParseOptions{Now: now})
+	require.NoError(t, err, "Parse(filter) error")
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{Now: now})
+	require.NoError(t, err, "Build(filter) error")
+
+	pred, ok := plan.Filter.Filter.(nlp.Predicate)
+	require.True(t, ok, "filter type should be Predicate, got %T", plan.Filter.Filter)
+	require.Equal(t, nlp.PredDue, pred.Kind, "predicate kind mismatch")
+	require.Equal(t, "2026-02-16", pred.Text, "due predicate text mismatch")
+}
+
+func TestBuildFilterPlanNaturalLanguageDateStopsAtAndOperator(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)
+	parsed, err := nlp.Parse(`find due:in 3 days and state:now`, nlp.ParseOptions{Now: now})
+	require.NoError(t, err, "Parse(filter) error")
+
+	plan, err := compile.Build(parsed, compile.BuildOptions{Now: now})
+	require.NoError(t, err, "Build(filter) error")
+
+	binary, ok := plan.Filter.Filter.(nlp.FilterBinary)
+	require.True(t, ok, "filter type should be FilterBinary, got %T", plan.Filter.Filter)
+	require.Equal(t, nlp.FilterAnd, binary.Op, "filter should be AND")
+
+	duePred, ok := binary.Left.(nlp.Predicate)
+	require.True(t, ok, "left should be Predicate, got %T", binary.Left)
+	require.Equal(t, nlp.PredDue, duePred.Kind, "left predicate kind mismatch")
+	require.Equal(t, "2026-02-13", duePred.Text, "left due predicate text mismatch")
+
+	statePred, ok := binary.Right.(nlp.Predicate)
+	require.True(t, ok, "right should be Predicate, got %T", binary.Right)
+	require.Equal(t, nlp.PredState, statePred.Kind, "right predicate kind mismatch")
+	require.Equal(t, "now", statePred.Text, "right predicate text mismatch")
 }
 
 func TestBuildFilterPlanNormalizesExplicitDate(t *testing.T) {
