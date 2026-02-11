@@ -20,6 +20,7 @@ func TestNormalizeState(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "empty defaults to inbox", input: "", want: store.StateInbox},
+		{name: "todo alias maps to inbox", input: "todo", want: store.StateInbox},
 		{name: "trim and lowercase", input: "  NOW ", want: store.StateNow},
 		{name: "invalid state", input: "bogus", wantErr: true},
 	}

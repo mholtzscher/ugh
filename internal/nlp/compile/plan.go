@@ -205,7 +205,7 @@ func compilePredicate(pred nlp.Predicate, opts BuildOptions) (nlp.Predicate, err
 
 	switch pred.Kind {
 	case nlp.PredState:
-		state, err := normalizeState(compiled.Text)
+		state, err := domain.NormalizeState(compiled.Text)
 		if err != nil {
 			return nlp.Predicate{}, err
 		}
@@ -252,7 +252,7 @@ func applyCreateSet(req *service.CreateTaskRequest, op nlp.SetOp, now time.Time)
 	case nlp.FieldWaiting:
 		req.WaitingFor = value
 	case nlp.FieldState:
-		state, err := normalizeState(value)
+		state, err := domain.NormalizeState(value)
 		if err != nil {
 			return err
 		}
@@ -335,7 +335,7 @@ func applyUpdateSet(req *service.UpdateTaskRequest, op nlp.SetOp, now time.Time)
 		req.WaitingFor = ptr(value)
 		req.ClearWaitingFor = false
 	case nlp.FieldState:
-		state, err := normalizeState(value)
+		state, err := domain.NormalizeState(value)
 		if err != nil {
 			return err
 		}
@@ -426,17 +426,6 @@ func applyUpdateTag(req *service.UpdateTaskRequest, op nlp.TagOp) {
 		return
 	}
 	req.AddContexts = append(req.AddContexts, strings.TrimSpace(op.Value))
-}
-
-func normalizeState(value string) (string, error) {
-	state := strings.ToLower(strings.TrimSpace(value))
-	if state == "todo" {
-		state = domain.TaskStateInbox
-	}
-	if !domain.IsTaskState(state) {
-		return "", domain.InvalidStateExpectedError(value)
-	}
-	return state, nil
 }
 
 func normalizeDate(value string, now time.Time) (string, error) {

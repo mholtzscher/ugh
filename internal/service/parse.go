@@ -30,12 +30,9 @@ func parseDay(value string) (*time.Time, error) {
 }
 
 func normalizeState(value string) (store.State, error) {
-	value = strings.ToLower(strings.TrimSpace(value))
-	if value == "" {
-		return store.State(domain.TaskStateInbox), nil
+	normalized, err := domain.NormalizeState(value)
+	if err != nil {
+		return "", err
 	}
-	if !domain.IsTaskState(value) {
-		return "", domain.InvalidStateExpectedError(value)
-	}
-	return store.State(value), nil
+	return store.State(normalized), nil
 }
