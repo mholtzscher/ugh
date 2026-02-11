@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/mholtzscher/ugh/compare/v0.1.1...v0.2.0) (2026-02-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **tui:** The interactive TUI has been removed. Use CLI commands directly.
+* The legacy database schema and todo.txt file format support have been removed. This update requires a clean database migration that resets existing tasks to the new GTD-first structure.
+
+### Features
+
+* add interactive shell with REPL, command history and scripting support ([#16](https://github.com/mholtzscher/ugh/issues/16)) ([854cde7](https://github.com/mholtzscher/ugh/commit/854cde79e46a188572f85a4cc8a179aac8cea56e))
+* **config:** auto-initialize config file when missing ([fffaf52](https://github.com/mholtzscher/ugh/commit/fffaf5299df9aba301c94945c2e99c292c90f4ef))
+* **history:** add shell command history tracking and viewing ([#44](https://github.com/mholtzscher/ugh/issues/44)) ([56c3edf](https://github.com/mholtzscher/ugh/commit/56c3edf2ebb6dec32bf729fe62129dd62452660f))
+* migrate terminal output to pterm with styled messages and inline form editing ([#14](https://github.com/mholtzscher/ugh/issues/14)) ([c186c78](https://github.com/mholtzscher/ugh/commit/c186c78dd5f0820c4c052769c3cba22c8a32012e))
+* **nlp:** add due date filtering to task queries ([#47](https://github.com/mholtzscher/ugh/issues/47)) ([4c6426a](https://github.com/mholtzscher/ugh/commit/4c6426aba20aec4a6f844de157980c49c4a887ae))
+* **nlp:** add due date filtering to task queries ([#48](https://github.com/mholtzscher/ugh/issues/48)) ([5dff5b0](https://github.com/mholtzscher/ugh/commit/5dff5b015c2ba3dde36b584204f464cb45f44973))
+* **nlp:** add view and context command support ([#63](https://github.com/mholtzscher/ugh/issues/63)) ([f433b35](https://github.com/mholtzscher/ugh/commit/f433b353c72217ef1f82d22fe38d4238ee5812dd))
+* **nlp:** support natural language due date parsing ([#82](https://github.com/mholtzscher/ugh/issues/82)) ([952a759](https://github.com/mholtzscher/ugh/commit/952a759b09755c1a7d53c0ac5d7ffbf6e8a77d52))
+* redesign task model for GTD-first architecture ([#2](https://github.com/mholtzscher/ugh/issues/2)) ([5b7d79a](https://github.com/mholtzscher/ugh/commit/5b7d79a934e8d06e83d66610d77e7eddc18a5e01))
+* **repl:** show current context when no args provided ([6145c24](https://github.com/mholtzscher/ugh/commit/6145c2465a4e9d8080ff2ab7e0c73475b42d6433))
+* **shell:** add "last" keyword substitution for task references ([50c5b94](https://github.com/mholtzscher/ugh/commit/50c5b94dfe523112df84af5a4e6ea96095698547))
+* **shell:** add color output support with pterm integration ([#45](https://github.com/mholtzscher/ugh/issues/45)) ([8e2a5bb](https://github.com/mholtzscher/ugh/commit/8e2a5bb25e05484ba64349ea801553e3b40f60d6))
+* **shell:** add prompt autocomplete and syntax highlighting ([#61](https://github.com/mholtzscher/ugh/issues/61)) ([8309359](https://github.com/mholtzscher/ugh/commit/8309359c789da5b11f11c9f9aa8bfe9119a4f2ef))
+* **shell:** add quick view shortcuts for common task filters ([#46](https://github.com/mholtzscher/ugh/issues/46)) ([1a4ac29](https://github.com/mholtzscher/ugh/commit/1a4ac291bd759794b45a2978fa8309020845e7df))
+* **shell:** rename context commands from 'set' to 'context' syntax ([#41](https://github.com/mholtzscher/ugh/issues/41)) ([fa9272c](https://github.com/mholtzscher/ugh/commit/fa9272c5ede58555276efe87c35c48ba7a47bde9))
+* **tui:** add natural-language command mode for tasks ([#13](https://github.com/mholtzscher/ugh/issues/13)) ([346fdad](https://github.com/mholtzscher/ugh/commit/346fdad106d4a8be86b84b647f05c7bd39cfb533))
+* **tui:** componentize task panes and form interactions ([#12](https://github.com/mholtzscher/ugh/issues/12)) ([b148d7c](https://github.com/mholtzscher/ugh/commit/b148d7cb9395755d8064f0dd695d46bf7e9ba508))
+* **tui:** hide redundant state column when filtered by state ([f466293](https://github.com/mholtzscher/ugh/commit/f466293208bf7b7a8573d2d84a0309979a91131f))
+* **tui:** remove TUI functionality ([#15](https://github.com/mholtzscher/ugh/issues/15)) ([a913cc8](https://github.com/mholtzscher/ugh/commit/a913cc8c60002b0792a7cc06f9e027c2b0d7b3f0))
+
+
+### Bug Fixes
+
+* **nlp:** generate enum String methods for diagnostics ([#81](https://github.com/mholtzscher/ugh/issues/81)) ([62d2a48](https://github.com/mholtzscher/ugh/commit/62d2a48581c71269a43530f036af1a7c5ada5a54))
+* **nlp:** require explicit command verbs in parser ([#17](https://github.com/mholtzscher/ugh/issues/17)) ([ba20af7](https://github.com/mholtzscher/ugh/commit/ba20af71ad2d46e1a1a8c5c94d1f763201abc805))
+* **nlp:** support repeated filter predicates in query compilation ([#49](https://github.com/mholtzscher/ugh/issues/49)) ([6b922b6](https://github.com/mholtzscher/ugh/commit/6b922b6c3f319a240536737bffdbc7a59837b477))
+* **shell:** move sticky context injection to AST phase ([#51](https://github.com/mholtzscher/ugh/issues/51)) ([a3985b9](https://github.com/mholtzscher/ugh/commit/a3985b9c6f5ef565767ef53cc351158891bf0283))
+* **shell:** reject non-printable control characters in command input ([#80](https://github.com/mholtzscher/ugh/issues/80)) ([e68c2d7](https://github.com/mholtzscher/ugh/commit/e68c2d7587494c8ca6cba6f3134d4be01a164f90))
+* **state:** normalize task state handling across parsing ([#79](https://github.com/mholtzscher/ugh/issues/79)) ([b457c6d](https://github.com/mholtzscher/ugh/commit/b457c6d00dd2b5a302ada10c0671c776a0478f56)), closes [#65](https://github.com/mholtzscher/ugh/issues/65)
+
 ## [0.1.1](https://github.com/mholtzscher/ugh/compare/v0.1.0...v0.1.1) (2026-02-04)
 
 
