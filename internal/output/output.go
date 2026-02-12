@@ -266,6 +266,66 @@ type HistoryEntry struct {
 	Intent  string
 }
 
+type TaskEventJSON struct {
+	ID             int64  `json:"id"`
+	TaskID         int64  `json:"taskId"`
+	Time           string `json:"time"`
+	Kind           string `json:"kind"`
+	Summary        string `json:"summary,omitempty"`
+	Changes        string `json:"changes,omitempty"`
+	Origin         string `json:"origin,omitempty"`
+	ShellHistoryID *int64 `json:"shellHistoryId,omitempty"`
+	ShellCommand   string `json:"shellCommand,omitempty"`
+}
+
+type TaskEventEntry struct {
+	ID             int64
+	TaskID         int64
+	Time           time.Time
+	Kind           string
+	Summary        string
+	ChangesJSON    string
+	Origin         string
+	ShellHistoryID *int64
+	ShellCommand   string
+}
+
+type TaskEventView string
+
+const (
+	TaskEventViewTimeline TaskEventView = "timeline"
+	TaskEventViewCompact  TaskEventView = "compact"
+	TaskEventViewTable    TaskEventView = "table"
+	TaskEventViewDiff     TaskEventView = "diff"
+)
+
+const TaskEventViewsUsage = "timeline|compact|table|diff"
+
+type TaskEventRenderOptions struct {
+	View    TaskEventView
+	Verbose bool
+}
+
+const (
+	statusSuccessSymbol = "✓"
+	statusFailedSymbol  = "✗"
+)
+
+func ParseTaskEventView(value string) (TaskEventView, error) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return TaskEventViewTimeline, nil
+	}
+
+	view := TaskEventView(normalized)
+	switch view {
+	case TaskEventViewTimeline, TaskEventViewCompact, TaskEventViewTable, TaskEventViewDiff:
+		return view, nil
+	default:
+		return "", fmt.Errorf("invalid view %q (expected %s)", value, TaskEventViewsUsage)
+	}
+}
+
 func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 	if w.JSON {
 		payload := make([]HistoryJSON, 0, len(entries))
@@ -287,9 +347,9 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 	}
 
 	for _, e := range entries {
-		status := "✓"
+		status := statusSuccessSymbol
 		if !e.Success {
-			status = "✗"
+			status = statusFailedSymbol
 		}
 		_, err := fmt.Fprintf(w.Out, "%d\t%s\t%s\t%s\t%s\n",
 			e.ID,
@@ -297,6 +357,61 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 			status,
 			e.Intent,
 			e.Command,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w Writer) WriteTaskEvents(entries []*TaskEventEntry) error {
+	return w.WriteTaskEventsWithOptions(entries, TaskEventRenderOptions{})
+}
+
+func (w Writer) WriteTaskEventsWithOptions(entries []*TaskEventEntry, options TaskEventRenderOptions) error {
+	view := options.View
+	if view == "" {
+		view = TaskEventViewTimeline
+	}
+
+	if w.JSON {
+		payload := make([]TaskEventJSON, 0, len(entries))
+		for _, e := range entries {
+			payload = append(payload, TaskEventJSON{
+				ID:             e.ID,
+				TaskID:         e.TaskID,
+				Time:           formatDateTime(e.Time),
+				Kind:           e.Kind,
+				Summary:        e.Summary,
+				Changes:        e.ChangesJSON,
+				Origin:         e.Origin,
+				ShellHistoryID: e.ShellHistoryID,
+				ShellCommand:   e.ShellCommand,
+			})
+		}
+		return writeJSON(w.Out, payload)
+	}
+
+	if w.TTY {
+		return writeHumanTaskEvents(w.Out, w.NoColor, entries, TaskEventRenderOptions{
+			View:    view,
+			Verbose: options.Verbose,
+		})
+	}
+
+	for _, e := range entries {
+		changes := summarizeTaskEventChanges(e.ChangesJSON, false)
+		_, err := fmt.Fprintf(
+			w.Out,
+			"%d\t%d\t%s\t%s\t%s\t%s\t%s\n",
+			e.ID,
+			e.TaskID,
+			formatDateTime(e.Time),
+			e.Kind,
+			e.Origin,
+			e.Summary,
+			changes,
 		)
 		if err != nil {
 			return err

@@ -31,7 +31,9 @@ type Service interface {
 	SearchShellHistory(
 		ctx context.Context, search, intent string, success *bool, limit int64,
 	) ([]*store.ShellHistory, error)
+	UpdateShellHistory(ctx context.Context, id int64, success bool, summary string, intent string) error
 	ClearShellHistory(ctx context.Context) error
+	ListTaskEvents(ctx context.Context, taskID int64, limit int64) ([]*store.TaskEvent, error)
 }
 
 // Ensure TaskService implements Service.

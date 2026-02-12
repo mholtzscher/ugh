@@ -8,6 +8,7 @@ import (
 	"github.com/pterm/pterm"
 
 	"github.com/mholtzscher/ugh/internal/service"
+	"github.com/mholtzscher/ugh/internal/store"
 )
 
 // Prompt wraps readline functionality.
@@ -72,7 +73,12 @@ func NewHistory(svc service.Service) *History {
 }
 
 // Record records a command in history.
-func (h *History) Record(ctx context.Context, command string, success bool, summary string, intent string) error {
-	_, err := h.svc.RecordShellHistory(ctx, command, success, summary, intent)
-	return err
+func (h *History) Record(
+	ctx context.Context, command string, success bool, summary string, intent string,
+) (*store.ShellHistory, error) {
+	return h.svc.RecordShellHistory(ctx, command, success, summary, intent)
+}
+
+func (h *History) Update(ctx context.Context, id int64, success bool, summary string, intent string) error {
+	return h.svc.UpdateShellHistory(ctx, id, success, summary, intent)
 }

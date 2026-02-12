@@ -80,6 +80,7 @@ var rootCmd = &cli.Command{
 		calendarCmd,
 		listCmd,
 		showCmd,
+		logCmd,
 		editCmd,
 		doneCmd,
 		undoCmd,
