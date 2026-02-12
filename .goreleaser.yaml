@@ -39,9 +39,25 @@ checksum:
 changelog:
   use: github-native
 
+brews:
+  - name: ugh
+    repository:
+      owner: mholtzscher
+      name: homebrew-tap
+      token: "{{ .Env.PAT }}"
+    directory: Formula
+    homepage: "https://github.com/mholtzscher/ugh"
+    description: "A GTD-first task CLI with SQLite storage."
+    license: "MIT"
+    install: |
+      bin.install "ugh"
+    test: |
+      system "#{bin}/ugh", "--version"
+
 release:
   github:
     owner: mholtzscher
     name: ugh
   prerelease: auto
   name_template: "v{{.Version}}"
+
