@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 
@@ -104,6 +105,10 @@ func loadConfig(cmd *cli.Command) error {
 		rootNoColor = cmd.Bool(flags.FlagNoColor)
 	}
 
+	if rootNoColor || os.Getenv("NO_COLOR") != "" {
+		pterm.DisableColor()
+	}
+
 	configPath := rootConfigPath
 	result, err := config.Load(configPath, true)
 	if err != nil {
@@ -188,10 +193,9 @@ func effectiveDBPath() (string, error) {
 func Execute() {
 	if err := rootCmd.Run(context.Background(), os.Args); err != nil {
 		writer := output.Writer{
-			Out:     os.Stderr,
-			JSON:    false,
-			NoColor: rootNoColor || os.Getenv("NO_COLOR") != "",
-			TTY:     term.IsTerminal(int(os.Stderr.Fd())),
+			Out:  os.Stderr,
+			JSON: false,
+			TTY:  term.IsTerminal(int(os.Stderr.Fd())),
 		}
 		_ = writer.WriteError(err.Error())
 		os.Exit(1)
@@ -288,5 +292,5 @@ func userDataDir() (string, error) {
 }
 
 func outputWriter() output.Writer {
-	return output.NewWriter(rootJSON, rootNoColor)
+	return output.NewWriter(rootJSON)
 }

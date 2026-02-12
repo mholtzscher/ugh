@@ -30,7 +30,7 @@ const (
 func NewDisplay(noColor bool) *Display {
 	return &Display{
 		mode:    DisplayCompact,
-		writer:  output.NewWriter(false, noColor),
+		writer:  output.NewWriter(false),
 		noColor: noColor,
 	}
 }

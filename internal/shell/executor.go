@@ -261,7 +261,7 @@ func (e *Executor) executeLog(ctx context.Context, plan compile.Plan) (*ExecuteR
 	e.state.LastTaskIDs = []int64{taskID}
 
 	var rendered bytes.Buffer
-	writer := output.Writer{Out: &rendered, JSON: false, NoColor: e.noColor, TTY: true}
+	writer := output.Writer{Out: &rendered, JSON: false, TTY: true}
 	if writeErr := writer.WriteTaskVersionDiff(versions); writeErr != nil {
 		return nil, fmt.Errorf("write version diff: %w", writeErr)
 	}

@@ -18,10 +18,9 @@ import (
 )
 
 type Writer struct {
-	Out     io.Writer
-	JSON    bool
-	NoColor bool
-	TTY     bool
+	Out  io.Writer
+	JSON bool
+	TTY  bool
 }
 
 type KeyValue struct {
@@ -29,12 +28,11 @@ type KeyValue struct {
 	Value string
 }
 
-func NewWriter(jsonMode bool, noColor bool) Writer {
+func NewWriter(jsonMode bool) Writer {
 	return Writer{
-		Out:     os.Stdout,
-		JSON:    jsonMode,
-		NoColor: noColor || os.Getenv("NO_COLOR") != "",
-		TTY:     term.IsTerminal(int(os.Stdout.Fd())),
+		Out:  os.Stdout,
+		JSON: jsonMode,
+		TTY:  term.IsTerminal(int(os.Stdout.Fd())),
 	}
 }
 
@@ -48,7 +46,7 @@ func (w Writer) WriteTask(task *store.Task) error {
 	}
 
 	if w.TTY {
-		return writeHumanTask(w.Out, w.NoColor, task)
+		return writeHumanTask(w.Out, task)
 	}
 	_, err := fmt.Fprintln(w.Out, plainLine(task))
 	return err
@@ -64,7 +62,7 @@ func (w Writer) WriteTasks(tasks []*store.Task) error {
 	}
 
 	if w.TTY {
-		return writeHumanList(w.Out, w.NoColor, tasks)
+		return writeHumanList(w.Out, tasks)
 	}
 	for _, task := range tasks {
 		if _, err := fmt.Fprintln(w.Out, plainLine(task)); err != nil {
@@ -80,7 +78,7 @@ func (w Writer) WriteTags(tags []store.NameCount) error {
 	}
 
 	if w.TTY {
-		return writeHumanTags(w.Out, w.NoColor, tags)
+		return writeHumanTags(w.Out, tags)
 	}
 	for _, tag := range tags {
 		if _, err := fmt.Fprintln(w.Out, tag.Name); err != nil {
@@ -95,7 +93,7 @@ func (w Writer) WriteTagsWithCounts(tags []store.NameCount) error {
 		return writeJSON(w.Out, tags)
 	}
 	if w.TTY {
-		return writeHumanTagsWithCounts(w.Out, w.NoColor, tags)
+		return writeHumanTagsWithCounts(w.Out, tags)
 	}
 
 	for _, tag := range tags {
@@ -111,14 +109,14 @@ func (w Writer) WriteSummary(summary any) error {
 		return writeJSON(w.Out, summary)
 	}
 	if w.TTY {
-		return writeHumanSummary(w.Out, w.NoColor, summary)
+		return writeHumanSummary(w.Out, summary)
 	}
 	return writePlainSummary(w.Out, summary)
 }
 
 func (w Writer) WriteKeyValues(rows []KeyValue) error {
 	if w.TTY {
-		return writeHumanKeyValues(w.Out, w.NoColor, rows)
+		return writeHumanKeyValues(w.Out, rows)
 	}
 	for _, row := range rows {
 		if _, err := fmt.Fprintf(w.Out, "%s:\t%s\n", row.Key, row.Value); err != nil {
@@ -134,7 +132,7 @@ func (w Writer) WriteLine(line string) error {
 		return err
 	}
 	formatted := pterm.DefaultBasicText.Sprintln(line)
-	return writeRenderedLine(w.Out, w.NoColor, formatted)
+	return writeRenderedLine(w.Out, formatted)
 }
 
 func (w Writer) WriteInfo(line string) error {
@@ -159,7 +157,7 @@ func (w Writer) writePrefixLine(printer pterm.PrefixPrinter, line string) error 
 		return err
 	}
 	formatted := printer.Sprintln(line)
-	return writeRenderedLine(w.Out, w.NoColor, formatted)
+	return writeRenderedLine(w.Out, formatted)
 }
 
 type TaskJSON struct {
@@ -284,7 +282,7 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 	}
 
 	if w.TTY {
-		return writeHumanHistory(w.Out, w.NoColor, entries)
+		return writeHumanHistory(w.Out, entries)
 	}
 
 	for _, e := range entries {
@@ -357,7 +355,7 @@ func (w Writer) WriteTaskVersionDiff(versions []*store.TaskVersion) error {
 	}
 
 	if w.TTY {
-		return writeHumanTaskVersionDiff(w.Out, w.NoColor, versions)
+		return writeHumanTaskVersionDiff(w.Out, versions)
 	}
 
 	for i, current := range versions {

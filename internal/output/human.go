@@ -20,7 +20,7 @@ type Summary struct {
 	File   string  `json:"file,omitempty"`
 }
 
-func writeHumanTask(out io.Writer, noColor bool, task *store.Task) error {
+func writeHumanTask(out io.Writer, task *store.Task) error {
 	rows := pterm.TableData{
 		{"Field", "Value"},
 		{"ID", strconv.FormatInt(task.ID, 10)},
@@ -37,10 +37,10 @@ func writeHumanTask(out io.Writer, noColor bool, task *store.Task) error {
 		{"Contexts", joinListOrDash(task.Contexts)},
 		{"Meta", metaOrDash(task.Meta)},
 	}
-	return renderTable(out, noColor, rows)
+	return renderTable(out, rows)
 }
 
-func writeHumanList(out io.Writer, noColor bool, tasks []*store.Task) error {
+func writeHumanList(out io.Writer, tasks []*store.Task) error {
 	rows := pterm.TableData{{"ID", "State", "Due", "Task"}}
 	for _, task := range tasks {
 		rows = append(rows, []string{
@@ -50,10 +50,10 @@ func writeHumanList(out io.Writer, noColor bool, tasks []*store.Task) error {
 			task.Title,
 		})
 	}
-	return renderTable(out, noColor, rows)
+	return renderTable(out, rows)
 }
 
-func writeHumanSummary(out io.Writer, noColor bool, summary any) error {
+func writeHumanSummary(out io.Writer, summary any) error {
 	switch value := summary.(type) {
 	case Summary:
 		ids := "-"
@@ -61,9 +61,9 @@ func writeHumanSummary(out io.Writer, noColor bool, summary any) error {
 			ids = joinIDs(value.IDs)
 		}
 		rows := pterm.TableData{{"Action", "Count", "IDs"}, {value.Action, strconv.FormatInt(value.Count, 10), ids}}
-		return renderTable(out, noColor, rows)
+		return renderTable(out, rows)
 	default:
-		return writeRenderedLine(out, noColor, pterm.DefaultBasicText.Sprintln(fmt.Sprintf("%v", value)))
+		return writeRenderedLine(out, pterm.DefaultBasicText.Sprintln(fmt.Sprintf("%v", value)))
 	}
 }
 
@@ -151,48 +151,45 @@ func stateOrDash(value *store.State) string {
 	return string(*value)
 }
 
-func writeHumanTags(out io.Writer, noColor bool, tags []store.NameCount) error {
-	return writeHumanTagsWithCounts(out, noColor, tags)
+func writeHumanTags(out io.Writer, tags []store.NameCount) error {
+	return writeHumanTagsWithCounts(out, tags)
 }
 
-func writeHumanTagsWithCounts(out io.Writer, noColor bool, tags []store.NameCount) error {
+func writeHumanTagsWithCounts(out io.Writer, tags []store.NameCount) error {
 	rows := pterm.TableData{{"Name", "Count"}}
 	for _, tag := range tags {
 		rows = append(rows, []string{tag.Name, strconv.FormatInt(tag.Count, 10)})
 	}
-	return renderTable(out, noColor, rows)
+	return renderTable(out, rows)
 }
 
-func writeHumanKeyValues(out io.Writer, noColor bool, rows []KeyValue) error {
+func writeHumanKeyValues(out io.Writer, rows []KeyValue) error {
 	tableData := pterm.TableData{{"Key", "Value"}}
 	for _, row := range rows {
 		tableData = append(tableData, []string{row.Key, row.Value})
 	}
-	return renderTable(out, noColor, tableData)
+	return renderTable(out, tableData)
 }
 
-func renderTable(out io.Writer, noColor bool, data pterm.TableData) error {
+func renderTable(out io.Writer, data pterm.TableData) error {
 	table := pterm.DefaultTable.WithHasHeader().WithLeftAlignment().WithBoxed().WithData(data)
 	rendered, err := table.Srender()
 	if err != nil {
 		return err
 	}
-	return writeRenderedLine(out, noColor, rendered)
+	return writeRenderedLine(out, rendered)
 }
 
-func writeRenderedLine(out io.Writer, noColor bool, line string) error {
-	if noColor {
-		line = pterm.RemoveColorFromString(line)
-	}
+func writeRenderedLine(out io.Writer, line string) error {
 	_, err := fmt.Fprint(out, line)
 	return err
 }
 
 const maxCommandDisplayLength = 50
 
-func writeHumanHistory(out io.Writer, noColor bool, entries []*HistoryEntry) error {
+func writeHumanHistory(out io.Writer, entries []*HistoryEntry) error {
 	if len(entries) == 0 {
-		return writeRenderedLine(out, noColor, pterm.DefaultBasicText.Sprintln("No history entries"))
+		return writeRenderedLine(out, pterm.DefaultBasicText.Sprintln("No history entries"))
 	}
 
 	rows := pterm.TableData{{"Time", "Status", "Intent", "Command"}}
@@ -212,25 +209,19 @@ func writeHumanHistory(out io.Writer, noColor bool, entries []*HistoryEntry) err
 		}
 		rows = append(rows, []string{timeStr, status, intent, cmd})
 	}
-	return renderTable(out, noColor, rows)
+	return renderTable(out, rows)
 }
 
 //nolint:gocognit // Rendering diff output combines formatting and color decisions.
-func writeHumanTaskVersionDiff(out io.Writer, noColor bool, versions []*store.TaskVersion) error {
+func writeHumanTaskVersionDiff(out io.Writer, versions []*store.TaskVersion) error {
 	if len(versions) == 0 {
-		return writeRenderedLine(out, noColor, pterm.DefaultBasicText.Sprintln("No task history entries"))
+		return writeRenderedLine(out, pterm.DefaultBasicText.Sprintln("No task history entries"))
 	}
 
 	for i, current := range versions {
 		header := fmt.Sprintf("Version %d  %s", current.VersionID, current.UpdatedAt.Format("2006-01-02 15:04:05"))
-		if noColor {
-			if _, err := fmt.Fprintln(out, header); err != nil {
-				return err
-			}
-		} else {
-			if err := writeRenderedLine(out, noColor, pterm.Cyan(header)+"\n"); err != nil {
-				return err
-			}
+		if err := writeRenderedLine(out, pterm.Cyan(header)+"\n"); err != nil {
+			return err
 		}
 
 		var prev *store.TaskVersion
@@ -250,13 +241,6 @@ func writeHumanTaskVersionDiff(out io.Writer, noColor bool, versions []*store.Ta
 				line = fmt.Sprintf("%s %s: %s", prefix, change.Field, emptyDash(change.Old))
 			}
 
-			if noColor {
-				if _, err := fmt.Fprintf(out, "  %s\n", line); err != nil {
-					return err
-				}
-				continue
-			}
-
 			var colored string
 			switch prefix {
 			case "+":
@@ -266,7 +250,7 @@ func writeHumanTaskVersionDiff(out io.Writer, noColor bool, versions []*store.Ta
 			default:
 				colored = pterm.LightYellow(line)
 			}
-			if err := writeRenderedLine(out, noColor, "  "+colored+"\n"); err != nil {
+			if err := writeRenderedLine(out, "  "+colored+"\n"); err != nil {
 				return err
 			}
 		}
