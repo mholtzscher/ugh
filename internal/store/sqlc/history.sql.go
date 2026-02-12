@@ -174,29 +174,3 @@ func (q *Queries) SearchShellHistory(ctx context.Context, arg SearchShellHistory
 	}
 	return items, nil
 }
-
-const updateShellHistory = `-- name: UpdateShellHistory :exec
-UPDATE shell_history
-SET
-  success = ?,
-  result_summary = ?,
-  intent = ?
-WHERE id = ?
-`
-
-type UpdateShellHistoryParams struct {
-	Success       bool           `json:"success"`
-	ResultSummary sql.NullString `json:"result_summary"`
-	Intent        sql.NullString `json:"intent"`
-	ID            int64          `json:"id"`
-}
-
-func (q *Queries) UpdateShellHistory(ctx context.Context, arg UpdateShellHistoryParams) error {
-	_, err := q.db.ExecContext(ctx, updateShellHistory,
-		arg.Success,
-		arg.ResultSummary,
-		arg.Intent,
-		arg.ID,
-	)
-	return err
-}

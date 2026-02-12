@@ -35,9 +35,7 @@ const (
 	FlagSuccess       = "success"
 	FlagTodo          = "todo"
 	FlagUndone        = "undone"
-	FlagVerbose       = "verbose"
 	FlagDueOn         = "due"
-	FlagView          = "view"
 	FlagWaitingFor    = "waiting-for"
 	FlagWhere         = "where"
 )

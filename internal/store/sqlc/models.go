@@ -51,17 +51,6 @@ type TaskContextLink struct {
 	ContextID int64 `json:"context_id"`
 }
 
-type TaskEvent struct {
-	ID             int64          `json:"id"`
-	TaskID         int64          `json:"task_id"`
-	Timestamp      int64          `json:"timestamp"`
-	Kind           string         `json:"kind"`
-	Summary        sql.NullString `json:"summary"`
-	ChangesJson    sql.NullString `json:"changes_json"`
-	Origin         sql.NullString `json:"origin"`
-	ShellHistoryID sql.NullInt64  `json:"shell_history_id"`
-}
-
 type TaskMetum struct {
 	TaskID int64  `json:"task_id"`
 	Key    string `json:"key"`
