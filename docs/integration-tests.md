@@ -53,12 +53,10 @@ just check
 - REPL filter errors: `testdata/script/repl_filters_errors.txt`
 - history command filtering and clear flow: `testdata/script/history_cmd.txt`
 
-### Database invariants
+### Testscript policy
 
-- migrations, expected tables, and relational cleanup checks: `testdata/script/db_invariants.txt`
-- custom script helpers defined in `main_test.go`:
-  - `dbquery <db> <sql...>`
-  - `dbexec <db> <sql...>`
+- testscript scenarios should stay end-to-end and exercise behavior through the public CLI only.
+- avoid direct SQL assertions or custom testscript DB commands in `testdata/script/`.
 
 ## Out Of Scope
 
@@ -75,3 +73,4 @@ just check
 ## Known Gaps / TODO
 
 - editor-interactive flow (`ugh edit <id>` without field flags) is not covered end-to-end due non-interactive test environment constraints.
+- DB schema/migration invariants are intentionally not asserted in testscript e2e coverage.

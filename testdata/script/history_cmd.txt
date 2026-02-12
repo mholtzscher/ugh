@@ -20,12 +20,12 @@ stdout '"command":"find state:now"'
 stdout '"success":true'
 stdout '"intent":"filter"'
 
-dbexec $WORK/db.sqlite INSERT INTO shell_history(timestamp, command, success, result_summary, intent) VALUES (1700000000, char(102,97,105,108,105,110,103,95,99,109,100), 0, char(111,111,112,115), char(102,105,108,116,101,114));
-cmp stdout want-dbexec.txt
+exec ugh --db $WORK/db.sqlite history --success
+stdout 'add Shell created state:now'
+stdout 'find state:now'
 
 exec ugh --db $WORK/db.sqlite history --failed
-stdout 'failing_cmd'
-! stdout 'add Shell created state:now'
+! stdout .
 
 ! exec ugh --db $WORK/db.sqlite history --success --failed
 stderr 'cannot use both --success and --failed flags'
@@ -40,7 +40,5 @@ exec ugh --db $WORK/db.sqlite history --limit 10
 add Shell created state:now
 find state:now
 quit
--- want-dbexec.txt --
-1
 -- want-clear.txt --
 History cleared
