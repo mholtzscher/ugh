@@ -13,6 +13,7 @@ import (
 
 const (
 	contextCommandVerb = "context"
+	filterFieldDue     = "due"
 )
 
 func parseIdent(lex *lexer.PeekingLexer) (string, error) {
@@ -266,7 +267,7 @@ func (f *Field) Capture(values []string) error {
 	case "notes":
 		*f = FieldNotes
 		return nil
-	case "due":
+	case filterFieldDue:
 		*f = FieldDue
 		return nil
 	case "waiting", "waiting-for", "waiting_for":
@@ -347,6 +348,7 @@ func isFilterValueDelimiter(tok *lexer.Token) bool {
 func isFilterValueToken(tok *lexer.Token) bool {
 	return tok.Type == dslSymbols["Ident"] ||
 		tok.Type == dslSymbols["HashNumber"] ||
+		tok.Type == dslSymbols["Star"] ||
 		tok.Type == dslSymbols["Colon"] ||
 		tok.Type == dslSymbols["Comma"]
 }

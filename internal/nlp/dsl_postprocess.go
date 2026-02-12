@@ -73,6 +73,9 @@ func (f *FilterCommand) postProcess() error {
 	if f.Chain == nil {
 		return errors.New("filter command requires an expression")
 	}
+	if err := validateFilterChain(f.Chain); err != nil {
+		return err
+	}
 	expr := f.Chain.toExpr()
 	if expr == nil {
 		return errors.New("filter command requires an expression")
@@ -236,7 +239,10 @@ func (p *FilterFieldPredicate) toPredicate() *Predicate {
 		return nil
 	}
 	field := normalizeCapturedField([]string{p.Field})
-	value := strings.TrimSpace(string(p.Value))
+	value := ""
+	if p.Value != nil {
+		value = strings.TrimSpace(string(*p.Value))
+	}
 
 	switch field {
 	case "state":
@@ -261,6 +267,63 @@ func (p *FilterFieldPredicate) toPredicate() *Predicate {
 		}
 		return &Predicate{Kind: PredText, Text: field + ":" + value}
 	}
+}
+
+func validateFilterChain(chain *FilterOrChain) error {
+	if chain == nil {
+		return nil
+	}
+	if err := validateFilterAndChain(chain.Left); err != nil {
+		return err
+	}
+	return validateFilterChain(chain.Right)
+}
+
+func validateFilterAndChain(chain *FilterAndChain) error {
+	if chain == nil {
+		return nil
+	}
+	if err := validateFilterNotExpr(chain.Left); err != nil {
+		return err
+	}
+	return validateFilterAndChain(chain.Right)
+}
+
+func validateFilterNotExpr(expr *FilterNotExpr) error {
+	if expr == nil || expr.Atom == nil {
+		return nil
+	}
+	return validateFilterAtom(expr.Atom)
+}
+
+func validateFilterAtom(atom *FilterAtom) error {
+	if atom == nil {
+		return nil
+	}
+	if atom.Paren != nil {
+		return validateFilterChain(atom.Paren)
+	}
+	if atom.Pred == nil {
+		return nil
+	}
+	return validateFilterPredicate(atom.Pred)
+}
+
+func validateFilterPredicate(pred *FilterPredicate) error {
+	if pred == nil || pred.Field == nil {
+		return nil
+	}
+	return validateFieldPredicate(pred.Field)
+}
+
+func validateFieldPredicate(pred *FilterFieldPredicate) error {
+	if pred == nil {
+		return nil
+	}
+	if pred.Value == nil || strings.TrimSpace(string(*pred.Value)) == "" {
+		return errors.New("expected value")
+	}
+	return nil
 }
 
 func (p *FilterTagPredicate) toPredicate() *Predicate {

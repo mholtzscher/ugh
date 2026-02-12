@@ -205,6 +205,17 @@ func compilePredicate(pred nlp.Predicate, opts BuildOptions) (nlp.Predicate, err
 	compiled := pred
 	compiled.Text = strings.TrimSpace(pred.Text)
 
+	if compiled.Text == nlp.FilterWildcard {
+		switch pred.Kind {
+		case nlp.PredDue, nlp.PredProject, nlp.PredContext:
+			return compiled, nil
+		case nlp.PredState, nlp.PredText, nlp.PredID:
+			return nlp.Predicate{}, fmt.Errorf("wildcard is not supported for %v", pred.Kind)
+		default:
+			return nlp.Predicate{}, fmt.Errorf("unsupported predicate kind %v", pred.Kind)
+		}
+	}
+
 	switch pred.Kind {
 	case nlp.PredState:
 		state, err := domain.NormalizeState(compiled.Text)
@@ -214,7 +225,7 @@ func compilePredicate(pred nlp.Predicate, opts BuildOptions) (nlp.Predicate, err
 		compiled.Text = state
 	case nlp.PredDue:
 		if compiled.Text == "" {
-			return compiled, nil
+			return nlp.Predicate{}, errors.New("filter value cannot be empty")
 		}
 		dueDate, err := normalizeDate(compiled.Text, opts.Now)
 		if err != nil {

@@ -142,11 +142,11 @@ func TestBuildFilterPlanInvalidIDReturnsError(t *testing.T) {
 	require.Error(t, err, "Build(filter) should return invalid id error")
 }
 
-func TestNormalizeFilterExpr_AllowsDueSetPredicate(t *testing.T) {
+func TestNormalizeFilterExpr_AllowsWildcardSetPredicate(t *testing.T) {
 	t.Parallel()
 
 	expr, err := compile.NormalizeFilterExpr(
-		nlp.Predicate{Kind: nlp.PredDue, Text: ""},
+		nlp.Predicate{Kind: nlp.PredDue, Text: nlp.FilterWildcard},
 		compile.BuildOptions{Now: time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)},
 	)
 	require.NoError(t, err, "NormalizeFilterExpr() error")
@@ -154,7 +154,33 @@ func TestNormalizeFilterExpr_AllowsDueSetPredicate(t *testing.T) {
 	pred, ok := expr.(nlp.Predicate)
 	require.True(t, ok, "expr type should be Predicate, got %T", expr)
 	require.Equal(t, nlp.PredDue, pred.Kind, "predicate kind mismatch")
-	require.Empty(t, pred.Text, "predicate text mismatch")
+	require.Equal(t, nlp.FilterWildcard, pred.Text, "predicate text mismatch")
+}
+
+func TestNormalizeFilterExpr_AllowsWildcardProjectPredicate(t *testing.T) {
+	t.Parallel()
+
+	expr, err := compile.NormalizeFilterExpr(
+		nlp.Predicate{Kind: nlp.PredProject, Text: nlp.FilterWildcard},
+		compile.BuildOptions{Now: time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)},
+	)
+	require.NoError(t, err, "NormalizeFilterExpr() error")
+
+	pred, ok := expr.(nlp.Predicate)
+	require.True(t, ok, "expr type should be Predicate, got %T", expr)
+	require.Equal(t, nlp.PredProject, pred.Kind, "predicate kind mismatch")
+	require.Equal(t, nlp.FilterWildcard, pred.Text, "predicate text mismatch")
+}
+
+func TestNormalizeFilterExpr_WildcardStateReturnsError(t *testing.T) {
+	t.Parallel()
+
+	_, err := compile.NormalizeFilterExpr(
+		nlp.Predicate{Kind: nlp.PredState, Text: nlp.FilterWildcard},
+		compile.BuildOptions{Now: time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC)},
+	)
+	require.Error(t, err, "NormalizeFilterExpr() should reject wildcard for state")
+	assert.Contains(t, err.Error(), "wildcard", "error should mention wildcard")
 }
 
 func TestBuildFilterPlanNormalizesTodayDate(t *testing.T) {

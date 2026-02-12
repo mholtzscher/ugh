@@ -112,5 +112,5 @@ func dueSetExpr(enabled bool) nlp.FilterExpr {
 	if !enabled {
 		return nil
 	}
-	return nlp.Predicate{Kind: nlp.PredDue, Text: ""}
+	return nlp.Predicate{Kind: nlp.PredDue, Text: nlp.FilterWildcard}
 }

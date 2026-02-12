@@ -60,7 +60,7 @@ func (b *filterSQLBuilder) buildPredicate(pred nlp.Predicate) (sq.Sqlizer, error
 	case nlp.PredState:
 		return sq.Eq{"t.state": value}, nil
 	case nlp.PredDue:
-		if value == "" {
+		if value == nlp.FilterWildcard {
 			return sq.Expr("(t.due_on IS NOT NULL AND t.due_on != '')"), nil
 		}
 		return sq.Eq{"t.due_on": value}, nil
@@ -68,15 +68,19 @@ func (b *filterSQLBuilder) buildPredicate(pred nlp.Predicate) (sq.Sqlizer, error
 		subquery := sq.Select("1").
 			From("task_project_links tpl").
 			Join("projects p ON p.id = tpl.project_id").
-			Where(sq.Expr("tpl.task_id = t.id")).
-			Where(sq.Eq{"p.name": value})
+			Where(sq.Expr("tpl.task_id = t.id"))
+		if value != nlp.FilterWildcard {
+			subquery = subquery.Where(sq.Eq{"p.name": value})
+		}
 		return sq.Expr("EXISTS (?)", subquery), nil
 	case nlp.PredContext:
 		subquery := sq.Select("1").
 			From("task_context_links tcl").
 			Join("contexts c ON c.id = tcl.context_id").
-			Where(sq.Expr("tcl.task_id = t.id")).
-			Where(sq.Eq{"c.name": value})
+			Where(sq.Expr("tcl.task_id = t.id"))
+		if value != nlp.FilterWildcard {
+			subquery = subquery.Where(sq.Eq{"c.name": value})
+		}
 		return sq.Expr("EXISTS (?)", subquery), nil
 	case nlp.PredText:
 		if value == "" {

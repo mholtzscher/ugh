@@ -56,6 +56,7 @@ var dslLexer = lexer.MustStateful(lexer.Rules{
 		// Logical operators
 		{Name: "AndOp", Pattern: `&&`},
 		{Name: "OrOp", Pattern: `\|\|`},
+		{Name: "Star", Pattern: `\*`},
 
 		// In-progress quoted string support for interactive shell.
 		{Name: "QuoteStart", Pattern: `"`, Action: lexer.Push("String")},
