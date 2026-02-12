@@ -12,6 +12,14 @@ const (
 	StateDone    State = "done"
 )
 
+const (
+	TaskEventKindCreate = "create"
+	TaskEventKindUpdate = "update"
+	TaskEventKindDone   = "done"
+	TaskEventKindUndo   = "undo"
+	TaskEventKindDelete = "delete"
+)
+
 type Task struct {
 	ID          int64
 	State       State
@@ -45,4 +53,16 @@ type ShellHistory struct {
 	Success       bool
 	ResultSummary string
 	Intent        string
+}
+
+type TaskEvent struct {
+	ID             int64
+	TaskID         int64
+	Timestamp      int64
+	Kind           string
+	Summary        string
+	ChangesJSON    string
+	Origin         string
+	ShellHistoryID *int64
+	ShellCommand   string
 }

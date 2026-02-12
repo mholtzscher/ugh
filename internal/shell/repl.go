@@ -14,6 +14,7 @@ import (
 	"github.com/pterm/pterm/putils"
 
 	"github.com/mholtzscher/ugh/internal/service"
+	"github.com/mholtzscher/ugh/internal/store"
 )
 
 // Mode defines how the shell operates.
@@ -192,12 +193,26 @@ func (r *REPL) processCommand(ctx context.Context, input string) error {
 
 	r.state.CommandCount++
 
-	result, err := r.executor.Execute(ctx, input)
+	histEntry, histErr := r.history.Record(ctx, input, false, "", "")
+
+	execCtx := store.WithAuditOrigin(ctx, "shell")
+	if histEntry != nil {
+		execCtx = store.WithAuditShellHistoryID(execCtx, histEntry.ID)
+	}
+
+	result, err := r.executor.Execute(execCtx, input)
 	if err != nil {
+		if histEntry != nil {
+			_ = r.history.Update(ctx, histEntry.ID, false, err.Error(), "")
+		}
 		return err
 	}
 
-	if histErr := r.history.Record(ctx, input, true, result.Summary, result.Intent); histErr != nil {
+	if histEntry != nil {
+		if updateErr := r.history.Update(ctx, histEntry.ID, true, result.Summary, result.Intent); updateErr != nil {
+			_ = updateErr
+		}
+	} else if histErr != nil {
 		_ = histErr
 	}
 
