@@ -347,7 +347,7 @@ func (e *Executor) showViewHelp() *ExecuteResult {
 			"  " + pterm.LightGreen("n, now") + "       Now tasks\n" +
 			"  " + pterm.LightGreen("w, waiting") + "   Waiting tasks\n" +
 			"  " + pterm.LightGreen("l, later") + "     Later tasks\n" +
-			"  " + pterm.LightGreen("c, calendar") + "  Tasks due today\n" +
+			"  " + pterm.LightGreen("c, calendar") + "  Tasks with due dates\n" +
 			"\nUsage: view <name> (e.g., view i or view inbox)"
 	} else {
 		var b strings.Builder
@@ -356,7 +356,7 @@ func (e *Executor) showViewHelp() *ExecuteResult {
 		b.WriteString("  n, now       Now tasks\n")
 		b.WriteString("  w, waiting   Waiting tasks\n")
 		b.WriteString("  l, later     Later tasks\n")
-		b.WriteString("  c, calendar  Tasks due today\n")
+		b.WriteString("  c, calendar  Tasks with due dates\n")
 		b.WriteString("\nUsage: view <name> (e.g., view i or view inbox)")
 		msg = b.String()
 	}

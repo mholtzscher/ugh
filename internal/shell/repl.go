@@ -226,7 +226,7 @@ func (r *REPL) showPlainHelp() {
 	_, _ = fmt.Fprintln(os.Stdout, "Views:")
 	_, _ = fmt.Fprintln(os.Stdout, "  view i/inbox      Inbox      view n/now        Now")
 	_, _ = fmt.Fprintln(os.Stdout, "  view w/waiting    Waiting    view l/later      Later")
-	_, _ = fmt.Fprintln(os.Stdout, "  view c/calendar   Due today")
+	_, _ = fmt.Fprintln(os.Stdout, "  view c/calendar   Tasks with due dates")
 	_, _ = fmt.Fprintln(os.Stdout, "")
 
 	_, _ = fmt.Fprintln(os.Stdout, "Examples:")
@@ -294,7 +294,7 @@ func (r *REPL) showColorHelp() {
 			pterm.LightGreen("view n/now") + "       Now tasks\n" +
 			pterm.LightGreen("view w/waiting") + "   Waiting tasks\n" +
 			pterm.LightGreen("view l/later") + "     Later tasks\n" +
-			pterm.LightGreen("view c/calendar") + "  Tasks due today")
+			pterm.LightGreen("view c/calendar") + "  Tasks with due dates")
 
 	// Examples panel
 	pterm.DefaultBox.WithTitle(pterm.Green("Examples")).WithRightPadding(1).WithLeftPadding(1).Println(
