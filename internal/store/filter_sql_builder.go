@@ -65,52 +65,33 @@ func (b *filterSQLBuilder) buildPredicate(pred nlp.Predicate) (sq.Sqlizer, error
 		}
 		return sq.Eq{"t.due_on": value}, nil
 	case nlp.PredProject:
-		subquery := sq.Select("1").
-			From("task_project_links tpl").
-			Join("projects p ON p.id = tpl.project_id").
-			Where(sq.Expr("tpl.task_id = t.id"))
 		if value != nlp.FilterWildcard {
-			subquery = subquery.Where(sq.Eq{"p.name": value})
+			return sq.Expr(
+				"EXISTS (SELECT 1 FROM json_each(t.projects_json) WHERE value = ?)",
+				value,
+			), nil
 		}
-		return sq.Expr("EXISTS (?)", subquery), nil
+		return sq.Expr("json_array_length(t.projects_json) > 0"), nil
 	case nlp.PredContext:
-		subquery := sq.Select("1").
-			From("task_context_links tcl").
-			Join("contexts c ON c.id = tcl.context_id").
-			Where(sq.Expr("tcl.task_id = t.id"))
 		if value != nlp.FilterWildcard {
-			subquery = subquery.Where(sq.Eq{"c.name": value})
+			return sq.Expr(
+				"EXISTS (SELECT 1 FROM json_each(t.contexts_json) WHERE value = ?)",
+				value,
+			), nil
 		}
-		return sq.Expr("EXISTS (?)", subquery), nil
+		return sq.Expr("json_array_length(t.contexts_json) > 0"), nil
 	case nlp.PredText:
 		if value == "" {
 			return sq.Expr("1=1"), nil
 		}
 		like := "%" + value + "%"
 
-		projectSubquery := sq.Select("1").
-			From("task_project_links tpl").
-			Join("projects p ON p.id = tpl.project_id").
-			Where(sq.Expr("tpl.task_id = t.id")).
-			Where(sq.Like{"p.name": like})
-
-		contextSubquery := sq.Select("1").
-			From("task_context_links tcl").
-			Join("contexts c ON c.id = tcl.context_id").
-			Where(sq.Expr("tcl.task_id = t.id")).
-			Where(sq.Like{"c.name": like})
-
-		metaSubquery := sq.Select("1").
-			From("task_meta m").
-			Where(sq.Expr("m.task_id = t.id")).
-			Where(sq.Or{sq.Like{"m.key": like}, sq.Like{"m.value": like}})
-
 		return sq.Or{
 			sq.Like{"t.title": like},
 			sq.Like{"t.notes": like},
-			sq.Expr("EXISTS (?)", projectSubquery),
-			sq.Expr("EXISTS (?)", contextSubquery),
-			sq.Expr("EXISTS (?)", metaSubquery),
+			sq.Expr("EXISTS (SELECT 1 FROM json_each(t.projects_json) WHERE value LIKE ?)", like),
+			sq.Expr("EXISTS (SELECT 1 FROM json_each(t.contexts_json) WHERE value LIKE ?)", like),
+			sq.Expr("EXISTS (SELECT 1 FROM json_each(t.meta_json) WHERE key LIKE ? OR value LIKE ?)", like, like),
 		}, nil
 	case nlp.PredID:
 		id, err := strconv.ParseInt(value, 10, 64)

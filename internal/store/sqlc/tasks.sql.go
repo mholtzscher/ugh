@@ -8,146 +8,16 @@ package sqlc
 import (
 	"context"
 	"database/sql"
-	"strings"
 )
 
-const completeTasks = `-- name: CompleteTasks :execrows
-UPDATE tasks
-SET
-  prev_state = CASE WHEN state != 'done' THEN state ELSE prev_state END,
-  state = 'done',
-  completed_at = ?,
-  updated_at = ?
-WHERE id IN (/*SLICE:ids*/?)
+const deleteTaskCurrent = `-- name: DeleteTaskCurrent :exec
+DELETE FROM tasks_current
+WHERE id = ?
 `
 
-type CompleteTasksParams struct {
-	CompletedAt sql.NullInt64 `json:"completed_at"`
-	UpdatedAt   int64         `json:"updated_at"`
-	Ids         []int64       `json:"ids"`
-}
-
-func (q *Queries) CompleteTasks(ctx context.Context, arg CompleteTasksParams) (int64, error) {
-	query := completeTasks
-	var queryParams []interface{}
-	queryParams = append(queryParams, arg.CompletedAt)
-	queryParams = append(queryParams, arg.UpdatedAt)
-	if len(arg.Ids) > 0 {
-		for _, v := range arg.Ids {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
-	}
-	result, err := q.db.ExecContext(ctx, query, queryParams...)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
-const deleteMeta = `-- name: DeleteMeta :exec
-DELETE FROM task_meta WHERE task_id = ?
-`
-
-func (q *Queries) DeleteMeta(ctx context.Context, taskID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteMeta, taskID)
+func (q *Queries) DeleteTaskCurrent(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteTaskCurrent, id)
 	return err
-}
-
-const deleteTaskContextLinks = `-- name: DeleteTaskContextLinks :exec
-DELETE FROM task_context_links WHERE task_id = ?
-`
-
-func (q *Queries) DeleteTaskContextLinks(ctx context.Context, taskID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteTaskContextLinks, taskID)
-	return err
-}
-
-const deleteTaskProjectLinks = `-- name: DeleteTaskProjectLinks :exec
-DELETE FROM task_project_links WHERE task_id = ?
-`
-
-func (q *Queries) DeleteTaskProjectLinks(ctx context.Context, taskID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteTaskProjectLinks, taskID)
-	return err
-}
-
-const deleteTasks = `-- name: DeleteTasks :execrows
-DELETE FROM tasks
-WHERE id IN (/*SLICE:ids*/?)
-`
-
-func (q *Queries) DeleteTasks(ctx context.Context, ids []int64) (int64, error) {
-	query := deleteTasks
-	var queryParams []interface{}
-	if len(ids) > 0 {
-		for _, v := range ids {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
-	}
-	result, err := q.db.ExecContext(ctx, query, queryParams...)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
-const ensureContext = `-- name: EnsureContext :one
-INSERT INTO contexts (
-  name,
-  created_at,
-  updated_at
-) VALUES (
-  ?, ?, ?
-)
-ON CONFLICT(name) DO UPDATE SET
-  updated_at = excluded.updated_at
-RETURNING id
-`
-
-type EnsureContextParams struct {
-	Name      string `json:"name"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
-}
-
-func (q *Queries) EnsureContext(ctx context.Context, arg EnsureContextParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, ensureContext, arg.Name, arg.CreatedAt, arg.UpdatedAt)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
-}
-
-const ensureProject = `-- name: EnsureProject :one
-INSERT INTO projects (
-  name,
-  notes,
-  created_at,
-  updated_at
-) VALUES (
-  ?, '', ?, ?
-)
-ON CONFLICT(name) DO UPDATE SET
-  updated_at = excluded.updated_at
-RETURNING id
-`
-
-type EnsureProjectParams struct {
-	Name      string `json:"name"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
-}
-
-func (q *Queries) EnsureProject(ctx context.Context, arg EnsureProjectParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, ensureProject, arg.Name, arg.CreatedAt, arg.UpdatedAt)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
 }
 
 const getTask = `-- name: GetTask :one
@@ -161,22 +31,30 @@ SELECT
   waiting_for,
   completed_at,
   created_at,
-  updated_at
-FROM tasks
+  updated_at,
+  projects_json,
+  contexts_json,
+  meta_json,
+  version_id
+FROM tasks_current
 WHERE id = ?
 `
 
 type GetTaskRow struct {
-	ID          int64          `json:"id"`
-	State       string         `json:"state"`
-	PrevState   sql.NullString `json:"prev_state"`
-	Title       string         `json:"title"`
-	Notes       string         `json:"notes"`
-	DueOn       sql.NullString `json:"due_on"`
-	WaitingFor  sql.NullString `json:"waiting_for"`
-	CompletedAt sql.NullInt64  `json:"completed_at"`
-	CreatedAt   int64          `json:"created_at"`
-	UpdatedAt   int64          `json:"updated_at"`
+	ID           int64          `json:"id"`
+	State        string         `json:"state"`
+	PrevState    sql.NullString `json:"prev_state"`
+	Title        string         `json:"title"`
+	Notes        string         `json:"notes"`
+	DueOn        sql.NullString `json:"due_on"`
+	WaitingFor   sql.NullString `json:"waiting_for"`
+	CompletedAt  sql.NullInt64  `json:"completed_at"`
+	CreatedAt    int64          `json:"created_at"`
+	UpdatedAt    int64          `json:"updated_at"`
+	ProjectsJson string         `json:"projects_json"`
+	ContextsJson string         `json:"contexts_json"`
+	MetaJson     string         `json:"meta_json"`
+	VersionID    int64          `json:"version_id"`
 }
 
 func (q *Queries) GetTask(ctx context.Context, id int64) (GetTaskRow, error) {
@@ -193,27 +71,148 @@ func (q *Queries) GetTask(ctx context.Context, id int64) (GetTaskRow, error) {
 		&i.CompletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProjectsJson,
+		&i.ContextsJson,
+		&i.MetaJson,
+		&i.VersionID,
 	)
 	return i, err
 }
 
-const insertMeta = `-- name: InsertMeta :exec
-INSERT INTO task_meta (task_id, key, value) VALUES (?, ?, ?)
+const insertTaskIdentity = `-- name: InsertTaskIdentity :execresult
+INSERT INTO tasks (created_at) VALUES (?)
 `
 
-type InsertMetaParams struct {
-	TaskID int64  `json:"task_id"`
-	Key    string `json:"key"`
-	Value  string `json:"value"`
+func (q *Queries) InsertTaskIdentity(ctx context.Context, createdAt int64) (sql.Result, error) {
+	return q.db.ExecContext(ctx, insertTaskIdentity, createdAt)
 }
 
-func (q *Queries) InsertMeta(ctx context.Context, arg InsertMetaParams) error {
-	_, err := q.db.ExecContext(ctx, insertMeta, arg.TaskID, arg.Key, arg.Value)
-	return err
+const insertTaskVersion = `-- name: InsertTaskVersion :one
+INSERT INTO task_versions (
+  task_id,
+  state,
+  prev_state,
+  title,
+  notes,
+  due_on,
+  waiting_for,
+  completed_at,
+  updated_at,
+  deleted,
+  projects_json,
+  contexts_json,
+  meta_json
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING version_id
+`
+
+type InsertTaskVersionParams struct {
+	TaskID       int64          `json:"task_id"`
+	State        string         `json:"state"`
+	PrevState    sql.NullString `json:"prev_state"`
+	Title        string         `json:"title"`
+	Notes        string         `json:"notes"`
+	DueOn        sql.NullString `json:"due_on"`
+	WaitingFor   sql.NullString `json:"waiting_for"`
+	CompletedAt  sql.NullInt64  `json:"completed_at"`
+	UpdatedAt    int64          `json:"updated_at"`
+	Deleted      int64          `json:"deleted"`
+	ProjectsJson string         `json:"projects_json"`
+	ContextsJson string         `json:"contexts_json"`
+	MetaJson     string         `json:"meta_json"`
 }
 
-const insertTask = `-- name: InsertTask :one
-INSERT INTO tasks (
+func (q *Queries) InsertTaskVersion(ctx context.Context, arg InsertTaskVersionParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertTaskVersion,
+		arg.TaskID,
+		arg.State,
+		arg.PrevState,
+		arg.Title,
+		arg.Notes,
+		arg.DueOn,
+		arg.WaitingFor,
+		arg.CompletedAt,
+		arg.UpdatedAt,
+		arg.Deleted,
+		arg.ProjectsJson,
+		arg.ContextsJson,
+		arg.MetaJson,
+	)
+	var version_id int64
+	err := row.Scan(&version_id)
+	return version_id, err
+}
+
+const listTaskVersions = `-- name: ListTaskVersions :many
+SELECT
+  version_id,
+  task_id,
+  state,
+  prev_state,
+  title,
+  notes,
+  due_on,
+  waiting_for,
+  completed_at,
+  updated_at,
+  deleted,
+  projects_json,
+  contexts_json,
+  meta_json
+FROM task_versions
+WHERE task_id = ?
+ORDER BY version_id DESC
+LIMIT ?
+`
+
+type ListTaskVersionsParams struct {
+	TaskID int64 `json:"task_id"`
+	Limit  int64 `json:"limit"`
+}
+
+func (q *Queries) ListTaskVersions(ctx context.Context, arg ListTaskVersionsParams) ([]TaskVersion, error) {
+	rows, err := q.db.QueryContext(ctx, listTaskVersions, arg.TaskID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TaskVersion
+	for rows.Next() {
+		var i TaskVersion
+		if err := rows.Scan(
+			&i.VersionID,
+			&i.TaskID,
+			&i.State,
+			&i.PrevState,
+			&i.Title,
+			&i.Notes,
+			&i.DueOn,
+			&i.WaitingFor,
+			&i.CompletedAt,
+			&i.UpdatedAt,
+			&i.Deleted,
+			&i.ProjectsJson,
+			&i.ContextsJson,
+			&i.MetaJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const upsertTaskCurrent = `-- name: UpsertTaskCurrent :exec
+INSERT INTO tasks_current (
+  id,
   state,
   prev_state,
   title,
@@ -222,50 +221,50 @@ INSERT INTO tasks (
   waiting_for,
   completed_at,
   created_at,
-  updated_at
+  updated_at,
+  projects_json,
+  contexts_json,
+  meta_json,
+  version_id
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING
-  id,
-  state,
-  prev_state,
-  CAST(title AS TEXT) AS title,
-  CAST(notes AS TEXT) AS notes,
-  due_on,
-  waiting_for,
-  completed_at,
-  created_at,
-  updated_at
+ON CONFLICT(id) DO UPDATE SET
+  state = excluded.state,
+  prev_state = excluded.prev_state,
+  title = excluded.title,
+  notes = excluded.notes,
+  due_on = excluded.due_on,
+  waiting_for = excluded.waiting_for,
+  completed_at = excluded.completed_at,
+  created_at = excluded.created_at,
+  updated_at = excluded.updated_at,
+  projects_json = excluded.projects_json,
+  contexts_json = excluded.contexts_json,
+  meta_json = excluded.meta_json,
+  version_id = excluded.version_id
 `
 
-type InsertTaskParams struct {
-	State       string         `json:"state"`
-	PrevState   sql.NullString `json:"prev_state"`
-	Title       string         `json:"title"`
-	Notes       string         `json:"notes"`
-	DueOn       sql.NullString `json:"due_on"`
-	WaitingFor  sql.NullString `json:"waiting_for"`
-	CompletedAt sql.NullInt64  `json:"completed_at"`
-	CreatedAt   int64          `json:"created_at"`
-	UpdatedAt   int64          `json:"updated_at"`
+type UpsertTaskCurrentParams struct {
+	ID           int64          `json:"id"`
+	State        string         `json:"state"`
+	PrevState    sql.NullString `json:"prev_state"`
+	Title        string         `json:"title"`
+	Notes        string         `json:"notes"`
+	DueOn        sql.NullString `json:"due_on"`
+	WaitingFor   sql.NullString `json:"waiting_for"`
+	CompletedAt  sql.NullInt64  `json:"completed_at"`
+	CreatedAt    int64          `json:"created_at"`
+	UpdatedAt    int64          `json:"updated_at"`
+	ProjectsJson string         `json:"projects_json"`
+	ContextsJson string         `json:"contexts_json"`
+	MetaJson     string         `json:"meta_json"`
+	VersionID    int64          `json:"version_id"`
 }
 
-type InsertTaskRow struct {
-	ID          int64          `json:"id"`
-	State       string         `json:"state"`
-	PrevState   sql.NullString `json:"prev_state"`
-	Title       string         `json:"title"`
-	Notes       string         `json:"notes"`
-	DueOn       sql.NullString `json:"due_on"`
-	WaitingFor  sql.NullString `json:"waiting_for"`
-	CompletedAt sql.NullInt64  `json:"completed_at"`
-	CreatedAt   int64          `json:"created_at"`
-	UpdatedAt   int64          `json:"updated_at"`
-}
-
-func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) (InsertTaskRow, error) {
-	row := q.db.QueryRowContext(ctx, insertTask,
+func (q *Queries) UpsertTaskCurrent(ctx context.Context, arg UpsertTaskCurrentParams) error {
+	_, err := q.db.ExecContext(ctx, upsertTaskCurrent,
+		arg.ID,
 		arg.State,
 		arg.PrevState,
 		arg.Title,
@@ -275,378 +274,10 @@ func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) (InsertT
 		arg.CompletedAt,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.ProjectsJson,
+		arg.ContextsJson,
+		arg.MetaJson,
+		arg.VersionID,
 	)
-	var i InsertTaskRow
-	err := row.Scan(
-		&i.ID,
-		&i.State,
-		&i.PrevState,
-		&i.Title,
-		&i.Notes,
-		&i.DueOn,
-		&i.WaitingFor,
-		&i.CompletedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const insertTaskContextLink = `-- name: InsertTaskContextLink :exec
-INSERT INTO task_context_links (task_id, context_id) VALUES (?, ?)
-`
-
-type InsertTaskContextLinkParams struct {
-	TaskID    int64 `json:"task_id"`
-	ContextID int64 `json:"context_id"`
-}
-
-func (q *Queries) InsertTaskContextLink(ctx context.Context, arg InsertTaskContextLinkParams) error {
-	_, err := q.db.ExecContext(ctx, insertTaskContextLink, arg.TaskID, arg.ContextID)
 	return err
-}
-
-const insertTaskProjectLink = `-- name: InsertTaskProjectLink :exec
-INSERT INTO task_project_links (task_id, project_id) VALUES (?, ?)
-`
-
-type InsertTaskProjectLinkParams struct {
-	TaskID    int64 `json:"task_id"`
-	ProjectID int64 `json:"project_id"`
-}
-
-func (q *Queries) InsertTaskProjectLink(ctx context.Context, arg InsertTaskProjectLinkParams) error {
-	_, err := q.db.ExecContext(ctx, insertTaskProjectLink, arg.TaskID, arg.ProjectID)
-	return err
-}
-
-const listContextCounts = `-- name: ListContextCounts :many
-SELECT c.name, COUNT(t.id) AS count
-FROM contexts c
-JOIN task_context_links tcl ON tcl.context_id = c.id
-JOIN tasks t ON t.id = tcl.task_id
-WHERE (? = 0 OR t.state = 'done')
-  AND (? = 0 OR t.state != 'done')
-GROUP BY c.name
-ORDER BY c.name ASC
-`
-
-type ListContextCountsParams struct {
-	Column1 interface{} `json:"column_1"`
-	Column2 interface{} `json:"column_2"`
-}
-
-type ListContextCountsRow struct {
-	Name  string `json:"name"`
-	Count int64  `json:"count"`
-}
-
-func (q *Queries) ListContextCounts(ctx context.Context, arg ListContextCountsParams) ([]ListContextCountsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listContextCounts, arg.Column1, arg.Column2)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListContextCountsRow
-	for rows.Next() {
-		var i ListContextCountsRow
-		if err := rows.Scan(&i.Name, &i.Count); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listContextsForTasks = `-- name: ListContextsForTasks :many
-SELECT tcl.task_id, c.name
-FROM task_context_links tcl
-JOIN contexts c ON c.id = tcl.context_id
-WHERE tcl.task_id IN (/*SLICE:ids*/?)
-ORDER BY tcl.task_id, c.name
-`
-
-type ListContextsForTasksRow struct {
-	TaskID int64  `json:"task_id"`
-	Name   string `json:"name"`
-}
-
-func (q *Queries) ListContextsForTasks(ctx context.Context, ids []int64) ([]ListContextsForTasksRow, error) {
-	query := listContextsForTasks
-	var queryParams []interface{}
-	if len(ids) > 0 {
-		for _, v := range ids {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
-	}
-	rows, err := q.db.QueryContext(ctx, query, queryParams...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListContextsForTasksRow
-	for rows.Next() {
-		var i ListContextsForTasksRow
-		if err := rows.Scan(&i.TaskID, &i.Name); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listMeta = `-- name: ListMeta :many
-SELECT task_id, key, value
-FROM task_meta
-WHERE task_id IN (/*SLICE:ids*/?)
-ORDER BY task_id
-`
-
-func (q *Queries) ListMeta(ctx context.Context, ids []int64) ([]TaskMetum, error) {
-	query := listMeta
-	var queryParams []interface{}
-	if len(ids) > 0 {
-		for _, v := range ids {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
-	}
-	rows, err := q.db.QueryContext(ctx, query, queryParams...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []TaskMetum
-	for rows.Next() {
-		var i TaskMetum
-		if err := rows.Scan(&i.TaskID, &i.Key, &i.Value); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listProjectCounts = `-- name: ListProjectCounts :many
-SELECT p.name, COUNT(t.id) AS count
-FROM projects p
-JOIN task_project_links tpl ON tpl.project_id = p.id
-JOIN tasks t ON t.id = tpl.task_id
-WHERE (? = 0 OR t.state = 'done')
-  AND (? = 0 OR t.state != 'done')
-GROUP BY p.name
-ORDER BY p.name ASC
-`
-
-type ListProjectCountsParams struct {
-	Column1 interface{} `json:"column_1"`
-	Column2 interface{} `json:"column_2"`
-}
-
-type ListProjectCountsRow struct {
-	Name  string `json:"name"`
-	Count int64  `json:"count"`
-}
-
-func (q *Queries) ListProjectCounts(ctx context.Context, arg ListProjectCountsParams) ([]ListProjectCountsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listProjectCounts, arg.Column1, arg.Column2)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListProjectCountsRow
-	for rows.Next() {
-		var i ListProjectCountsRow
-		if err := rows.Scan(&i.Name, &i.Count); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listProjectsForTasks = `-- name: ListProjectsForTasks :many
-SELECT tpl.task_id, p.name
-FROM task_project_links tpl
-JOIN projects p ON p.id = tpl.project_id
-WHERE tpl.task_id IN (/*SLICE:ids*/?)
-ORDER BY tpl.task_id, p.name
-`
-
-type ListProjectsForTasksRow struct {
-	TaskID int64  `json:"task_id"`
-	Name   string `json:"name"`
-}
-
-func (q *Queries) ListProjectsForTasks(ctx context.Context, ids []int64) ([]ListProjectsForTasksRow, error) {
-	query := listProjectsForTasks
-	var queryParams []interface{}
-	if len(ids) > 0 {
-		for _, v := range ids {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
-	}
-	rows, err := q.db.QueryContext(ctx, query, queryParams...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListProjectsForTasksRow
-	for rows.Next() {
-		var i ListProjectsForTasksRow
-		if err := rows.Scan(&i.TaskID, &i.Name); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const reopenTasks = `-- name: ReopenTasks :execrows
-UPDATE tasks
-SET
-  state = COALESCE(prev_state, 'inbox'),
-  prev_state = NULL,
-  completed_at = NULL,
-  updated_at = ?
-WHERE id IN (/*SLICE:ids*/?)
-`
-
-type ReopenTasksParams struct {
-	UpdatedAt int64   `json:"updated_at"`
-	Ids       []int64 `json:"ids"`
-}
-
-func (q *Queries) ReopenTasks(ctx context.Context, arg ReopenTasksParams) (int64, error) {
-	query := reopenTasks
-	var queryParams []interface{}
-	queryParams = append(queryParams, arg.UpdatedAt)
-	if len(arg.Ids) > 0 {
-		for _, v := range arg.Ids {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
-	}
-	result, err := q.db.ExecContext(ctx, query, queryParams...)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
-const updateTask = `-- name: UpdateTask :one
-UPDATE tasks
-SET state = ?,
-  prev_state = ?,
-  title = ?,
-  notes = ?,
-  due_on = ?,
-  waiting_for = ?,
-  completed_at = ?,
-  updated_at = ?
-WHERE id = ?
-RETURNING
-  id,
-  state,
-  prev_state,
-  CAST(title AS TEXT) AS title,
-  CAST(notes AS TEXT) AS notes,
-  due_on,
-  waiting_for,
-  completed_at,
-  created_at,
-  updated_at
-`
-
-type UpdateTaskParams struct {
-	State       string         `json:"state"`
-	PrevState   sql.NullString `json:"prev_state"`
-	Title       string         `json:"title"`
-	Notes       string         `json:"notes"`
-	DueOn       sql.NullString `json:"due_on"`
-	WaitingFor  sql.NullString `json:"waiting_for"`
-	CompletedAt sql.NullInt64  `json:"completed_at"`
-	UpdatedAt   int64          `json:"updated_at"`
-	ID          int64          `json:"id"`
-}
-
-type UpdateTaskRow struct {
-	ID          int64          `json:"id"`
-	State       string         `json:"state"`
-	PrevState   sql.NullString `json:"prev_state"`
-	Title       string         `json:"title"`
-	Notes       string         `json:"notes"`
-	DueOn       sql.NullString `json:"due_on"`
-	WaitingFor  sql.NullString `json:"waiting_for"`
-	CompletedAt sql.NullInt64  `json:"completed_at"`
-	CreatedAt   int64          `json:"created_at"`
-	UpdatedAt   int64          `json:"updated_at"`
-}
-
-func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (UpdateTaskRow, error) {
-	row := q.db.QueryRowContext(ctx, updateTask,
-		arg.State,
-		arg.PrevState,
-		arg.Title,
-		arg.Notes,
-		arg.DueOn,
-		arg.WaitingFor,
-		arg.CompletedAt,
-		arg.UpdatedAt,
-		arg.ID,
-	)
-	var i UpdateTaskRow
-	err := row.Scan(
-		&i.ID,
-		&i.State,
-		&i.PrevState,
-		&i.Title,
-		&i.Notes,
-		&i.DueOn,
-		&i.WaitingFor,
-		&i.CompletedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }
