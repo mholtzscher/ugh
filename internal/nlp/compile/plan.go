@@ -63,6 +63,8 @@ func Build(result nlp.ParseResult, opts BuildOptions) (Plan, error) {
 		return Plan{Intent: nlp.IntentView}, nil
 	case *nlp.ContextCommand:
 		return Plan{Intent: nlp.IntentContext}, nil
+	case *nlp.LogCommand:
+		return Plan{Intent: nlp.IntentLog, Target: *cmd.Target}, nil
 	default:
 		return Plan{}, fmt.Errorf("unsupported parse command type %T", result.Command)
 	}

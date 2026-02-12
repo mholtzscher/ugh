@@ -22,6 +22,8 @@ type ViewVerb string
 
 type ContextVerb string
 
+type LogVerb string
+
 const (
 	viewNameInbox    = "inbox"
 	viewNameNow      = "now"
@@ -92,6 +94,13 @@ type ContextCommand struct {
 }
 
 func (*ContextCommand) command() {}
+
+type LogCommand struct {
+	Verb   LogVerb    `parser:"@@"`
+	Target *TargetRef `parser:"@@"`
+}
+
+func (*LogCommand) command() {}
 
 type ViewTarget struct {
 	Name string

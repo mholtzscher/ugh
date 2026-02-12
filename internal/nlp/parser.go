@@ -103,6 +103,11 @@ func postProcess(cmd Command) (Intent, Command, error) {
 			return IntentContext, typed, err
 		}
 		return IntentContext, typed, nil
+	case *LogCommand:
+		if err := typed.postProcess(); err != nil {
+			return IntentLog, typed, err
+		}
+		return IntentLog, typed, nil
 	default:
 		return IntentUnknown, cmd, errors.New("unknown command type")
 	}

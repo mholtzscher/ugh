@@ -37,11 +37,12 @@ func _() {
 	_ = x[IntentFilter-3]
 	_ = x[IntentView-4]
 	_ = x[IntentContext-5]
+	_ = x[IntentLog-6]
 }
 
-const _Intent_name = "IntentUnknownIntentCreateIntentUpdateIntentFilterIntentViewIntentContext"
+const _Intent_name = "IntentUnknownIntentCreateIntentUpdateIntentFilterIntentViewIntentContextIntentLog"
 
-var _Intent_index = [...]uint8{0, 13, 25, 37, 49, 59, 72}
+var _Intent_index = [...]uint8{0, 13, 25, 37, 49, 59, 72, 81}
 
 func (i Intent) String() string {
 	idx := int(i) - 0

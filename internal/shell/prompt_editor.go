@@ -31,6 +31,7 @@ func commandSuggestions() []string {
 		"set", "edit", "update",
 		"find", "show", "list", "filter",
 		"context", "view", "help", "clear", "quit", "exit",
+		"log", "activity",
 	}
 }
 
@@ -448,7 +449,8 @@ func colorForToken(tok nlp.LexToken) string {
 		if lower == "add" || lower == "create" || lower == "new" ||
 			lower == "set" || lower == "edit" || lower == "update" ||
 			lower == "find" || lower == "show" || lower == "list" || lower == "filter" ||
-			lower == "view" || lower == "context" {
+			lower == "view" || lower == "context" ||
+			lower == "log" || lower == "activity" {
 			return ansiYellow
 		}
 	}
