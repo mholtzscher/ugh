@@ -46,3 +46,20 @@ type ShellHistory struct {
 	ResultSummary string
 	Intent        string
 }
+
+type TaskVersion struct {
+	VersionID   int64
+	TaskID      int64
+	State       State
+	PrevState   *State
+	Title       string
+	Notes       string
+	DueOn       *time.Time
+	WaitingFor  string
+	CompletedAt *time.Time
+	UpdatedAt   time.Time
+	Deleted     bool
+	Projects    []string
+	Contexts    []string
+	Meta        map[string]string
+}

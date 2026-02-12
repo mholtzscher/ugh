@@ -79,6 +79,7 @@ var rootCmd = &cli.Command{
 		laterCmd,
 		calendarCmd,
 		listCmd,
+		logCmd,
 		showCmd,
 		editCmd,
 		doneCmd,

@@ -214,3 +214,69 @@ func writeHumanHistory(out io.Writer, noColor bool, entries []*HistoryEntry) err
 	}
 	return renderTable(out, noColor, rows)
 }
+
+//nolint:gocognit // Rendering diff output combines formatting and color decisions.
+func writeHumanTaskVersionDiff(out io.Writer, noColor bool, versions []*store.TaskVersion) error {
+	if len(versions) == 0 {
+		return writeRenderedLine(out, noColor, pterm.DefaultBasicText.Sprintln("No task history entries"))
+	}
+
+	for i, current := range versions {
+		header := fmt.Sprintf("Version %d  %s", current.VersionID, current.UpdatedAt.Format("2006-01-02 15:04:05"))
+		if noColor {
+			if _, err := fmt.Fprintln(out, header); err != nil {
+				return err
+			}
+		} else {
+			if err := writeRenderedLine(out, noColor, pterm.Cyan(header)+"\n"); err != nil {
+				return err
+			}
+		}
+
+		var prev *store.TaskVersion
+		if i+1 < len(versions) {
+			prev = versions[i+1]
+		}
+		changes := diffTaskVersion(prev, current)
+		for _, change := range changes {
+			prefix := "~"
+			line := fmt.Sprintf("%s %s: %s -> %s", prefix, change.Field, emptyDash(change.Old), emptyDash(change.New))
+			if change.Type == changeTypeAdd {
+				prefix = "+"
+				line = fmt.Sprintf("%s %s: %s", prefix, change.Field, emptyDash(change.New))
+			}
+			if change.Type == changeTypeRemove {
+				prefix = "-"
+				line = fmt.Sprintf("%s %s: %s", prefix, change.Field, emptyDash(change.Old))
+			}
+
+			if noColor {
+				if _, err := fmt.Fprintf(out, "  %s\n", line); err != nil {
+					return err
+				}
+				continue
+			}
+
+			var colored string
+			switch prefix {
+			case "+":
+				colored = pterm.LightGreen(line)
+			case "-":
+				colored = pterm.LightRed(line)
+			default:
+				colored = pterm.LightYellow(line)
+			}
+			if err := writeRenderedLine(out, noColor, "  "+colored+"\n"); err != nil {
+				return err
+			}
+		}
+
+		if i < len(versions)-1 {
+			if _, err := fmt.Fprintln(out); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

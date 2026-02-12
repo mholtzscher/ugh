@@ -341,6 +341,25 @@ func (s *Store) GetTask(ctx context.Context, id int64) (*Task, error) {
 	return fromGetRow(row)
 }
 
+func (s *Store) ListTaskVersions(ctx context.Context, taskID int64, limit int64) ([]*TaskVersion, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := s.queries.ListTaskVersions(ctx, sqlc.ListTaskVersionsParams{TaskID: taskID, Limit: limit})
+	if err != nil {
+		return nil, fmt.Errorf("list task versions: %w", err)
+	}
+	versions := make([]*TaskVersion, 0, len(rows))
+	for _, row := range rows {
+		version, convErr := fromVersionRow(row)
+		if convErr != nil {
+			return nil, convErr
+		}
+		versions = append(versions, version)
+	}
+	return versions, nil
+}
+
 func (s *Store) ListTasksByExpr(
 	ctx context.Context,
 	expr nlp.FilterExpr,
@@ -833,6 +852,30 @@ func fromListRow(row listTaskRow) (*Task, error) {
 		Meta:        meta,
 		CreatedAt:   time.Unix(row.CreatedAt, 0).UTC(),
 		UpdatedAt:   time.Unix(row.UpdatedAt, 0).UTC(),
+	}, nil
+}
+
+func fromVersionRow(row sqlc.TaskVersion) (*TaskVersion, error) {
+	projects, contexts, meta, err := decodeTaskDetails(row.ProjectsJson, row.ContextsJson, row.MetaJson)
+	if err != nil {
+		return nil, fmt.Errorf("decode task version details: %w", err)
+	}
+
+	return &TaskVersion{
+		VersionID:   row.VersionID,
+		TaskID:      row.TaskID,
+		State:       State(row.State),
+		PrevState:   parseStatePtr(row.PrevState),
+		Title:       row.Title,
+		Notes:       row.Notes,
+		DueOn:       parseDate(row.DueOn),
+		WaitingFor:  row.WaitingFor.String,
+		CompletedAt: parseUnixTime(row.CompletedAt),
+		UpdatedAt:   time.Unix(row.UpdatedAt, 0).UTC(),
+		Deleted:     row.Deleted != 0,
+		Projects:    projects,
+		Contexts:    contexts,
+		Meta:        meta,
 	}, nil
 }
 

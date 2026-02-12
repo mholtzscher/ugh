@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -303,4 +304,193 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 		}
 	}
 	return nil
+}
+
+type TaskVersionChangeJSON struct {
+	Type  string `json:"type"`
+	Field string `json:"field"`
+	Old   string `json:"old,omitempty"`
+	New   string `json:"new,omitempty"`
+}
+
+type TaskVersionDiffJSON struct {
+	VersionID int64                   `json:"versionId"`
+	UpdatedAt string                  `json:"updatedAt"`
+	Deleted   bool                    `json:"deleted"`
+	Changes   []TaskVersionChangeJSON `json:"changes"`
+}
+
+type TaskVersionChange struct {
+	Type  string
+	Field string
+	Old   string
+	New   string
+}
+
+const (
+	changeTypeAdd    = "add"
+	changeTypeRemove = "remove"
+)
+
+//nolint:gocognit // Handles JSON and human rendering paths for history diff output.
+func (w Writer) WriteTaskVersionDiff(versions []*store.TaskVersion) error {
+	if w.JSON {
+		payload := make([]TaskVersionDiffJSON, 0, len(versions))
+		for i, current := range versions {
+			var prev *store.TaskVersion
+			if i+1 < len(versions) {
+				prev = versions[i+1]
+			}
+			changes := diffTaskVersion(prev, current)
+			jsonChanges := make([]TaskVersionChangeJSON, 0, len(changes))
+			for _, change := range changes {
+				jsonChanges = append(jsonChanges, TaskVersionChangeJSON(change))
+			}
+			payload = append(payload, TaskVersionDiffJSON{
+				VersionID: current.VersionID,
+				UpdatedAt: formatDateTime(current.UpdatedAt),
+				Deleted:   current.Deleted,
+				Changes:   jsonChanges,
+			})
+		}
+		return writeJSON(w.Out, payload)
+	}
+
+	if w.TTY {
+		return writeHumanTaskVersionDiff(w.Out, w.NoColor, versions)
+	}
+
+	for i, current := range versions {
+		if _, err := fmt.Fprintf(
+			w.Out,
+			"version %d %s\n",
+			current.VersionID,
+			formatDateTime(current.UpdatedAt),
+		); err != nil {
+			return err
+		}
+		var prev *store.TaskVersion
+		if i+1 < len(versions) {
+			prev = versions[i+1]
+		}
+		for _, change := range diffTaskVersion(prev, current) {
+			prefix := "~"
+			if change.Type == changeTypeAdd {
+				prefix = "+"
+			}
+			if change.Type == changeTypeRemove {
+				prefix = "-"
+			}
+			if _, err := fmt.Fprintf(
+				w.Out,
+				"  %s %s: %s -> %s\n",
+				prefix,
+				change.Field,
+				change.Old,
+				change.New,
+			); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func diffTaskVersion(prev *store.TaskVersion, current *store.TaskVersion) []TaskVersionChange {
+	changes := make([]TaskVersionChange, 0)
+	old := &store.TaskVersion{}
+	if prev != nil {
+		old = prev
+	}
+
+	appendScalarChange(&changes, "state", string(old.State), string(current.State))
+	appendScalarChange(&changes, "title", old.Title, current.Title)
+	appendScalarChange(&changes, "notes", old.Notes, current.Notes)
+	appendScalarChange(&changes, "due", formatDate(old.DueOn), formatDate(current.DueOn))
+	appendScalarChange(&changes, "waiting_for", old.WaitingFor, current.WaitingFor)
+	appendScalarChange(&changes, "deleted", strconv.FormatBool(old.Deleted), strconv.FormatBool(current.Deleted))
+
+	diffListChange(&changes, "project", old.Projects, current.Projects)
+	diffListChange(&changes, "context", old.Contexts, current.Contexts)
+	diffMetaChange(&changes, old.Meta, current.Meta)
+
+	if len(changes) == 0 {
+		changes = append(changes, TaskVersionChange{Type: "none", Field: "snapshot", New: "no visible field changes"})
+	}
+
+	return changes
+}
+
+func appendScalarChange(changes *[]TaskVersionChange, field, oldVal, newVal string) {
+	if oldVal == newVal {
+		return
+	}
+	typeName := "change"
+	if oldVal == "" && newVal != "" {
+		typeName = changeTypeAdd
+	}
+	if oldVal != "" && newVal == "" {
+		typeName = changeTypeRemove
+	}
+	*changes = append(*changes, TaskVersionChange{Type: typeName, Field: field, Old: oldVal, New: newVal})
+}
+
+func diffListChange(changes *[]TaskVersionChange, field string, oldVals, newVals []string) {
+	oldSet := make(map[string]struct{}, len(oldVals))
+	for _, value := range oldVals {
+		oldSet[value] = struct{}{}
+	}
+	newSet := make(map[string]struct{}, len(newVals))
+	for _, value := range newVals {
+		newSet[value] = struct{}{}
+	}
+
+	added := make([]string, 0)
+	removed := make([]string, 0)
+	for value := range newSet {
+		if _, ok := oldSet[value]; !ok {
+			added = append(added, value)
+		}
+	}
+	for value := range oldSet {
+		if _, ok := newSet[value]; !ok {
+			removed = append(removed, value)
+		}
+	}
+	sort.Strings(added)
+	sort.Strings(removed)
+
+	for _, value := range added {
+		*changes = append(*changes, TaskVersionChange{Type: changeTypeAdd, Field: field, New: value})
+	}
+	for _, value := range removed {
+		*changes = append(*changes, TaskVersionChange{Type: changeTypeRemove, Field: field, Old: value})
+	}
+}
+
+func diffMetaChange(changes *[]TaskVersionChange, oldMeta, newMeta map[string]string) {
+	if oldMeta == nil {
+		oldMeta = map[string]string{}
+	}
+	if newMeta == nil {
+		newMeta = map[string]string{}
+	}
+
+	keys := make([]string, 0, len(oldMeta)+len(newMeta))
+	seen := map[string]struct{}{}
+	for key := range oldMeta {
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+	for key := range newMeta {
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		appendScalarChange(changes, "meta."+key, oldMeta[key], newMeta[key])
+	}
 }
