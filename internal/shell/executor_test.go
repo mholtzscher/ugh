@@ -561,6 +561,23 @@ func TestExecuteViewRunsFilterQuery(t *testing.T) {
 	assert.True(t, hasPredicateKind(svc.lastFilter.Filter, nlp.PredState), "filter should include state predicate")
 }
 
+func TestExecuteViewCalendarRunsDueSetFilter(t *testing.T) {
+	t.Parallel()
+
+	svc := &recordingService{}
+	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+
+	result, err := exec.Execute(context.Background(), "view calendar")
+	require.NoError(t, err, "execute error")
+	require.NotNil(t, result, "result should not be nil")
+	assert.Equal(t, "filter", result.Intent, "view calendar should execute as filter")
+
+	pred, ok := svc.lastFilter.Filter.(nlp.Predicate)
+	require.True(t, ok, "calendar filter should compile to due predicate, got %T", svc.lastFilter.Filter)
+	assert.Equal(t, nlp.PredDue, pred.Kind, "predicate kind mismatch")
+	assert.Equal(t, nlp.FilterWildcard, pred.Text, "calendar view should filter by any due date")
+}
+
 func TestExecuteViewRespectsStickyContext(t *testing.T) {
 	t.Parallel()
 

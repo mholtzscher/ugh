@@ -1044,6 +1044,43 @@ func TestParseFilterCommand(t *testing.T) {
 	require.Equal(t, nlp.FilterAnd, binary.Op, "binary op mismatch")
 }
 
+func TestParseFilterCommandAllowsWildcardSetPredicate(t *testing.T) {
+	t.Parallel()
+
+	result, err := nlp.Parse(`find due:*`, nlp.ParseOptions{})
+	require.NoError(t, err, "Parse(filter wildcard) error")
+	require.Equal(t, nlp.IntentFilter, result.Intent, "Parse(filter) intent mismatch")
+
+	cmd, ok := result.Command.(*nlp.FilterCommand)
+	require.True(t, ok, "command type should be FilterCommand, got %T", result.Command)
+
+	pred, ok := cmd.Expr.(nlp.Predicate)
+	require.True(t, ok, "expr type should be Predicate, got %T", cmd.Expr)
+	require.Equal(t, nlp.PredDue, pred.Kind, "predicate kind mismatch")
+	assert.Equal(t, nlp.FilterWildcard, pred.Text, "due predicate wildcard mismatch")
+}
+
+func TestParseFilterCommandMissingValueReturnsError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "missing state", input: `find state:`},
+		{name: "missing due", input: `find due:`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := nlp.Parse(tt.input, nlp.ParseOptions{})
+			require.Error(t, err, "Parse(filter) should fail for missing predicate value")
+			assert.Contains(t, err.Error(), "expected value", "error should explain missing value")
+		})
+	}
+}
+
 func TestParseViewCommand(t *testing.T) {
 	t.Parallel()
 

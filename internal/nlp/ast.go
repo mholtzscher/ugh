@@ -28,6 +28,8 @@ const (
 	viewNameWaiting  = "waiting"
 	viewNameLater    = "later"
 	viewNameCalendar = "calendar"
+
+	FilterWildcard = "*"
 )
 
 type CreateCommand struct {
@@ -138,8 +140,8 @@ type FilterPredicate struct {
 }
 
 type FilterFieldPredicate struct {
-	Field string      `parser:"@SetField"`
-	Value FilterValue `parser:"@@"`
+	Field string       `parser:"@SetField"`
+	Value *FilterValue `parser:"@@?"`
 }
 
 type FilterTagPredicate struct {

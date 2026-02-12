@@ -58,15 +58,39 @@ func TestFilterSQLBuilder_InvalidIDReturnsError(t *testing.T) {
 	require.Error(t, err, "Build() should return invalid id error")
 }
 
-func TestFilterSQLBuilder_EmptyDuePredicateHasNoArgs(t *testing.T) {
+func TestFilterSQLBuilder_WildcardDuePredicateHasNoArgs(t *testing.T) {
 	t.Parallel()
 
 	b := &filterSQLBuilder{}
-	clause, args, err := b.Build(nlp.Predicate{Kind: nlp.PredDue, Text: ""})
+	clause, args, err := b.Build(nlp.Predicate{Kind: nlp.PredDue, Text: nlp.FilterWildcard})
 	require.NoError(t, err, "Build() error")
 
 	assert.Contains(t, clause, "t.due_on IS NOT NULL", "clause should contain IS NOT NULL")
 	assert.Contains(t, clause, "t.due_on != ''", "clause should contain non-empty due check")
+	assert.Empty(t, args, "args should be empty")
+}
+
+func TestFilterSQLBuilder_WildcardProjectPredicateHasNoNameArg(t *testing.T) {
+	t.Parallel()
+
+	b := &filterSQLBuilder{}
+	clause, args, err := b.Build(nlp.Predicate{Kind: nlp.PredProject, Text: nlp.FilterWildcard})
+	require.NoError(t, err, "Build() error")
+
+	assert.Contains(t, clause, "task_project_links", "clause should include project link subquery")
+	assert.NotContains(t, clause, "p.name = ?", "clause should not constrain project name")
+	assert.Empty(t, args, "args should be empty")
+}
+
+func TestFilterSQLBuilder_WildcardContextPredicateHasNoNameArg(t *testing.T) {
+	t.Parallel()
+
+	b := &filterSQLBuilder{}
+	clause, args, err := b.Build(nlp.Predicate{Kind: nlp.PredContext, Text: nlp.FilterWildcard})
+	require.NoError(t, err, "Build() error")
+
+	assert.Contains(t, clause, "task_context_links", "clause should include context link subquery")
+	assert.NotContains(t, clause, "c.name = ?", "clause should not constrain context name")
 	assert.Empty(t, args, "args should be empty")
 }
 
