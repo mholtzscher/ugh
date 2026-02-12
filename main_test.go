@@ -29,6 +29,9 @@ func TestScripts(t *testing.T) {
 		Setup: func(env *testscript.Env) error {
 			path := binDir + string(os.PathListSeparator) + os.Getenv("PATH")
 			env.Setenv("PATH", path)
+			env.Setenv("HOME", filepath.Join(env.WorkDir, "home"))
+			env.Setenv("XDG_CONFIG_HOME", filepath.Join(env.WorkDir, "home", ".config"))
+			env.Setenv("XDG_DATA_HOME", filepath.Join(env.WorkDir, "home", ".local", "share"))
 			env.Setenv("TZ", "UTC")
 			return nil
 		},

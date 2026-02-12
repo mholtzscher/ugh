@@ -1,0 +1,69 @@
+# Built-in list commands and aliases
+exec ugh --db $WORK/db.sqlite add --state inbox Inbox task
+exec ugh --db $WORK/db.sqlite add --state now --due 2026-01-02 Now due
+exec ugh --db $WORK/db.sqlite add --state waiting Waiting task
+exec ugh --db $WORK/db.sqlite add --state later Later task
+exec ugh --db $WORK/db.sqlite add --state now Now no due
+exec ugh --db $WORK/db.sqlite add --state done Done task
+exec ugh --db $WORK/db.sqlite add --state inbox --due 2026-01-01 Inbox due
+
+exec ugh --db $WORK/db.sqlite inbox
+cmp stdout want-inbox.txt
+
+exec ugh --db $WORK/db.sqlite i
+cmp stdout want-inbox.txt
+
+exec ugh --db $WORK/db.sqlite now
+cmp stdout want-now.txt
+
+exec ugh --db $WORK/db.sqlite n
+cmp stdout want-now.txt
+
+exec ugh --db $WORK/db.sqlite waiting
+cmp stdout want-waiting.txt
+
+exec ugh --db $WORK/db.sqlite w
+cmp stdout want-waiting.txt
+
+exec ugh --db $WORK/db.sqlite later
+cmp stdout want-later.txt
+
+exec ugh --db $WORK/db.sqlite sd
+cmp stdout want-later.txt
+
+exec ugh --db $WORK/db.sqlite calendar
+cmp stdout want-calendar.txt
+
+exec ugh --db $WORK/db.sqlite cal
+cmp stdout want-calendar.txt
+
+exec ugh --db $WORK/db.sqlite calendar
+! stdout 'Done task'
+
+# Ordering semantics are deterministic when ties are avoided
+exec ugh --db $WORK/order.sqlite add --state now --due 2026-01-03 Order later due
+exec ugh --db $WORK/order.sqlite add --state inbox --due 2026-01-01 Order early due
+exec ugh --db $WORK/order.sqlite add --state waiting Order no due
+exec ugh --db $WORK/order.sqlite add --state done --due 2026-01-02 Order done due
+
+exec ugh --db $WORK/order.sqlite list --all
+cmp stdout want-order.txt
+
+-- want-inbox.txt --
+7	inbox	2026-01-01		Inbox due
+1	inbox			Inbox task
+-- want-now.txt --
+2	now	2026-01-02		Now due
+5	now			Now no due
+-- want-waiting.txt --
+3	waiting			Waiting task
+-- want-later.txt --
+4	later			Later task
+-- want-calendar.txt --
+7	inbox	2026-01-01		Inbox due
+2	now	2026-01-02		Now due
+-- want-order.txt --
+2	inbox	2026-01-01		Order early due
+1	now	2026-01-03		Order later due
+3	waiting			Order no due
+4	done	2026-01-02		Order done due

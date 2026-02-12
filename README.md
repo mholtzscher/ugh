@@ -71,6 +71,8 @@ just lint
 just fmt
 ```
 
+Integration coverage matrix: `docs/integration-tests.md`
+
 ## Output Formats
 
 - **TTY**: Formatted table output (default)

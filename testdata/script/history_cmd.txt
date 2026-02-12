@@ -1,0 +1,44 @@
+# History command end-to-end coverage
+exec ugh --no-color --db $WORK/db.sqlite shell --file shell-commands.txt
+
+exec ugh --db $WORK/db.sqlite history --limit 10
+stdout 'add Shell created state:now'
+stdout 'find state:now'
+stdout 'create'
+stdout 'filter'
+
+exec ugh --db $WORK/db.sqlite history --search 'find state:now'
+stdout 'find state:now'
+! stdout 'add Shell created state:now'
+
+exec ugh --db $WORK/db.sqlite history --intent create
+stdout 'add Shell created state:now'
+! stdout 'find state:now'
+
+exec ugh --json --db $WORK/db.sqlite history --intent filter
+stdout '"command":"find state:now"'
+stdout '"success":true'
+stdout '"intent":"filter"'
+
+exec ugh --db $WORK/db.sqlite history --success
+stdout 'add Shell created state:now'
+stdout 'find state:now'
+
+exec ugh --db $WORK/db.sqlite history --failed
+! stdout .
+
+! exec ugh --db $WORK/db.sqlite history --success --failed
+stderr 'cannot use both --success and --failed flags'
+
+exec ugh --db $WORK/db.sqlite history --clear
+cmp stdout want-clear.txt
+
+exec ugh --db $WORK/db.sqlite history --limit 10
+! stdout .
+
+-- shell-commands.txt --
+add Shell created state:now
+find state:now
+quit
+-- want-clear.txt --
+History cleared
