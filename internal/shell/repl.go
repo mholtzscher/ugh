@@ -502,8 +502,8 @@ func (r *REPL) handleViewCommand(ctx context.Context, cmd string) (*ExecuteResul
 		filterQuery = "find state:waiting"
 	case "l", "later":
 		filterQuery = "find state:later"
-	case "c", "calendar", "today":
-		filterQuery = "find due:today"
+	case "c", "calendar":
+		filterQuery = "find due:"
 	default:
 		return &ExecuteResult{
 			Intent:    "view",
