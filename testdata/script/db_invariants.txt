@@ -1,0 +1,41 @@
+# DB-level invariants: migrations, schema, and FK cascades
+exec ugh --db $WORK/db.sqlite add -p work -c office -m owner:me Invariant task
+
+dbquery $WORK/db.sqlite SELECT max(version_id) FROM goose_db_version WHERE is_applied = 1;
+cmp stdout want-version.txt
+
+dbquery $WORK/db.sqlite SELECT name FROM sqlite_master WHERE name IN (char(116,97,115,107,115),char(116,97,115,107,95,112,114,111,106,101,99,116,95,108,105,110,107,115),char(116,97,115,107,95,99,111,110,116,101,120,116,95,108,105,110,107,115),char(116,97,115,107,95,109,101,116,97),char(115,104,101,108,108,95,104,105,115,116,111,114,121)) ORDER BY name;
+cmp stdout want-tables.txt
+
+dbquery $WORK/db.sqlite SELECT COUNT(*) FROM task_project_links;
+cmp stdout want-one.txt
+
+dbquery $WORK/db.sqlite SELECT COUNT(*) FROM task_context_links;
+cmp stdout want-one.txt
+
+dbquery $WORK/db.sqlite SELECT COUNT(*) FROM task_meta;
+cmp stdout want-one.txt
+
+exec ugh --db $WORK/db.sqlite rm 1
+
+dbquery $WORK/db.sqlite SELECT COUNT(*) FROM task_project_links;
+cmp stdout want-zero.txt
+
+dbquery $WORK/db.sqlite SELECT COUNT(*) FROM task_context_links;
+cmp stdout want-zero.txt
+
+dbquery $WORK/db.sqlite SELECT COUNT(*) FROM task_meta;
+cmp stdout want-zero.txt
+
+-- want-version.txt --
+6
+-- want-tables.txt --
+shell_history
+task_context_links
+task_meta
+task_project_links
+tasks
+-- want-one.txt --
+1
+-- want-zero.txt --
+0

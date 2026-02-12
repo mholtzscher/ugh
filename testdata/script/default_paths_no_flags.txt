@@ -1,0 +1,20 @@
+# Default path auto-init without --db or --config
+exec ugh add Default path task
+stdout 'Default path task'
+
+exec ugh list
+stdout 'Default path task'
+
+exec ugh config show
+stdout 'version = 1'
+stdout '\[db\]'
+stdout 'path = "'
+
+exec ugh config get db.path
+stdout 'ugh.sqlite'
+
+[darwin] exec sh -c 'test -f "$HOME/Library/Application Support/ugh/config.toml"'
+[darwin] exec sh -c 'test -f "$HOME/Library/Application Support/ugh/ugh.sqlite"'
+
+[!darwin] exec sh -c 'test -f "$XDG_CONFIG_HOME/ugh/config.toml"'
+[!darwin] exec sh -c 'test -f "$XDG_DATA_HOME/ugh/ugh.sqlite"'

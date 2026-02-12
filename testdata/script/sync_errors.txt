@@ -1,0 +1,22 @@
+# Sync command failure paths (offline-safe)
+exec ugh --config $WORK/config.toml config set db.path $WORK/db.sqlite
+
+! exec ugh --config $WORK/config.toml sync
+stderr 'sync: sync is not configured'
+
+! exec ugh --config $WORK/config.toml sync pull
+stderr 'sync pull: sync is not configured'
+
+! exec ugh --config $WORK/config.toml sync push
+stderr 'sync push: sync is not configured'
+
+! exec ugh --config $WORK/config.toml sync status
+stderr 'sync status: sync is not configured'
+
+exec ugh --config $WORK/config.toml config set db.sync_url libsql://example.turso.io
+
+! exec ugh --config $WORK/config.toml list
+stderr 'auth token required when sync_url is set'
+
+! exec ugh --config $WORK/config.toml sync status
+stderr 'auth token required when sync_url is set'

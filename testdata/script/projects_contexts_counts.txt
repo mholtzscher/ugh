@@ -1,0 +1,65 @@
+# Projects and contexts counts with done filters
+exec ugh --db $WORK/db.sqlite add -p work -c office Work active
+exec ugh --db $WORK/db.sqlite add -p work -c home Work home
+exec ugh --db $WORK/db.sqlite add -p life -c home Life active
+exec ugh --db $WORK/db.sqlite add -p life -c errands Life done
+exec ugh --db $WORK/db.sqlite done 4
+
+exec ugh --db $WORK/db.sqlite projects --counts
+cmp stdout want-projects-todo.txt
+
+exec ugh --db $WORK/db.sqlite contexts --counts
+cmp stdout want-contexts-todo.txt
+
+exec ugh --db $WORK/db.sqlite projects --counts --done
+cmp stdout want-projects-done.txt
+
+exec ugh --db $WORK/db.sqlite contexts --counts --done
+cmp stdout want-contexts-done.txt
+
+exec ugh --db $WORK/db.sqlite projects --counts --all
+cmp stdout want-projects-all.txt
+
+exec ugh --db $WORK/db.sqlite contexts --counts --all
+cmp stdout want-contexts-all.txt
+
+exec ugh --db $WORK/db.sqlite undo 4
+exec ugh --db $WORK/db.sqlite projects --counts --done
+! stdout .
+
+exec ugh --db $WORK/db.sqlite rm 2
+
+exec ugh --db $WORK/db.sqlite projects --counts --todo
+cmp stdout want-projects-after-rm.txt
+
+exec ugh --db $WORK/db.sqlite contexts --counts --todo
+cmp stdout want-contexts-after-rm.txt
+
+exec ugh --json --db $WORK/db.sqlite projects --counts --todo
+stdout '"Name":"life","Count":2'
+stdout '"Name":"work","Count":1'
+
+-- want-projects-todo.txt --
+life	1
+work	2
+-- want-contexts-todo.txt --
+home	2
+office	1
+-- want-projects-done.txt --
+life	1
+-- want-contexts-done.txt --
+errands	1
+-- want-projects-all.txt --
+life	2
+work	2
+-- want-contexts-all.txt --
+errands	1
+home	2
+office	1
+-- want-projects-after-rm.txt --
+life	2
+work	1
+-- want-contexts-after-rm.txt --
+errands	1
+home	1
+office	1
