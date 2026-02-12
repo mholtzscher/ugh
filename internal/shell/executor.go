@@ -249,7 +249,7 @@ func viewFilterQuery(viewName string) (string, error) {
 	case viewNameLater:
 		return "find state:later", nil
 	case viewNameCalendar:
-		return "find due:today", nil
+		return "find due:", nil
 	default:
 		return "", fmt.Errorf("unknown view: %s", viewName)
 	}
