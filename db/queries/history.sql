@@ -47,11 +47,3 @@ LIMIT ?;
 
 -- name: ClearShellHistory :exec
 DELETE FROM shell_history;
-
--- name: UpdateShellHistory :exec
-UPDATE shell_history
-SET
-  success = ?,
-  result_summary = ?,
-  intent = ?
-WHERE id = ?;

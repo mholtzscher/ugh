@@ -210,23 +210,7 @@ func (s *Store) CreateTask(ctx context.Context, task *Task) (*Task, error) {
 		return nil, err
 	}
 
-	createdTask, err := s.GetTask(ctx, row.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.recordTaskEvent(
-		ctx,
-		createdTask.ID,
-		TaskEventKindCreate,
-		fmt.Sprintf("created task #%d", createdTask.ID),
-		buildCreateChanges(createdTask),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return createdTask, nil
+	return s.GetTask(ctx, row.ID)
 }
 
 func (s *Store) UpdateTask(ctx context.Context, task *Task) (*Task, error) {
@@ -235,10 +219,6 @@ func (s *Store) UpdateTask(ctx context.Context, task *Task) (*Task, error) {
 	}
 	if task.ID == 0 {
 		return nil, errors.New("task id is required")
-	}
-	beforeTask, err := s.GetTask(ctx, task.ID)
-	if err != nil {
-		return nil, err
 	}
 	task.Title = strings.TrimSpace(task.Title)
 	if task.Title == "" {
@@ -278,39 +258,18 @@ func (s *Store) UpdateTask(ctx context.Context, task *Task) (*Task, error) {
 		UpdatedAt:   updatedAt,
 		ID:          task.ID,
 	}
-	if _, err = s.queries.UpdateTask(ctx, params); err != nil {
+	if _, err := s.queries.UpdateTask(ctx, params); err != nil {
 		return nil, fmt.Errorf("update task: %w", err)
 	}
 
-	err = s.deleteDetails(ctx, task.ID)
-	if err != nil {
+	if err := s.deleteDetails(ctx, task.ID); err != nil {
 		return nil, err
 	}
-	err = s.insertDetails(ctx, task.ID, task)
-	if err != nil {
-		return nil, err
-	}
-
-	updatedTask, err := s.GetTask(ctx, task.ID)
-	if err != nil {
+	if err := s.insertDetails(ctx, task.ID, task); err != nil {
 		return nil, err
 	}
 
-	changes := buildTaskDiff(beforeTask, updatedTask)
-	if len(changes) > 0 {
-		err = s.recordTaskEvent(
-			ctx,
-			updatedTask.ID,
-			TaskEventKindUpdate,
-			fmt.Sprintf("updated task #%d", updatedTask.ID),
-			changes,
-		)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return updatedTask, nil
+	return s.GetTask(ctx, task.ID)
 }
 
 func (s *Store) GetTask(ctx context.Context, id int64) (*Task, error) {
@@ -431,66 +390,25 @@ func (s *Store) SetDone(ctx context.Context, ids []int64, done bool) (int64, err
 	if len(ids) == 0 {
 		return 0, nil
 	}
-
-	beforeTasks, err := s.getExistingTasksByID(ctx, ids)
-	if err != nil {
-		return 0, err
-	}
-
 	updatedAt := time.Now().UTC().Unix()
-	var count int64
 	if done {
 		params := sqlc.CompleteTasksParams{
 			CompletedAt: sql.NullInt64{Int64: time.Now().UTC().Unix(), Valid: true},
 			UpdatedAt:   updatedAt,
 			Ids:         ids,
 		}
-		count, err = s.queries.CompleteTasks(ctx, params)
+		count, err := s.queries.CompleteTasks(ctx, params)
 		if err != nil {
 			return 0, fmt.Errorf("complete tasks: %w", err)
 		}
-	} else {
-		params := sqlc.ReopenTasksParams{UpdatedAt: updatedAt, Ids: ids}
-		count, err = s.queries.ReopenTasks(ctx, params)
-		if err != nil {
-			return 0, fmt.Errorf("reopen tasks: %w", err)
-		}
+		return count, nil
 	}
 
-	afterTasks, err := s.getExistingTasksByID(ctx, ids)
+	params := sqlc.ReopenTasksParams{UpdatedAt: updatedAt, Ids: ids}
+	count, err := s.queries.ReopenTasks(ctx, params)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("reopen tasks: %w", err)
 	}
-
-	kind := TaskEventKindUndo
-	verb := "reopened"
-	if done {
-		kind = TaskEventKindDone
-		verb = "marked done"
-	}
-
-	for _, id := range ids {
-		beforeTask := beforeTasks[id]
-		afterTask := afterTasks[id]
-		if beforeTask == nil || afterTask == nil {
-			continue
-		}
-		changes := buildTaskDiff(beforeTask, afterTask)
-		if len(changes) == 0 {
-			continue
-		}
-		err = s.recordTaskEvent(
-			ctx,
-			id,
-			kind,
-			fmt.Sprintf("%s task #%d", verb, id),
-			changes,
-		)
-		if err != nil {
-			return 0, err
-		}
-	}
-
 	return count, nil
 }
 
@@ -498,34 +416,10 @@ func (s *Store) DeleteTasks(ctx context.Context, ids []int64) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-
-	beforeTasks, err := s.getExistingTasksByID(ctx, ids)
-	if err != nil {
-		return 0, err
-	}
-
 	count, err := s.queries.DeleteTasks(ctx, ids)
 	if err != nil {
 		return 0, fmt.Errorf("delete tasks: %w", err)
 	}
-
-	for _, id := range ids {
-		beforeTask := beforeTasks[id]
-		if beforeTask == nil {
-			continue
-		}
-		err = s.recordTaskEvent(
-			ctx,
-			id,
-			TaskEventKindDelete,
-			fmt.Sprintf("deleted task #%d", id),
-			buildDeleteChanges(beforeTask),
-		)
-		if err != nil {
-			return 0, err
-		}
-	}
-
 	return count, nil
 }
 
@@ -742,22 +636,6 @@ func (s *Store) SearchShellHistory(
 		})
 	}
 	return result, nil
-}
-
-// UpdateShellHistory updates an existing shell history entry.
-func (s *Store) UpdateShellHistory(
-	ctx context.Context, id int64, success bool, summary string, intent string,
-) error {
-	params := sqlc.UpdateShellHistoryParams{
-		Success:       success,
-		ResultSummary: nullString(summary),
-		Intent:        nullString(intent),
-		ID:            id,
-	}
-	if err := s.queries.UpdateShellHistory(ctx, params); err != nil {
-		return fmt.Errorf("update shell history: %w", err)
-	}
-	return nil
 }
 
 // ClearShellHistory clears all shell history.

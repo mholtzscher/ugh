@@ -59,16 +59,6 @@ func (s *TaskService) SearchShellHistory(
 	return s.store.SearchShellHistory(ctx, search, intent, success, limit)
 }
 
-func (s *TaskService) UpdateShellHistory(
-	ctx context.Context, id int64, success bool, summary string, intent string,
-) error {
-	return s.store.UpdateShellHistory(ctx, id, success, summary, intent)
-}
-
 func (s *TaskService) ClearShellHistory(ctx context.Context) error {
 	return s.store.ClearShellHistory(ctx)
-}
-
-func (s *TaskService) ListTaskEvents(ctx context.Context, taskID int64, limit int64) ([]*store.TaskEvent, error) {
-	return s.store.ListTaskEvents(ctx, taskID, limit)
 }

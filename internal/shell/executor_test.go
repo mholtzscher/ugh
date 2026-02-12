@@ -201,18 +201,8 @@ func (*recordingService) SearchShellHistory(
 	return []*store.ShellHistory{}, nil
 }
 
-func (*recordingService) UpdateShellHistory(
-	_ context.Context, _ int64, _ bool, _ string, _ string,
-) error {
-	return nil
-}
-
 func (*recordingService) ClearShellHistory(_ context.Context) error {
 	return nil
-}
-
-func (*recordingService) ListTaskEvents(_ context.Context, _ int64, _ int64) ([]*store.TaskEvent, error) {
-	return []*store.TaskEvent{}, nil
 }
 
 func contains(values []string, want string) bool {
