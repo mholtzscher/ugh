@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/urfave/cli/v3"
 
@@ -33,7 +32,7 @@ var configSetCmd = &cli.Command{
 		}
 		cfg := loadedConfig
 		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion, UI: config.UI{Theme: config.DefaultUITheme}}
+			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
 		key := cmd.Args().Get(0)
@@ -79,17 +78,6 @@ func setConfigValue(cfg *config.Config, key string, value string) error {
 			return fmt.Errorf("invalid boolean for %s: %w", configKeyDBSyncOnWrite, err)
 		}
 		cfg.DB.SyncOnWrite = parsed
-		return nil
-	case configKeyUITheme:
-		if _, ok := GetTheme(value); !ok {
-			return fmt.Errorf(
-				"invalid %s %q (available: %s)",
-				configKeyUITheme,
-				value,
-				strings.Join(AvailableThemeNames(), ", "),
-			)
-		}
-		cfg.UI.Theme = value
 		return nil
 	default:
 		return fmt.Errorf("unknown config key: %s", key)

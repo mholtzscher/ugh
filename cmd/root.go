@@ -142,7 +142,6 @@ func loadConfig(cmd *cli.Command) error {
 					SyncRetryMax:     defaultDaemonSyncRetryMax,
 					SyncRetryBackoff: "1s",
 				},
-				UI: config.UI{Theme: config.DefaultUITheme},
 			}
 
 			err = config.Save(cfgPath, result.Config)
@@ -160,12 +159,6 @@ func loadConfig(cmd *cli.Command) error {
 func cacheLoadedConfig(result *config.LoadResult) {
 	loadedConfig = &result.Config
 	loadedConfigWas = result.WasLoaded
-	if rootNoColor || os.Getenv("NO_COLOR") != "" {
-		return
-	}
-	if err := applyTheme(result.Config.UI.Theme); err != nil {
-		_ = applyTheme(config.DefaultUITheme)
-	}
 }
 
 func shouldAutoInitConfig() bool {

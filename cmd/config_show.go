@@ -17,7 +17,7 @@ var configShowCmd = &cli.Command{
 	Action: func(_ context.Context, _ *cli.Command) error {
 		cfg := loadedConfig
 		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion, UI: config.UI{Theme: config.DefaultUITheme}}
+			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
 		writer := outputWriter()
@@ -44,9 +44,6 @@ func configShowJSONPayload(cfg *config.Config) map[string]any {
 			"log_level":          cfg.Daemon.LogLevel,
 			"sync_retry_max":     cfg.Daemon.SyncRetryMax,
 			"sync_retry_backoff": cfg.Daemon.SyncRetryBackoff,
-		},
-		"ui": map[string]any{
-			"theme": cfg.UI.Theme,
 		},
 	}
 }
