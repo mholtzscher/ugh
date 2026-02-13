@@ -19,7 +19,7 @@ type Prompt struct {
 func NewPrompt(svc service.Service, noColor bool) (*Prompt, error) {
 	promptText := "ugh> "
 	if !noColor {
-		promptText = pterm.Cyan("➜ ") + pterm.Magenta("ugh> ")
+		promptText = pterm.ThemeDefault.PrimaryStyle.Sprint("➜ ") + pterm.ThemeDefault.SecondaryStyle.Sprint("ugh> ")
 	}
 
 	cfg := &readline.Config{

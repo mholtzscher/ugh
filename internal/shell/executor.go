@@ -312,7 +312,7 @@ func (e *Executor) showContext() *ExecuteResult {
 	var msg string
 	if !e.noColor {
 		table, _ := pterm.DefaultTable.WithData(data).Srender()
-		msg = pterm.Yellow("Current Context:\n") + table
+		msg = pterm.ThemeDefault.HighlightStyle.Sprint("Current Context:\n") + table
 	} else {
 		var b strings.Builder
 		b.WriteString("Current Context:\n")
@@ -379,12 +379,12 @@ func formatControlRune(r rune) string {
 func (e *Executor) showViewHelp() *ExecuteResult {
 	var msg string
 	if !e.noColor {
-		msg = pterm.Green("Available Views:\n") +
-			"  " + pterm.LightGreen("i, inbox") + "     Inbox tasks\n" +
-			"  " + pterm.LightGreen("n, now") + "       Now tasks\n" +
-			"  " + pterm.LightGreen("w, waiting") + "   Waiting tasks\n" +
-			"  " + pterm.LightGreen("l, later") + "     Later tasks\n" +
-			"  " + pterm.LightGreen("c, calendar") + "  Tasks with due dates\n" +
+		msg = pterm.ThemeDefault.SuccessMessageStyle.Sprint("Available Views:\n") +
+			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("i, inbox") + "     Inbox tasks\n" +
+			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("n, now") + "       Now tasks\n" +
+			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("w, waiting") + "   Waiting tasks\n" +
+			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("l, later") + "     Later tasks\n" +
+			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("c, calendar") + "  Tasks with due dates\n" +
 			"\nUsage: view <name> (e.g., view i or view inbox)"
 	} else {
 		var b strings.Builder
@@ -523,14 +523,14 @@ func formatID(id int64, noColor bool) string {
 	if noColor {
 		return "#" + strconv.FormatInt(id, 10)
 	}
-	return pterm.Cyan("#" + strconv.FormatInt(id, 10))
+	return pterm.ThemeDefault.PrimaryStyle.Sprint("#" + strconv.FormatInt(id, 10))
 }
 
 func formatState(state string, noColor bool) string {
 	if noColor {
 		return "[" + state + "]"
 	}
-	return pterm.Magenta("[" + state + "]")
+	return pterm.ThemeDefault.SecondaryStyle.Sprint("[" + state + "]")
 }
 
 func formatTags(projects, contexts []string, noColor bool) string {
@@ -539,14 +539,14 @@ func formatTags(projects, contexts []string, noColor bool) string {
 		if noColor {
 			tags = append(tags, "#"+p)
 		} else {
-			tags = append(tags, pterm.Blue("#"+p))
+			tags = append(tags, pterm.ThemeDefault.PrimaryStyle.Sprint("#"+p))
 		}
 	}
 	for _, c := range contexts {
 		if noColor {
 			tags = append(tags, "@"+c)
 		} else {
-			tags = append(tags, pterm.Green("@"+c))
+			tags = append(tags, pterm.ThemeDefault.SuccessMessageStyle.Sprint("@"+c))
 		}
 	}
 	return strings.Join(tags, " ")
@@ -559,5 +559,5 @@ func formatDueDate(dueOn *time.Time, noColor bool) string {
 	if noColor {
 		return dueOn.Format("2006-01-02")
 	}
-	return pterm.Yellow(dueOn.Format("2006-01-02"))
+	return pterm.ThemeDefault.WarningMessageStyle.Sprint(dueOn.Format("2006-01-02"))
 }

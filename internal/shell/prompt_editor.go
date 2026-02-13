@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/chzyer/readline"
+	"github.com/pterm/pterm"
 
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/service"
@@ -14,13 +15,6 @@ import (
 )
 
 const (
-	ansiReset   = "\033[0m"
-	ansiBlue    = "\033[34m"
-	ansiGreen   = "\033[32m"
-	ansiYellow  = "\033[33m"
-	ansiMagenta = "\033[35m"
-	ansiCyan    = "\033[36m"
-
 	identTokenName   = "Ident"
 	maxViewTokenArgs = 2
 )
@@ -409,13 +403,11 @@ func (*shellPainter) Paint(line []rune, _ int) []rune {
 			b.WriteString(input[cursor:start])
 		}
 
-		color := colorForToken(tok)
-		if color == "" {
+		style, ok := styleForToken(tok)
+		if !ok {
 			b.WriteString(input[start:end])
 		} else {
-			b.WriteString(color)
-			b.WriteString(input[start:end])
-			b.WriteString(ansiReset)
+			b.WriteString(style.Sprint(input[start:end]))
 		}
 
 		cursor = end
@@ -427,32 +419,32 @@ func (*shellPainter) Paint(line []rune, _ int) []rune {
 	return []rune(b.String())
 }
 
-func colorForToken(tok nlp.LexToken) string {
+func styleForToken(tok nlp.LexToken) (pterm.Style, bool) {
 	switch tok.Name {
 	case "Quoted", "QuoteStart", "QuoteEnd", "StringText", "StringEscape", "StringBackslash":
-		return ansiYellow
+		return pterm.ThemeDefault.HighlightStyle, true
 	case "ProjectTag", "ProjectTagPrefix":
-		return ansiBlue
+		return pterm.ThemeDefault.PrimaryStyle, true
 	case "ContextTag", "ContextTagPrefix":
-		return ansiGreen
+		return pterm.ThemeDefault.SuccessMessageStyle, true
 	case "SetField", "AddField", "RemoveField", "ClearField", "ClearOp", "AddOp", "RemoveOp":
-		return ansiMagenta
+		return pterm.ThemeDefault.SecondaryStyle, true
 	case "AndOp", "OrOp":
-		return ansiCyan
+		return pterm.ThemeDefault.InfoMessageStyle, true
 	case "HashNumber":
-		return ansiCyan
+		return pterm.ThemeDefault.InfoMessageStyle, true
 	case "Ident":
 		lower := strings.ToLower(tok.Value)
 		if lower == "and" || lower == "or" || lower == "not" {
-			return ansiCyan
+			return pterm.ThemeDefault.InfoMessageStyle, true
 		}
 		if lower == "add" || lower == "create" || lower == "new" ||
 			lower == "set" || lower == "edit" || lower == "update" ||
 			lower == "find" || lower == "show" || lower == "list" || lower == "filter" ||
 			lower == "view" || lower == "context" ||
 			lower == "log" || lower == "activity" {
-			return ansiYellow
+			return pterm.ThemeDefault.HighlightStyle, true
 		}
 	}
-	return ""
+	return pterm.Style{}, false
 }

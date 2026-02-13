@@ -279,78 +279,85 @@ func (r *REPL) showPlainHelp() {
 }
 
 func (r *REPL) showColorHelp() {
+	primary := pterm.ThemeDefault.PrimaryStyle.Sprint
+	secondary := pterm.ThemeDefault.SecondaryStyle.Sprint
+	info := pterm.ThemeDefault.InfoMessageStyle.Sprint
+	success := pterm.ThemeDefault.SuccessMessageStyle.Sprint
+	warning := pterm.ThemeDefault.WarningMessageStyle.Sprint
+	text := pterm.ThemeDefault.DefaultText.Sprint
+
 	pterm.DefaultSection.Println("Available Commands")
 
 	// Navigation panel
-	pterm.DefaultBox.WithTitle(pterm.Cyan("Navigation")).WithRightPadding(1).WithLeftPadding(1).Println(
-		pterm.LightCyan("quit, exit, q") + "    Exit the shell\n" +
-			pterm.LightCyan("help, ?") + "          Show this help\n" +
-			pterm.LightCyan("clear") + "            Clear the screen")
+	pterm.DefaultBox.WithTitle(primary("Navigation")).WithRightPadding(1).WithLeftPadding(1).Println(
+		primary("quit, exit, q") + "    Exit the shell\n" +
+			primary("help, ?") + "          Show this help\n" +
+			primary("clear") + "            Clear the screen")
 
 	// Views panel
-	pterm.DefaultBox.WithTitle(pterm.Green("Views")).WithRightPadding(1).WithLeftPadding(1).Println(
-		pterm.LightGreen("view") + "               Show available views\n" +
-			pterm.LightGreen("view i/inbox") + "     Inbox tasks\n" +
-			pterm.LightGreen("view n/now") + "       Now tasks\n" +
-			pterm.LightGreen("view w/waiting") + "   Waiting tasks\n" +
-			pterm.LightGreen("view l/later") + "     Later tasks\n" +
-			pterm.LightGreen("view c/calendar") + "  Tasks with due dates")
+	pterm.DefaultBox.WithTitle(success("Views")).WithRightPadding(1).WithLeftPadding(1).Println(
+		success("view") + "               Show available views\n" +
+			success("view i/inbox") + "     Inbox tasks\n" +
+			success("view n/now") + "       Now tasks\n" +
+			success("view w/waiting") + "   Waiting tasks\n" +
+			success("view l/later") + "     Later tasks\n" +
+			success("view c/calendar") + "  Tasks with due dates")
 
 	// Examples panel
-	pterm.DefaultBox.WithTitle(pterm.Green("Examples")).WithRightPadding(1).WithLeftPadding(1).Println(
-		pterm.LightGreen("add buy milk tomorrow #groceries @store") + "\n" +
-			pterm.LightGreen("add task due:tomorrow state:inbox") + "\n" +
-			pterm.LightGreen("set selected state:done") + "\n" +
-			pterm.LightGreen("set 123 title:new title +project:work") + "\n" +
-			pterm.LightGreen("find state:now") + "\n" +
-			pterm.LightGreen("find state:now and project:work") + "\n" +
-			pterm.LightGreen("find state:now or not state:done") + "\n" +
-			pterm.LightGreen("find (state:now or state:waiting) and project:work") + "\n" +
-			pterm.LightGreen("show 3") + "\n" +
-			pterm.LightGreen("show #work") + "\n" +
-			pterm.LightGreen("filter context:urgent"))
+	pterm.DefaultBox.WithTitle(success("Examples")).WithRightPadding(1).WithLeftPadding(1).Println(
+		success("add buy milk tomorrow #groceries @store") + "\n" +
+			success("add task due:tomorrow state:inbox") + "\n" +
+			success("set selected state:done") + "\n" +
+			success("set 123 title:new title +project:work") + "\n" +
+			success("find state:now") + "\n" +
+			success("find state:now and project:work") + "\n" +
+			success("find state:now or not state:done") + "\n" +
+			success("find (state:now or state:waiting) and project:work") + "\n" +
+			success("show 3") + "\n" +
+			success("show #work") + "\n" +
+			success("filter context:urgent"))
 
 	// Syntax panel - colors match the explanatory boxes
-	syntaxContent := pterm.LightYellow("add/create/new") + " " +
-		pterm.White("<title>") + " " +
-		pterm.LightMagenta("[operations...]") + "\n" +
-		pterm.LightYellow("set/edit/update") + " " +
-		pterm.White("<target>") + " " +
-		pterm.LightMagenta("[operations...]") + "\n" +
-		pterm.LightYellow("find/show/list/filter") + " " +
-		pterm.LightBlue("<expr>") + " " +
-		pterm.LightYellow("(and/or/not, parentheses)")
-	pterm.DefaultBox.WithTitle(pterm.Yellow("Syntax")).
+	syntaxContent := warning("add/create/new") + " " +
+		text("<title>") + " " +
+		secondary("[operations...]") + "\n" +
+		warning("set/edit/update") + " " +
+		text("<target>") + " " +
+		secondary("[operations...]") + "\n" +
+		warning("find/show/list/filter") + " " +
+		info("<expr>") + " " +
+		warning("(and/or/not, parentheses)")
+	pterm.DefaultBox.WithTitle(warning("Syntax")).
 		WithRightPadding(1).
 		WithLeftPadding(1).
 		Println(syntaxContent)
 
 	// Operations panel
-	pterm.DefaultBox.WithTitle(pterm.Magenta("Operations")).WithRightPadding(1).WithLeftPadding(1).Println(
-		pterm.LightMagenta("field:value") + "       Set field (title, notes, due, waiting, state)\n" +
-			pterm.LightMagenta("+field:value") + "      Add to list (projects, contexts, meta)\n" +
-			pterm.LightMagenta("-field:value") + "      Remove from list\n" +
-			pterm.LightMagenta("!field") + "            Clear field\n" +
-			pterm.LightMagenta("#project") + "          Add project tag\n" +
-			pterm.LightMagenta("@context") + "          Add context tag")
+	pterm.DefaultBox.WithTitle(secondary("Operations")).WithRightPadding(1).WithLeftPadding(1).Println(
+		secondary("field:value") + "       Set field (title, notes, due, waiting, state)\n" +
+			secondary("+field:value") + "      Add to list (projects, contexts, meta)\n" +
+			secondary("-field:value") + "      Remove from list\n" +
+			secondary("!field") + "            Clear field\n" +
+			secondary("#project") + "          Add project tag\n" +
+			secondary("@context") + "          Add context tag")
 
 	// Predicates panel
-	pterm.DefaultBox.WithTitle(pterm.Blue("Predicates")).WithRightPadding(1).WithLeftPadding(1).Println(
-		pterm.LightBlue("state:inbox|now|waiting|later|done") + "\n" +
-			pterm.LightBlue("due:today|tomorrow|YYYY-MM-DD") + "\n" +
-			pterm.LightBlue("project:name, context:name, text:search") + "\n" +
-			pterm.LightBlue("id:123 or just 123") + "  Find by task ID\n" +
-			pterm.LightBlue("done visibility") + "        Hidden unless expression mentions state:done")
+	pterm.DefaultBox.WithTitle(info("Predicates")).WithRightPadding(1).WithLeftPadding(1).Println(
+		info("state:inbox|now|waiting|later|done") + "\n" +
+			info("due:today|tomorrow|YYYY-MM-DD") + "\n" +
+			info("project:name, context:name, text:search") + "\n" +
+			info("id:123 or just 123") + "  Find by task ID\n" +
+			info("done visibility") + "        Hidden unless expression mentions state:done")
 
 	// Targets panel
-	pterm.DefaultBox.WithTitle(pterm.White("Targets")).WithRightPadding(1).WithLeftPadding(1).Println(
-		pterm.LightWhite("selected") + "          Currently selected task\n" +
-			pterm.LightWhite("#123") + "              Task ID")
+	pterm.DefaultBox.WithTitle(text("Targets")).WithRightPadding(1).WithLeftPadding(1).Println(
+		text("selected") + "          Currently selected task\n" +
+			text("#123") + "              Task ID")
 
 	// Context panel
-	pterm.DefaultBox.WithTitle(pterm.Cyan("Context (sticky filters)")).WithRightPadding(1).WithLeftPadding(1).Println(
-		pterm.LightCyan("context") + "            Show current context state\n" +
-			pterm.LightCyan("context #project") + "   Set default project context\n" +
-			pterm.LightCyan("context @context") + "   Set default context filter\n" +
-			pterm.LightCyan("context clear") + "      Clear all context filters")
+	pterm.DefaultBox.WithTitle(primary("Context (sticky filters)")).WithRightPadding(1).WithLeftPadding(1).Println(
+		primary("context") + "            Show current context state\n" +
+			primary("context #project") + "   Set default project context\n" +
+			primary("context @context") + "   Set default context filter\n" +
+			primary("context clear") + "      Clear all context filters")
 }

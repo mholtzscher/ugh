@@ -5,6 +5,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -125,9 +126,19 @@ func TestShellPainterHighlightsTokens(t *testing.T) {
 	line := `add "milk" #work @phone`
 	painted := string(painter.Paint([]rune(line), len([]rune(line))))
 
-	assert.Contains(t, painted, ansiYellow+`"milk"`+ansiReset, "quoted string should be highlighted")
-	assert.Contains(t, painted, ansiBlue+"#work"+ansiReset, "project tag should be highlighted")
-	assert.Contains(t, painted, ansiGreen+"@phone"+ansiReset, "context tag should be highlighted")
+	assert.Contains(
+		t,
+		painted,
+		pterm.ThemeDefault.HighlightStyle.Sprint(`"milk"`),
+		"quoted string should be highlighted",
+	)
+	assert.Contains(t, painted, pterm.ThemeDefault.PrimaryStyle.Sprint("#work"), "project tag should be highlighted")
+	assert.Contains(
+		t,
+		painted,
+		pterm.ThemeDefault.SuccessMessageStyle.Sprint("@phone"),
+		"context tag should be highlighted",
+	)
 }
 
 func TestShellPainterHighlightsViewAndContextCommands(t *testing.T) {
@@ -135,10 +146,20 @@ func TestShellPainterHighlightsViewAndContextCommands(t *testing.T) {
 
 	painter := newShellPainter()
 	paintedView := string(painter.Paint([]rune("view inbox"), len([]rune("view inbox"))))
-	assert.Contains(t, paintedView, ansiYellow+"view"+ansiReset, "view command should be highlighted")
+	assert.Contains(
+		t,
+		paintedView,
+		pterm.ThemeDefault.HighlightStyle.Sprint("view"),
+		"view command should be highlighted",
+	)
 
 	paintedContext := string(painter.Paint([]rune("context #work"), len([]rune("context #work"))))
-	assert.Contains(t, paintedContext, ansiYellow+"context"+ansiReset, "context command should be highlighted")
+	assert.Contains(
+		t,
+		paintedContext,
+		pterm.ThemeDefault.HighlightStyle.Sprint("context"),
+		"context command should be highlighted",
+	)
 }
 
 func completionStrings(suffixes [][]rune) []string {

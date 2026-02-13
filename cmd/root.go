@@ -153,9 +153,19 @@ func loadConfig(cmd *cli.Command) error {
 		}
 	}
 
+	cacheLoadedConfig(result)
+	return nil
+}
+
+func cacheLoadedConfig(result *config.LoadResult) {
 	loadedConfig = &result.Config
 	loadedConfigWas = result.WasLoaded
-	return nil
+	if rootNoColor || os.Getenv("NO_COLOR") != "" {
+		return
+	}
+	if err := applyTheme(result.Config.UI.Theme); err != nil {
+		_ = applyTheme(config.DefaultUITheme)
+	}
 }
 
 func shouldAutoInitConfig() bool {

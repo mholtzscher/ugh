@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 
@@ -80,6 +81,14 @@ func setConfigValue(cfg *config.Config, key string, value string) error {
 		cfg.DB.SyncOnWrite = parsed
 		return nil
 	case configKeyUITheme:
+		if _, ok := themeByName(value); !ok {
+			return fmt.Errorf(
+				"invalid %s %q (available: %s)",
+				configKeyUITheme,
+				value,
+				strings.Join(availableThemeNames(), ", "),
+			)
+		}
 		cfg.UI.Theme = value
 		return nil
 	default:
