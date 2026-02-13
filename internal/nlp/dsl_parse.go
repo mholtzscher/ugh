@@ -127,6 +127,21 @@ func (v *ContextVerb) Parse(lex *lexer.PeekingLexer) error {
 	return nil
 }
 
+//nolint:gochecknoglobals // constant lookup table for verb synonyms
+var logVerbs = []string{"log", "activity"}
+
+func (v *LogVerb) Parse(lex *lexer.PeekingLexer) error {
+	if v == nil {
+		return errors.New("nil LogVerb")
+	}
+	s, err := parseVerb(lex, logVerbs)
+	if err != nil {
+		return err
+	}
+	*v = LogVerb(s)
+	return nil
+}
+
 func (t *ViewTarget) Parse(lex *lexer.PeekingLexer) error {
 	if t == nil {
 		return errors.New("nil ViewTarget")

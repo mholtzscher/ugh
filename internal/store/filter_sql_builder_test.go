@@ -30,7 +30,7 @@ func TestFilterSQLBuilder_BuildBooleanExpression(t *testing.T) {
 
 	assert.Contains(t, clause, "t.state = ?", "clause should contain state predicate")
 	assert.Contains(t, clause, "NOT", "clause should contain NOT operator")
-	assert.Contains(t, clause, "task_project_links", "clause should contain project EXISTS subquery")
+	assert.Contains(t, clause, "json_each(t.projects_json)", "clause should contain project JSON predicate")
 	require.Len(t, args, 2, "args len mismatch")
 	assert.Equal(t, "now", args[0], "args[0] mismatch")
 	assert.Equal(t, "work", args[1], "args[1] mismatch")
@@ -77,8 +77,7 @@ func TestFilterSQLBuilder_WildcardProjectPredicateHasNoNameArg(t *testing.T) {
 	clause, args, err := b.Build(nlp.Predicate{Kind: nlp.PredProject, Text: nlp.FilterWildcard})
 	require.NoError(t, err, "Build() error")
 
-	assert.Contains(t, clause, "task_project_links", "clause should include project link subquery")
-	assert.NotContains(t, clause, "p.name = ?", "clause should not constrain project name")
+	assert.Contains(t, clause, "json_array_length(t.projects_json) > 0", "clause should check project JSON length")
 	assert.Empty(t, args, "args should be empty")
 }
 
@@ -89,8 +88,7 @@ func TestFilterSQLBuilder_WildcardContextPredicateHasNoNameArg(t *testing.T) {
 	clause, args, err := b.Build(nlp.Predicate{Kind: nlp.PredContext, Text: nlp.FilterWildcard})
 	require.NoError(t, err, "Build() error")
 
-	assert.Contains(t, clause, "task_context_links", "clause should include context link subquery")
-	assert.NotContains(t, clause, "c.name = ?", "clause should not constrain context name")
+	assert.Contains(t, clause, "json_array_length(t.contexts_json) > 0", "clause should check context JSON length")
 	assert.Empty(t, args, "args should be empty")
 }
 

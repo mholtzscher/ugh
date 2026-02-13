@@ -11,6 +11,7 @@ import (
 type Service interface {
 	CreateTask(ctx context.Context, req CreateTaskRequest) (*store.Task, error)
 	ListTasks(ctx context.Context, req ListTasksRequest) ([]*store.Task, error)
+	ListTaskVersions(ctx context.Context, taskID int64, limit int64) ([]*store.TaskVersion, error)
 	GetTask(ctx context.Context, id int64) (*store.Task, error)
 	UpdateTask(ctx context.Context, req UpdateTaskRequest) (*store.Task, error)
 	FullUpdateTask(ctx context.Context, req FullUpdateTaskRequest) (*store.Task, error)

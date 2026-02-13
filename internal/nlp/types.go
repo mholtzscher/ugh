@@ -22,6 +22,7 @@ const (
 	IntentFilter
 	IntentView
 	IntentContext
+	IntentLog
 )
 
 type Severity int

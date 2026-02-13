@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/nlp/compile"
+	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/service"
 	"github.com/mholtzscher/ugh/internal/store"
 )
@@ -169,6 +171,8 @@ func (e *Executor) executePlan(
 		return e.executeView(ctx, parseResult)
 	case nlp.IntentContext:
 		return e.executeContext(parseResult)
+	case nlp.IntentLog:
+		return e.executeLog(ctx, plan)
 	case nlp.IntentUnknown:
 		return nil, errors.New("unknown intent: could not determine command type")
 	default:
@@ -236,6 +240,39 @@ func (e *Executor) executeContext(parseResult nlp.ParseResult) (*ExecuteResult, 
 	}
 
 	return nil, errors.New("invalid context command argument")
+}
+
+const defaultTaskLogLimit = 20
+
+func (e *Executor) executeLog(ctx context.Context, plan compile.Plan) (*ExecuteResult, error) {
+	taskID := plan.Target.ID
+	if taskID <= 0 {
+		return nil, errors.New("log command requires a task id")
+	}
+
+	versions, err := e.svc.ListTaskVersions(ctx, taskID, defaultTaskLogLimit)
+	if err != nil {
+		return nil, fmt.Errorf("list task versions: %w", err)
+	}
+	if len(versions) == 0 {
+		return nil, errors.New("task not found")
+	}
+
+	e.state.LastTaskIDs = []int64{taskID}
+
+	var rendered bytes.Buffer
+	writer := output.Writer{Out: &rendered, JSON: false, NoColor: e.noColor, TTY: true}
+	if writeErr := writer.WriteTaskVersionDiff(versions); writeErr != nil {
+		return nil, fmt.Errorf("write version diff: %w", writeErr)
+	}
+
+	return &ExecuteResult{
+		Intent:    "show log",
+		Message:   strings.TrimSuffix(rendered.String(), "\n"),
+		TaskIDs:   []int64{taskID},
+		Summary:   fmt.Sprintf("showed %d versions", len(versions)),
+		Timestamp: time.Now(),
+	}, nil
 }
 
 func viewFilterQuery(viewName string) (string, error) {

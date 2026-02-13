@@ -8,22 +8,6 @@ import (
 	"database/sql"
 )
 
-type Context struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
-}
-
-type Project struct {
-	ID         int64         `json:"id"`
-	Name       string        `json:"name"`
-	Notes      string        `json:"notes"`
-	ArchivedAt sql.NullInt64 `json:"archived_at"`
-	CreatedAt  int64         `json:"created_at"`
-	UpdatedAt  int64         `json:"updated_at"`
-}
-
 type ShellHistory struct {
 	ID            int64          `json:"id"`
 	Timestamp     int64          `json:"timestamp"`
@@ -34,30 +18,40 @@ type ShellHistory struct {
 }
 
 type Task struct {
-	ID          int64          `json:"id"`
-	State       string         `json:"state"`
-	PrevState   sql.NullString `json:"prev_state"`
-	Title       string         `json:"title"`
-	Notes       string         `json:"notes"`
-	DueOn       sql.NullString `json:"due_on"`
-	WaitingFor  sql.NullString `json:"waiting_for"`
-	CompletedAt sql.NullInt64  `json:"completed_at"`
-	CreatedAt   int64          `json:"created_at"`
-	UpdatedAt   int64          `json:"updated_at"`
+	ID        int64 `json:"id"`
+	CreatedAt int64 `json:"created_at"`
 }
 
-type TaskContextLink struct {
-	TaskID    int64 `json:"task_id"`
-	ContextID int64 `json:"context_id"`
+type TaskVersion struct {
+	VersionID    int64          `json:"version_id"`
+	TaskID       int64          `json:"task_id"`
+	State        string         `json:"state"`
+	PrevState    sql.NullString `json:"prev_state"`
+	Title        string         `json:"title"`
+	Notes        string         `json:"notes"`
+	DueOn        sql.NullString `json:"due_on"`
+	WaitingFor   sql.NullString `json:"waiting_for"`
+	CompletedAt  sql.NullInt64  `json:"completed_at"`
+	UpdatedAt    int64          `json:"updated_at"`
+	Deleted      int64          `json:"deleted"`
+	ProjectsJson string         `json:"projects_json"`
+	ContextsJson string         `json:"contexts_json"`
+	MetaJson     string         `json:"meta_json"`
 }
 
-type TaskMetum struct {
-	TaskID int64  `json:"task_id"`
-	Key    string `json:"key"`
-	Value  string `json:"value"`
-}
-
-type TaskProjectLink struct {
-	TaskID    int64 `json:"task_id"`
-	ProjectID int64 `json:"project_id"`
+type TasksCurrent struct {
+	ID           int64          `json:"id"`
+	State        string         `json:"state"`
+	PrevState    sql.NullString `json:"prev_state"`
+	Title        string         `json:"title"`
+	Notes        string         `json:"notes"`
+	DueOn        sql.NullString `json:"due_on"`
+	WaitingFor   sql.NullString `json:"waiting_for"`
+	CompletedAt  sql.NullInt64  `json:"completed_at"`
+	CreatedAt    int64          `json:"created_at"`
+	UpdatedAt    int64          `json:"updated_at"`
+	ProjectsJson string         `json:"projects_json"`
+	ContextsJson string         `json:"contexts_json"`
+	MetaJson     string         `json:"meta_json"`
+	VersionID    int64          `json:"version_id"`
 }

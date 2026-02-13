@@ -140,6 +140,10 @@ func (s *recordingService) ListTasks(_ context.Context, req service.ListTasksReq
 	return []*store.Task{}, nil
 }
 
+func (*recordingService) ListTaskVersions(_ context.Context, _ int64, _ int64) ([]*store.TaskVersion, error) {
+	return []*store.TaskVersion{}, nil
+}
+
 func (s *recordingService) GetTask(_ context.Context, _ int64) (*store.Task, error) {
 	return &store.Task{}, nil
 }

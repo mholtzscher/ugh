@@ -126,6 +126,19 @@ func (c *ContextCommand) postProcess() error {
 	return nil
 }
 
+func (l *LogCommand) postProcess() error {
+	if l == nil {
+		return errors.New("nil log command")
+	}
+	if l.Target == nil {
+		return errors.New("log command requires a task id")
+	}
+	if l.Target.Kind != TargetID {
+		return errors.New("log command requires a numeric task id")
+	}
+	return nil
+}
+
 func canonicalViewName(name string) string {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "i", viewNameInbox:

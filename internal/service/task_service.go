@@ -53,6 +53,10 @@ func (s *TaskService) ListShellHistory(ctx context.Context, limit int64) ([]*sto
 	return s.store.ListShellHistory(ctx, limit)
 }
 
+func (s *TaskService) ListTaskVersions(ctx context.Context, taskID int64, limit int64) ([]*store.TaskVersion, error) {
+	return s.store.ListTaskVersions(ctx, taskID, limit)
+}
+
 func (s *TaskService) SearchShellHistory(
 	ctx context.Context, search, intent string, success *bool, limit int64,
 ) ([]*store.ShellHistory, error) {
