@@ -220,7 +220,7 @@ func writeHumanTaskVersionDiff(out io.Writer, versions []*store.TaskVersion) err
 
 	for i, current := range versions {
 		header := fmt.Sprintf("Version %d  %s", current.VersionID, current.UpdatedAt.Format("2006-01-02 15:04:05"))
-		if err := writeRenderedLine(out, pterm.Cyan(header)+"\n"); err != nil {
+		if err := writeRenderedLine(out, pterm.ThemeDefault.PrimaryStyle.Sprint(header)+"\n"); err != nil {
 			return err
 		}
 
@@ -244,11 +244,11 @@ func writeHumanTaskVersionDiff(out io.Writer, versions []*store.TaskVersion) err
 			var colored string
 			switch prefix {
 			case "+":
-				colored = pterm.LightGreen(line)
+				colored = pterm.ThemeDefault.SuccessMessageStyle.Sprint(line)
 			case "-":
-				colored = pterm.LightRed(line)
+				colored = pterm.ThemeDefault.ErrorMessageStyle.Sprint(line)
 			default:
-				colored = pterm.LightYellow(line)
+				colored = pterm.ThemeDefault.WarningMessageStyle.Sprint(line)
 			}
 			if err := writeRenderedLine(out, "  "+colored+"\n"); err != nil {
 				return err

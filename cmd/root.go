@@ -142,7 +142,6 @@ func loadConfig(cmd *cli.Command) error {
 					SyncRetryMax:     defaultDaemonSyncRetryMax,
 					SyncRetryBackoff: "1s",
 				},
-				UI: config.UI{Theme: config.DefaultUITheme},
 			}
 
 			err = config.Save(cfgPath, result.Config)
@@ -153,9 +152,13 @@ func loadConfig(cmd *cli.Command) error {
 		}
 	}
 
+	cacheLoadedConfig(result)
+	return nil
+}
+
+func cacheLoadedConfig(result *config.LoadResult) {
 	loadedConfig = &result.Config
 	loadedConfigWas = result.WasLoaded
-	return nil
 }
 
 func shouldAutoInitConfig() bool {

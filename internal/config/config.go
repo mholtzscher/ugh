@@ -12,7 +12,6 @@ import (
 
 const (
 	DefaultVersion = 1
-	DefaultUITheme = "ansi-default"
 	configFileMode = 0o600
 )
 
@@ -32,15 +31,10 @@ type Daemon struct {
 	SyncRetryBackoff string `toml:"sync_retry_backoff"` // Initial retry backoff (default: "1s")
 }
 
-type UI struct {
-	Theme string `toml:"theme"`
-}
-
 type Config struct {
 	Version int    `toml:"version"`
 	DB      DB     `toml:"db"`
 	Daemon  Daemon `toml:"daemon"`
-	UI      UI     `toml:"ui"`
 }
 
 type LoadResult struct {
@@ -154,9 +148,6 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Version == 0 {
 		cfg.Version = DefaultVersion
-	}
-	if cfg.UI.Theme == "" {
-		cfg.UI.Theme = DefaultUITheme
 	}
 }
 

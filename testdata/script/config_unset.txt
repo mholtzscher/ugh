@@ -3,7 +3,6 @@ exec ugh --config $WORK/config.toml config set db.path data/ugh.sqlite
 exec ugh --config $WORK/config.toml config set db.sync_url libsql://example.turso.io
 exec ugh --config $WORK/config.toml config set db.auth_token test-token
 exec ugh --config $WORK/config.toml config set db.sync_on_write true
-exec ugh --config $WORK/config.toml config set ui.theme ansi-high-contrast
 
 ! exec ugh --config $WORK/config.toml config unset unknown.key
 stderr 'unknown config key: unknown.key'
@@ -31,11 +30,5 @@ stdout '"key":"db.sync_on_write"'
 exec ugh --config $WORK/config.toml config get db.sync_on_write
 cmp stdout want-sync-on-write.txt
 
-exec ugh --config $WORK/config.toml config unset ui.theme
-exec ugh --config $WORK/config.toml config get ui.theme
-cmp stdout want-theme.txt
-
 -- want-sync-on-write.txt --
 false
--- want-theme.txt --
-ansi-default

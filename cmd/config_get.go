@@ -28,7 +28,7 @@ var configGetCmd = &cli.Command{
 		}
 		cfg := loadedConfig
 		if cfg == nil {
-			cfg = &config.Config{Version: config.DefaultVersion, UI: config.UI{Theme: config.DefaultUITheme}}
+			cfg = &config.Config{Version: config.DefaultVersion}
 		}
 
 		key := cmd.Args().Get(0)
@@ -65,11 +65,6 @@ func getConfigValue(cfg *config.Config, key string) (string, error) {
 		return cfg.DB.AuthToken, nil
 	case configKeyDBSyncOnWrite:
 		return strconv.FormatBool(cfg.DB.SyncOnWrite), nil
-	case configKeyUITheme:
-		if cfg.UI.Theme == "" {
-			return config.DefaultUITheme, nil
-		}
-		return cfg.UI.Theme, nil
 	default:
 		return "", fmt.Errorf("unknown config key: %s", key)
 	}

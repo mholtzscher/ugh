@@ -71,9 +71,6 @@ func unsetConfigValue(cfg *config.Config, key string) error {
 	case configKeyDBSyncOnWrite:
 		cfg.DB.SyncOnWrite = false
 		return nil
-	case configKeyUITheme:
-		cfg.UI.Theme = config.DefaultUITheme
-		return nil
 	default:
 		return fmt.Errorf("unknown config key: %s", key)
 	}
