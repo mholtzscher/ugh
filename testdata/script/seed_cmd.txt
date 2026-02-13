@@ -1,0 +1,14 @@
+exec ugh seed --out $WORK/db.sqlite --seed 7 --count 4 --force
+stdout 'db:\t'
+stdout 'seed:\t7'
+stdout 'count:\t4'
+stdout 'churn:\t5'
+
+exec ugh --db $WORK/db.sqlite list --all
+stdout '.+'
+
+exec ugh --db $WORK/db.sqlite log 1 --limit 20
+stdout 'version '
+
+exec ugh help
+! stdout 'Seed a temp SQLite db with realistic tasks'
