@@ -93,6 +93,7 @@ var rootCmd = &cli.Command{
 		daemonCmd,
 		shellCmd,
 		historyCmd,
+		seedCmd,
 	},
 }
 
