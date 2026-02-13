@@ -1,0 +1,23 @@
+# Recent list mode
+exec ugh --db $WORK/db.sqlite add -p work Alpha
+exec ugh --db $WORK/db.sqlite add -p work Bravo
+exec ugh --db $WORK/db.sqlite set 1 notes:updated
+exec ugh --db $WORK/db.sqlite done 2
+
+# recent mode defaults to todo and returns latest changes first
+exec ugh --db $WORK/db.sqlite list --recent --limit 1
+stdout 'Alpha'
+! stdout 'Bravo'
+
+# where accepts recent modifier with limit
+exec ugh --db $WORK/db.sqlite list --where 'recent:1 and project:work'
+stdout 'Alpha'
+! stdout 'Bravo'
+
+# repl list recent:N syntax
+exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-recent.txt
+stdout 'Alpha'
+! stdout 'Bravo'
+
+-- cmd-recent.txt --
+list recent:1 and project:work

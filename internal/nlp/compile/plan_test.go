@@ -183,6 +183,47 @@ func TestNormalizeFilterExpr_WildcardStateReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "wildcard", "error should mention wildcard")
 }
 
+func TestNormalizeFilterExpr_AllowsRecentWithoutLimit(t *testing.T) {
+	t.Parallel()
+
+	expr, err := compile.NormalizeFilterExpr(
+		nlp.Predicate{Kind: nlp.PredRecent, Text: ""},
+		compile.BuildOptions{},
+	)
+	require.NoError(t, err, "NormalizeFilterExpr() error")
+
+	pred, ok := expr.(nlp.Predicate)
+	require.True(t, ok, "expr type should be Predicate, got %T", expr)
+	require.Equal(t, nlp.PredRecent, pred.Kind, "predicate kind mismatch")
+	require.Empty(t, pred.Text, "predicate text mismatch")
+}
+
+func TestNormalizeFilterExpr_AllowsRecentWithLimit(t *testing.T) {
+	t.Parallel()
+
+	expr, err := compile.NormalizeFilterExpr(
+		nlp.Predicate{Kind: nlp.PredRecent, Text: "10"},
+		compile.BuildOptions{},
+	)
+	require.NoError(t, err, "NormalizeFilterExpr() error")
+
+	pred, ok := expr.(nlp.Predicate)
+	require.True(t, ok, "expr type should be Predicate, got %T", expr)
+	require.Equal(t, nlp.PredRecent, pred.Kind, "predicate kind mismatch")
+	require.Equal(t, "10", pred.Text, "predicate text mismatch")
+}
+
+func TestNormalizeFilterExpr_RejectsRecentInvalidLimit(t *testing.T) {
+	t.Parallel()
+
+	_, err := compile.NormalizeFilterExpr(
+		nlp.Predicate{Kind: nlp.PredRecent, Text: "abc"},
+		compile.BuildOptions{},
+	)
+	require.Error(t, err, "NormalizeFilterExpr() should reject invalid recent limit")
+	assert.Contains(t, err.Error(), "invalid recent limit", "error should mention recent limit")
+}
+
 func TestBuildFilterPlanNormalizesTodayDate(t *testing.T) {
 	t.Parallel()
 

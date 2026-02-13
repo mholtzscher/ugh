@@ -2,12 +2,15 @@ package cmd
 
 import (
 	"context"
+	"errors"
 
 	"github.com/urfave/cli/v3"
 
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/service"
 )
+
+const listLimitUnset = -1
 
 //nolint:gochecknoglobals // CLI command definitions are package-level by design.
 var listCmd = &cli.Command{
@@ -66,8 +69,25 @@ var listCmd = &cli.Command{
 			Name:  flags.FlagWhere,
 			Usage: "filter expression (e.g. \"state:now or project:work\")",
 		},
+		&cli.BoolFlag{
+			Name:  flags.FlagRecent,
+			Usage: "show most recently changed tasks",
+		},
+		&cli.IntFlag{
+			Name:  flags.FlagLimit,
+			Usage: "max tasks to show",
+			Value: listLimitUnset,
+		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
+		limit := cmd.Int(flags.FlagLimit)
+		if limit == 0 || limit < listLimitUnset {
+			return errors.New("limit must be greater than 0")
+		}
+		if limit == listLimitUnset {
+			limit = 0
+		}
+
 		filterExpr, err := buildListFilterExpr(listFilterOptions{
 			Where:   cmd.String(flags.FlagWhere),
 			State:   cmd.String(flags.FlagState),
@@ -90,6 +110,8 @@ var listCmd = &cli.Command{
 			DoneOnly: cmd.Bool(flags.FlagDone),
 			TodoOnly: cmd.Bool(flags.FlagTodo),
 			Filter:   filterExpr,
+			Recent:   cmd.Bool(flags.FlagRecent),
+			Limit:    int64(limit),
 		}
 		tasks, err := svc.ListTasks(ctx, req)
 		if err != nil {

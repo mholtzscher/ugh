@@ -14,11 +14,12 @@ func _() {
 	_ = x[PredContext-3]
 	_ = x[PredText-4]
 	_ = x[PredID-5]
+	_ = x[PredRecent-6]
 }
 
-const _PredicateKind_name = "PredStatePredDuePredProjectPredContextPredTextPredID"
+const _PredicateKind_name = "PredStatePredDuePredProjectPredContextPredTextPredIDPredRecent"
 
-var _PredicateKind_index = [...]uint8{0, 9, 16, 27, 38, 46, 52}
+var _PredicateKind_index = [...]uint8{0, 9, 16, 27, 38, 46, 52, 62}
 
 func (i PredicateKind) String() string {
 	idx := int(i) - 0
