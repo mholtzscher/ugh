@@ -211,7 +211,7 @@ func compilePredicate(pred nlp.Predicate, opts BuildOptions) (nlp.Predicate, err
 		switch pred.Kind {
 		case nlp.PredDue, nlp.PredProject, nlp.PredContext:
 			return compiled, nil
-		case nlp.PredState, nlp.PredText, nlp.PredID:
+		case nlp.PredState, nlp.PredText, nlp.PredID, nlp.PredRecent:
 			return nlp.Predicate{}, fmt.Errorf("wildcard is not supported for %v", pred.Kind)
 		default:
 			return nlp.Predicate{}, fmt.Errorf("unsupported predicate kind %v", pred.Kind)
@@ -244,6 +244,15 @@ func compilePredicate(pred nlp.Predicate, opts BuildOptions) (nlp.Predicate, err
 			return nlp.Predicate{}, fmt.Errorf("invalid id filter %q", pred.Text)
 		}
 		compiled.Text = strconv.FormatInt(id, 10)
+	case nlp.PredRecent:
+		if compiled.Text == "" {
+			return compiled, nil
+		}
+		limit, err := strconv.ParseInt(compiled.Text, 10, 64)
+		if err != nil || limit <= 0 {
+			return nlp.Predicate{}, fmt.Errorf("invalid recent limit %q", pred.Text)
+		}
+		compiled.Text = strconv.FormatInt(limit, 10)
 	default:
 		return nlp.Predicate{}, fmt.Errorf("unsupported predicate kind %v", pred.Kind)
 	}

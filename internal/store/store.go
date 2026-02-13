@@ -396,14 +396,23 @@ func (s *Store) ListTasksByExpr(
 		"t.contexts_json",
 		"t.meta_json",
 	).
-		From("tasks_current t").
-		OrderBy(
+		From("tasks_current t")
+
+	if opts.Recent {
+		queryBuilder = queryBuilder.OrderBy("t.updated_at DESC", "t.version_id DESC")
+	} else {
+		queryBuilder = queryBuilder.OrderBy(
 			"CASE WHEN t.state = 'done' THEN 1 ELSE 0 END",
 			"CASE WHEN t.due_on IS NULL OR t.due_on = '' THEN 1 ELSE 0 END",
 			"t.due_on ASC",
 			"t.updated_at DESC",
 			"t.version_id DESC",
 		)
+	}
+
+	if opts.Limit > 0 {
+		queryBuilder = queryBuilder.Limit(uint64(opts.Limit))
+	}
 
 	for _, condition := range conditions {
 		queryBuilder = queryBuilder.Where(condition)

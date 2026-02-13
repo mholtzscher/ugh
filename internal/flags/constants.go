@@ -27,6 +27,7 @@ const (
 	FlagNoDue         = "no-due"
 	FlagNoWaitingFor  = "no-waiting-for"
 	FlagProject       = "project"
+	FlagRecent        = "recent"
 	FlagRemoveContext = "remove-context"
 	FlagRemoveMeta    = "remove-meta"
 	FlagRemoveProject = "remove-project"

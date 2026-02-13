@@ -280,6 +280,7 @@ const (
 	PredContext
 	PredText
 	PredID
+	PredRecent
 )
 
 type Predicate struct {

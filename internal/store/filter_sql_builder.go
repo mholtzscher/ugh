@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -99,6 +100,8 @@ func (b *filterSQLBuilder) buildPredicate(pred nlp.Predicate) (sq.Sqlizer, error
 			return nil, fmt.Errorf("invalid id predicate %q", pred.Text)
 		}
 		return sq.Eq{"t.id": id}, nil
+	case nlp.PredRecent:
+		return nil, errors.New("recent modifier must be stripped before SQL build")
 	default:
 		return nil, fmt.Errorf("unsupported predicate kind %v", pred.Kind)
 	}

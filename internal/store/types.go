@@ -31,6 +31,8 @@ type Task struct {
 type ListTasksByExprOptions struct {
 	ExcludeDone bool
 	OnlyDone    bool
+	Recent      bool
+	Limit       int64
 }
 
 type NameCount struct {

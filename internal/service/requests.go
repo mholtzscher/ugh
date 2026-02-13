@@ -18,6 +18,8 @@ type ListTasksRequest struct {
 	DoneOnly bool
 	TodoOnly bool
 	Filter   nlp.FilterExpr
+	Recent   bool
+	Limit    int64
 }
 
 type ListTagsRequest struct {

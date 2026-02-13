@@ -742,6 +742,18 @@ func TestParseFilter_Predicates(t *testing.T) {
 			wantKind: nlp.PredID,
 			wantText: "3",
 		},
+		{
+			name:     "recent modifier default",
+			input:    "find recent",
+			wantKind: nlp.PredRecent,
+			wantText: "",
+		},
+		{
+			name:     "recent modifier with limit",
+			input:    "find recent:10",
+			wantKind: nlp.PredRecent,
+			wantText: "10",
+		},
 	}
 
 	for _, tt := range tests {

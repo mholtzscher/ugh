@@ -357,6 +357,12 @@ func (p *FilterTextPredicate) toPredicate() *Predicate {
 		return nil
 	}
 	value := strings.TrimSpace(string(p.Value))
+	if strings.EqualFold(value, "recent") {
+		return &Predicate{Kind: PredRecent, Text: ""}
+	}
+	if recentLimit, ok := strings.CutPrefix(strings.ToLower(value), "recent:"); ok {
+		return &Predicate{Kind: PredRecent, Text: strings.TrimSpace(recentLimit)}
+	}
 	if id, ok := parsePossibleID(value); ok {
 		return &Predicate{Kind: PredID, Text: strconv.FormatInt(id, 10)}
 	}
