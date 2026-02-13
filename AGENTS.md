@@ -1,124 +1,85 @@
-# AGENTS.md - AI Agent Guidelines for ugh
+# ugh AGENTS
 
-A task CLI with SQLite storage.
+Task CLI (SQLite/libSQL) with optional Turso sync.
 
-**Stack**: Go 1.25+, urfave/cli/v3
+**Stack**: Go 1.25+, urfave/cli/v3, goose (migrations), sqlc (SQLite), golangci-lint.
 
-## Rules
+**Generated**: 2026-02-13
+**Branch**: main
+**Commit**: 1126f94
 
-**Never commit code unless explicitly prompted by the user.**
-**Always run `just check` after making changes.**
+## Hard Rules
+
+- Never commit code unless explicitly prompted by the user.
+- After any change: run `just check`.
 
 ## Commands
 
-Uses direnv with nix flake for automatic environment setup. Use `just` for development tasks.
-
 ```bash
-# Build
-just build                     # dev build
-just build-release             # release build
-
-# Run
-just run <args>                # run locally
-
-# Generate
-just generate                  # run sqlc code generation
-
-# Test
-just test                      # all tests
-just test-verbose              # verbose test output
-
-# Lint/format
-just fmt                       # format code
-just vet                       # static analysis
-just lint                      # comprehensive linting (golangci-lint)
-just check                     # run all checks (generate, fmt, vet, lint, test)
-
-# Dependencies
-just tidy                      # go mod tidy
-just update-deps               # update dependencies and gomod2nix.toml
-
-# Template Management
-just cruft-check              # validate template consistency
-just cruft-diff               # show template differences
-just cruft-update             # update to latest template
-
-# Nix build/run
-nix build                      # build package
-nix run                        # run package
+just check              # generate fmt vet lint test tidy gomod2nix
+just run -- <args>      # run local (urfave/cli flags need `--`)
+just generate           # sqlc + go:generate (NLP strings)
+just test               # go test -p 1 ./...
 ```
 
-## Project Structure
+## Structure
 
 ```
-ugh/
-├── main.go                     # Entry point
-├── cmd/
-│   ├── root.go                 # Root command, global flags
-│   └── example/                # 'example' subcommand package
-│       └── example.go          # Example subcommand
+./
+├── main.go                     # entrypoint -> cmd.Execute
+├── cmd/                        # CLI commands + wiring
 ├── internal/
-│   ├── cli/
-│   │   └── options.go          # GlobalOptions (shared across packages)
-│   └── example/
-│       └── example.go          # Example internal package
-├── go.mod
-├── go.sum
-└── flake.nix
+│   ├── shell/                  # interactive REPL (preprocess/parse/compile/dispatch/render)
+│   ├── nlp/                    # DSL lexer/parser + diagnostics
+│   │   └── compile/            # AST -> service requests (“plan”)
+│   ├── service/                # use-cases; thin layer over store
+│   ├── store/                  # SQLite/libsql + migrations + sqlc + filter->SQL
+│   ├── editor/                 # $EDITOR TOML flow + JSON schema
+│   ├── output/                 # JSON/human/table/pipe output
+│   ├── daemon/                 # periodic sync daemon (+ service-manager helpers)
+│   ├── flags/                  # flag names + validators
+│   ├── domain/                 # core task concepts (state/date/meta)
+│   └── config/                 # config load/save + paths
+├── db/queries/                 # sqlc query inputs
+├── testdata/script/            # testscript E2E scripts
+└── docs/                       # design notes (daemon doc is large)
 ```
 
-## Code Style
+## Where To Look
 
-### Imports
+| Task | Location | Notes |
+|------|----------|-------|
+| Add/change CLI subcommand | `cmd/` | flat files; commands are package-level globals (`//nolint:gochecknoglobals`) |
+| REPL behavior / pronouns / context | `internal/shell/executor.go` | preprocessing does naive `strings.ReplaceAll` |
+| DSL grammar / parse errors | `internal/nlp/` | diagnostics + lexer/parser |
+| DSL -> request rules | `internal/nlp/compile/plan.go` | emits `internal/service/*Request` |
+| Task CRUD / done/undo / filters | `internal/store/store.go` | big; many `//nolint:*` hotspots |
+| Filter expr -> SQL (JSON1) | `internal/store/filter_sql_builder.go` | json_each/json_array_length |
+| Service “use cases” | `internal/service/` | bridges domain normalization <-> store |
+| E2E CLI tests | `main_test.go` + `testdata/script/*.txt` | testscript harness; public CLI only |
 
-Order: stdlib -> external packages -> internal packages, separated by blank lines.
-Use goimports or let `go fmt` handle ordering.
+## Conventions (Project-Specific)
 
-### Types
+- Lint is strict (`.golangci.yml`): goimports `local-prefixes: github.com/mholtzscher/ugh`, golines `max-len: 120`.
+- depguard bans: `log` outside `**/main.go` (use `log/slog`); `math/rand` in non-test (use `math/rand/v2`);
+  protobuf + uuid package bans (see `.golangci.yml`).
+- `//nolint` must name linter + include rationale (`nolintlint`).
+- Generated code (do not edit): `internal/store/sqlc/*`, `internal/nlp/*_string.go`.
 
-- Use `string` for file paths.
-- Use `*T` (pointer) for optional values instead of sentinel values.
-- Return `error` for error conditions.
+## Gotchas
 
-### Naming
+- Migration `internal/store/migrations/00009_reset_append_only_schema.sql` drops task tables (data loss).
+- Repo may contain build artifacts (`./ugh`, `./result/`); ignore for code navigation.
+- Docs mention an HTTP daemon API that does not exist (`docs/daemon-design.md`).
 
-- Types: `PascalCase` (MyType, MyStruct)
-- Functions/methods: `PascalCase` for exported, `camelCase` for unexported
-- Constants: `PascalCase` for exported, `camelCase` for unexported
-- Use descriptive names
+## Subdir AGENTS
 
-### Error Handling
-
-- Functions return `(T, error)` tuple.
-- Wrap errors with context: `fmt.Errorf("context: %w", err)`.
-- Check errors immediately after function calls.
-- Use user-facing messages, not debug dumps.
-
-### Formatting
-
-- Run `go fmt ./...` before committing.
-- Use `goimports` for import organization.
-- Let the tooling handle formatting decisions.
-
-### Testing
-
-- Tests live in `*_test.go` files alongside the code.
-- Use table-driven tests where appropriate.
-- Use `t.Run` for subtests.
-- Prefer exact assertions.
-
-## CLI/UX Guidelines
-
-- `fmt.Println` for normal output, `fmt.Fprintln(os.Stderr, ...)` for errors.
-- Avoid breaking existing CLI flags or subcommands.
-
-## Dependency Updates
-
-- Update `go.mod` and run `go mod tidy`.
-- Avoid new dependencies unless required.
-- Prefer the standard library before adding packages.
-
-## Repo Hygiene
-
-- Keep changes minimal and focused.
-- Avoid mass reformatting unless necessary.
+- `cmd/AGENTS.md`
+- `internal/shell/AGENTS.md`
+- `internal/nlp/AGENTS.md`
+- `internal/nlp/compile/AGENTS.md`
+- `internal/service/AGENTS.md`
+- `internal/store/AGENTS.md`
+- `internal/editor/AGENTS.md`
+- `internal/daemon/AGENTS.md`
+- `testdata/script/AGENTS.md`
