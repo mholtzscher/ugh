@@ -12,7 +12,7 @@ import (
 
 const (
 	DefaultVersion = 1
-	DefaultUITheme = "ansi-default"
+	DefaultUITheme = "default"
 	configFileMode = 0o600
 )
 

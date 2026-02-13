@@ -81,12 +81,12 @@ func setConfigValue(cfg *config.Config, key string, value string) error {
 		cfg.DB.SyncOnWrite = parsed
 		return nil
 	case configKeyUITheme:
-		if _, ok := themeByName(value); !ok {
+		if _, ok := GetTheme(value); !ok {
 			return fmt.Errorf(
 				"invalid %s %q (available: %s)",
 				configKeyUITheme,
 				value,
-				strings.Join(availableThemeNames(), ", "),
+				strings.Join(AvailableThemeNames(), ", "),
 			)
 		}
 		cfg.UI.Theme = value

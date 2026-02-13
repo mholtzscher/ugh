@@ -12,13 +12,13 @@ stdout 'version = 1'
 stdout '[db]'
 stdout 'path = "data/ugh.sqlite"'
 
-exec ugh --config $WORK/config.toml config set ui.theme ansi-high-contrast
+exec ugh --config $WORK/config.toml config set ui.theme catppuccin-mocha
 exec ugh --config $WORK/config.toml config get ui.theme
-stdout 'ansi-high-contrast'
+stdout 'catppuccin-mocha'
 
 exec ugh --config $WORK/config.toml config show
 stdout '[ui]'
-stdout 'theme = "ansi-high-contrast"'
+stdout 'theme = "catppuccin-mocha"'
 
 ! exec ugh --config $WORK/config.toml config get unknown.key
 stderr 'unknown config key'
