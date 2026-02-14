@@ -62,35 +62,24 @@ func (w Writer) WriteTask(task *store.Task) error {
 		return errors.New("task is nil")
 	}
 	if w.JSON {
-		payload := toTaskJSON(task)
-		return writeJSON(w.Out, payload)
+		return writeJSON(w.Out, toTaskJSON(task))
 	}
 
 	if w.isHumanMode() {
 		return w.writeHumanTask(task)
 	}
-	_, err := fmt.Fprintln(w.Out, w.plainLine(task))
-	return err
+	return w.writePlainTasks([]*store.Task{task})
 }
 
 func (w Writer) WriteTasks(tasks []*store.Task) error {
 	if w.JSON {
-		payload := make([]TaskJSON, 0, len(tasks))
-		for _, task := range tasks {
-			payload = append(payload, toTaskJSON(task))
-		}
-		return writeJSON(w.Out, payload)
+		return writeJSON(w.Out, toTaskJSONList(tasks))
 	}
 
 	if w.isHumanMode() {
 		return w.writeHumanList(tasks)
 	}
-	for _, task := range tasks {
-		if _, err := fmt.Fprintln(w.Out, w.plainLine(task)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return w.writePlainTasks(tasks)
 }
 
 func (w Writer) WriteTags(tags []store.NameCount) error {
@@ -261,18 +250,9 @@ type TaskJSON struct {
 }
 
 func toTaskJSON(task *store.Task) TaskJSON {
-	projects := task.Projects
-	if projects == nil {
-		projects = []string{}
-	}
-	contexts := task.Contexts
-	if contexts == nil {
-		contexts = []string{}
-	}
-	meta := task.Meta
-	if meta == nil {
-		meta = map[string]string{}
-	}
+	projects := normalizeStringSlice(task.Projects)
+	contexts := normalizeStringSlice(task.Contexts)
+	meta := normalizeMeta(task.Meta)
 	return TaskJSON{
 		ID:          task.ID,
 		State:       string(task.State),
@@ -287,6 +267,37 @@ func toTaskJSON(task *store.Task) TaskJSON {
 		CreatedAt:   formatDateTime(task.CreatedAt),
 		UpdatedAt:   formatDateTime(task.UpdatedAt),
 	}
+}
+
+func toTaskJSONList(tasks []*store.Task) []TaskJSON {
+	payload := make([]TaskJSON, 0, len(tasks))
+	for _, task := range tasks {
+		payload = append(payload, toTaskJSON(task))
+	}
+	return payload
+}
+
+func normalizeStringSlice(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
+}
+
+func normalizeMeta(meta map[string]string) map[string]string {
+	if meta == nil {
+		return map[string]string{}
+	}
+	return meta
+}
+
+func (w Writer) writePlainTasks(tasks []*store.Task) error {
+	for _, task := range tasks {
+		if _, err := fmt.Fprintln(w.Out, w.plainLine(task)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (w Writer) plainLine(task *store.Task) string {
@@ -459,10 +470,7 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 	}
 
 	for _, e := range entries {
-		status := "✓"
-		if !e.Success {
-			status = "✗"
-		}
+		status := historyStatus(e.Success)
 		_, err := fmt.Fprintf(w.Out, "%d\t%s\t%s\t%s\t%s\n",
 			e.ID,
 			w.formatter.Format(e.Time),
@@ -475,6 +483,13 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 		}
 	}
 	return nil
+}
+
+func historyStatus(success bool) string {
+	if success {
+		return "✓"
+	}
+	return "✗"
 }
 
 type TaskVersionChangeJSON struct {

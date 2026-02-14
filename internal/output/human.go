@@ -323,10 +323,7 @@ func (w Writer) writeHumanHistory(entries []*HistoryEntry) error {
 
 	rows := pterm.TableData{{"Time", "Status", "Intent", "Command"}}
 	for _, e := range entries {
-		status := "✓"
-		if !e.Success {
-			status = "✗"
-		}
+		status := historyStatus(e.Success)
 		intent := e.Intent
 		if intent == "" {
 			intent = "-"
