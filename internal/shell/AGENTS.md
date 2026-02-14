@@ -5,16 +5,17 @@ REPL reads a line, resolves session context/pronouns, parses+compiles to a plan,
 ## Where To Look
 - `internal/shell/repl.go` REPL loop; built-ins; history record; display dispatch.
 - `internal/shell/executor.go` preprocessInput (pronouns); injectContext (sticky #project/@context); compile+execute.
-- `internal/shell/prompt.go` readline config; prompt (color/noColor); loads history via service.
+- `internal/shell/prompt.go` readline config; prompt styling; loads history via service.
 - `internal/shell/prompt_editor.go` autocomplete + token styling (nlp.Lex).
 - `internal/shell/display.go` ShowResult routing; Clear() ANSI sequence.
-- `internal/output/*` Writer for line output + task version diffs.
+- `internal/output/*` Writer for shared rendering (tasks, context/view blocks, diffs, errors).
 
 ## Conventions
 - Pipeline order matters: preprocess -> parse -> diagnostics gate -> injectContext -> compile -> execute.
 - SessionState mutations stay localized (LastTaskIDs/SelectedTaskID + sticky context fields).
-- Keep noColor content-equivalent; only styling differs.
+- Use pterm as the single color policy source (`pterm.DisableColor()`), avoid manual no-color branches.
 - ExecuteResult is executor<->display/history contract: always set Intent+Summary; set TaskIDs when meaningful.
+- Prefer typed payload fields (`Tasks`/`Task`/`Versions`/`Context`/`ViewHelp`) over pre-rendered message text.
 - Prefer bounded time sources; avoid multiple time.Now() calls per execution.
 
 ## Anti-Patterns
@@ -30,3 +31,4 @@ REPL reads a line, resolves session context/pronouns, parses+compiles to a plan,
 - "selected" is rewritten before parsing.
 - Sticky context injection applies to Create/Update/Filter only; View/Context/Log bypass it.
 - Script mode trims whitespace, skips blanks and '#'-prefixed lines; errors annotated with line number.
+- `show context` and `view` help return typed payloads; display renders them via `internal/output.Writer`.

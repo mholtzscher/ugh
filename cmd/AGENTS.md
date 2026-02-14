@@ -16,6 +16,7 @@ Urfave/cli command wiring: global flags + config load, output selection, sync wr
 - Global flags live on root; access via cached `root*` vars (set in `Before: loadConfig`).
 - Flag names come from `internal/flags`; avoid literal flag strings in cmd code.
 - Output selection: call `outputWriter()`; if `writer.JSON` then `json.Encoder`, else `writer.Write*`.
+- For human success/info messages, prefer `writer.WriteSuccess` / `writer.WriteInfo` over raw `WriteLine` when semantics are explicit.
 - For mutating commands: `svc, _ := newService(ctx)` then `maybeSyncBeforeWrite` / write / `maybeSyncAfterWrite`.
 - Prefer service-layer APIs (`internal/service`) over direct store calls unless command is store-specific (eg sync).
 
