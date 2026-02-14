@@ -38,6 +38,9 @@ var shellCmd = &cli.Command{
 		}
 
 		var opts shell.Options
+		writer := outputWriter()
+		writer.JSON = false
+		opts.Writer = writer
 		if cmd.String("file") != "" {
 			opts.Mode = shell.ModeScriptFile
 			opts.InputFile = cmd.String("file")

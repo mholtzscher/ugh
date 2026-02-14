@@ -50,20 +50,20 @@ exec ugh --db $WORK/order.sqlite list --all
 cmp stdout want-order.txt
 
 -- want-inbox.txt --
-7	inbox	2026-01-01		Inbox due
+7	inbox	2026-01-01 00:00		Inbox due
 1	inbox			Inbox task
 -- want-now.txt --
-2	now	2026-01-02		Now due
+2	now	2026-01-02 00:00		Now due
 5	now			Now no due
 -- want-waiting.txt --
 3	waiting			Waiting task
 -- want-later.txt --
 4	later			Later task
 -- want-calendar.txt --
-7	inbox	2026-01-01		Inbox due
-2	now	2026-01-02		Now due
+7	inbox	2026-01-01 00:00		Inbox due
+2	now	2026-01-02 00:00		Now due
 -- want-order.txt --
-2	inbox	2026-01-01		Order early due
-1	now	2026-01-03		Order later due
+2	inbox	2026-01-01 00:00		Order early due
+1	now	2026-01-03 00:00		Order later due
 3	waiting			Order no due
-4	done	2026-01-02		Order done due
+4	done	2026-01-02 00:00		Order done due

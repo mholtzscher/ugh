@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/mholtzscher/ugh/internal/config"
+	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/shell"
 )
 
@@ -20,7 +22,8 @@ func TestNewDisplay(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			display := shell.NewDisplay(false)
+			writer := output.NewWriter(false, config.Display{})
+			display := shell.NewDisplay(false, writer)
 			assert.NotNil(t, display, "NewDisplay returned nil")
 		})
 	}
@@ -29,7 +32,8 @@ func TestNewDisplay(t *testing.T) {
 func TestDisplayShowResultNil(t *testing.T) {
 	t.Parallel()
 
-	display := shell.NewDisplay(false)
+	writer := output.NewWriter(false, config.Display{})
+	display := shell.NewDisplay(false, writer)
 
 	// Should not panic when result is nil
 	display.ShowResult(nil)
@@ -110,7 +114,8 @@ func TestDisplayShowResult(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			display := shell.NewDisplay(false)
+			writer := output.NewWriter(false, config.Display{})
+			display := shell.NewDisplay(false, writer)
 
 			// Should not panic
 			display.ShowResult(tt.result)
@@ -121,7 +126,8 @@ func TestDisplayShowResult(t *testing.T) {
 func TestDisplayClear(t *testing.T) {
 	t.Parallel()
 
-	display := shell.NewDisplay(false)
+	writer := output.NewWriter(false, config.Display{})
+	display := shell.NewDisplay(false, writer)
 
 	// Should not panic - outputs ANSI escape codes
 	display.Clear()
@@ -137,7 +143,8 @@ func TestDisplayShowResultWithSummary(t *testing.T) {
 		TaskIDs: []int64{1},
 	}
 
-	display := shell.NewDisplay(false)
+	writer := output.NewWriter(false, config.Display{})
+	display := shell.NewDisplay(false, writer)
 
 	// Should not panic
 	display.ShowResult(result)

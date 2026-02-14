@@ -14,8 +14,7 @@ type Display struct {
 }
 
 // NewDisplay creates a new display handler.
-func NewDisplay(tty bool) *Display {
-	writer := output.NewWriter(false)
+func NewDisplay(tty bool, writer output.Writer) *Display {
 	writer.TTY = tty
 
 	return &Display{

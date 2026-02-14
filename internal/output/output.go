@@ -14,14 +14,16 @@ import (
 	"github.com/pterm/pterm"
 	"golang.org/x/term"
 
+	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
 type Writer struct {
-	Out  io.Writer
-	JSON bool
-	TTY  bool
+	Out       io.Writer
+	JSON      bool
+	TTY       bool
+	formatter *TimeFormatter
 }
 
 type KeyValue struct {
@@ -46,11 +48,12 @@ type ViewHelpEntry struct {
 	Description string `json:"description"`
 }
 
-func NewWriter(jsonMode bool) Writer {
+func NewWriter(jsonMode bool, displayCfg config.Display) Writer {
 	return Writer{
-		Out:  os.Stdout,
-		JSON: jsonMode,
-		TTY:  term.IsTerminal(int(os.Stdout.Fd())),
+		Out:       os.Stdout,
+		JSON:      jsonMode,
+		TTY:       term.IsTerminal(int(os.Stdout.Fd())),
+		formatter: NewTimeFormatter(displayCfg),
 	}
 }
 
@@ -64,9 +67,9 @@ func (w Writer) WriteTask(task *store.Task) error {
 	}
 
 	if w.isHumanMode() {
-		return writeHumanTask(w.Out, task)
+		return w.writeHumanTask(task)
 	}
-	_, err := fmt.Fprintln(w.Out, plainLine(task))
+	_, err := fmt.Fprintln(w.Out, w.plainLine(task))
 	return err
 }
 
@@ -80,10 +83,10 @@ func (w Writer) WriteTasks(tasks []*store.Task) error {
 	}
 
 	if w.isHumanMode() {
-		return writeHumanList(w.Out, tasks)
+		return w.writeHumanList(tasks)
 	}
 	for _, task := range tasks {
-		if _, err := fmt.Fprintln(w.Out, plainLine(task)); err != nil {
+		if _, err := fmt.Fprintln(w.Out, w.plainLine(task)); err != nil {
 			return err
 		}
 	}
@@ -286,11 +289,11 @@ func toTaskJSON(task *store.Task) TaskJSON {
 	}
 }
 
-func plainLine(task *store.Task) string {
+func (w Writer) plainLine(task *store.Task) string {
 	if task == nil {
 		return ""
 	}
-	due := formatDate(task.DueOn)
+	due := w.formatDateWithFormatter(task.DueOn)
 	fields := []string{
 		strconv.FormatInt(task.ID, 10),
 		string(task.State),
@@ -401,6 +404,20 @@ func formatDateTime(val time.Time) string {
 	return val.UTC().Format(time.RFC3339)
 }
 
+func (w Writer) formatDateWithFormatter(val *time.Time) string {
+	if val == nil {
+		return ""
+	}
+	formatter := w.formatter
+	if formatter == nil {
+		layout := "2006-01-02 15:04"
+		return val.UTC().Format(layout)
+	}
+	year, month, day := val.UTC().Date()
+	date := time.Date(year, month, day, 0, 0, 0, 0, formatter.location)
+	return date.Format(formatter.layout)
+}
+
 // HistoryJSON represents a shell history entry for JSON output.
 type HistoryJSON struct {
 	ID      int64  `json:"id"`
@@ -438,7 +455,7 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 	}
 
 	if w.isHumanMode() {
-		return writeHumanHistory(w.Out, entries)
+		return w.writeHumanHistory(entries)
 	}
 
 	for _, e := range entries {
@@ -448,7 +465,7 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 		}
 		_, err := fmt.Fprintf(w.Out, "%d\t%s\t%s\t%s\t%s\n",
 			e.ID,
-			formatDateTime(e.Time),
+			w.formatter.Format(e.Time),
 			status,
 			e.Intent,
 			e.Command,
@@ -511,7 +528,7 @@ func (w Writer) WriteTaskVersionDiff(versions []*store.TaskVersion) error {
 	}
 
 	if w.isHumanMode() {
-		return writeHumanTaskVersionDiff(w.Out, versions)
+		return w.writeHumanTaskVersionDiff(versions)
 	}
 
 	for i, current := range versions {
@@ -519,7 +536,7 @@ func (w Writer) WriteTaskVersionDiff(versions []*store.TaskVersion) error {
 			w.Out,
 			"version %d %s\n",
 			current.VersionID,
-			formatDateTime(current.UpdatedAt),
+			w.formatter.Format(current.UpdatedAt),
 		); err != nil {
 			return err
 		}
