@@ -20,7 +20,7 @@ type Summary struct {
 	File   string  `json:"file,omitempty"`
 }
 
-func writeHumanTask(out io.Writer, task *store.Task) error {
+func writeHumanTask(out io.Writer, formatter *TimeFormatter, task *store.Task) error {
 	if task == nil {
 		return nil
 	}
@@ -32,14 +32,14 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 	rows := []KeyValue{
 		{Key: "State", Value: formatDetailState(task.State)},
 		{Key: "Prev State", Value: formatDetailPrevState(task.PrevState)},
-		{Key: "Due", Value: formatDetailDate(task.DueOn, pterm.ThemeDefault.WarningMessageStyle)},
+		{Key: "Due", Value: formatDetailDate(formatter, task.DueOn, pterm.ThemeDefault.WarningMessageStyle)},
 		{Key: "Waiting For", Value: emptyDash(task.WaitingFor)},
 		{Key: "Projects", Value: formatDetailList(task.Projects, pterm.ThemeDefault.PrimaryStyle)},
 		{Key: "Contexts", Value: formatDetailList(task.Contexts, pterm.ThemeDefault.SuccessMessageStyle)},
 		{Key: "Meta", Value: metaOrDash(task.Meta)},
-		{Key: "Created", Value: dateTimeFromTimeOrDash(task.CreatedAt)},
-		{Key: "Updated", Value: dateTimeFromTimeOrDash(task.UpdatedAt)},
-		{Key: "Completed", Value: dateTimeOrDash(task.CompletedAt)},
+		{Key: "Created", Value: formatTimeOrDash(formatter, task.CreatedAt)},
+		{Key: "Updated", Value: formatTimeOrDash(formatter, task.UpdatedAt)},
+		{Key: "Completed", Value: formatTimePtrOrDash(formatter, task.CompletedAt)},
 		{Key: "Notes", Value: emptyDash(task.Notes)},
 	}
 
@@ -58,7 +58,7 @@ func writeHumanTask(out io.Writer, task *store.Task) error {
 	return err
 }
 
-func writeHumanList(out io.Writer, tasks []*store.Task) error {
+func writeHumanList(out io.Writer, formatter *TimeFormatter, tasks []*store.Task) error {
 	if len(tasks) == 0 {
 		_, err := fmt.Fprintln(out, "No tasks found")
 		return err
@@ -67,7 +67,7 @@ func writeHumanList(out io.Writer, tasks []*store.Task) error {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("Found %d task(s):\n", len(tasks)))
 	for _, task := range tasks {
-		builder.WriteString(formatTaskLine(task))
+		builder.WriteString(formatTaskLine(formatter, task))
 		builder.WriteByte('\n')
 	}
 
@@ -124,18 +124,18 @@ func emptyDash(value string) string {
 	return value
 }
 
-func dateTimeOrDash(value *time.Time) string {
-	if value == nil {
-		return "-"
-	}
-	return value.UTC().Format(time.RFC3339)
-}
-
-func dateTimeFromTimeOrDash(value time.Time) string {
+func formatTimeOrDash(formatter *TimeFormatter, value time.Time) string {
 	if value.IsZero() {
 		return "-"
 	}
-	return value.UTC().Format(time.RFC3339)
+	return formatter.Format(value)
+}
+
+func formatTimePtrOrDash(formatter *TimeFormatter, value *time.Time) string {
+	if value == nil {
+		return "-"
+	}
+	return formatter.Format(*value)
 }
 
 func joinSummaryIDs(ids []int64) string {
@@ -229,7 +229,7 @@ func writeRenderedLine(out io.Writer, line string) error {
 	return err
 }
 
-func formatTaskLine(task *store.Task) string {
+func formatTaskLine(formatter *TimeFormatter, task *store.Task) string {
 	if task == nil {
 		return ""
 	}
@@ -242,7 +242,7 @@ func formatTaskLine(task *store.Task) string {
 	idStr := formatTaskID(task.ID)
 	stateStr := formatTaskState(string(state))
 	tags := formatTaskTags(task.Projects, task.Contexts)
-	dueStr := formatTaskDueDate(task.DueOn)
+	dueStr := formatTaskDueDate(formatter, task.DueOn)
 
 	line := fmt.Sprintf("  %s %s %s", idStr, task.Title, stateStr)
 	if tags != "" {
@@ -273,11 +273,11 @@ func formatTaskTags(projects, contexts []string) string {
 	return strings.Join(tags, " ")
 }
 
-func formatTaskDueDate(dueOn *time.Time) string {
+func formatTaskDueDate(formatter *TimeFormatter, dueOn *time.Time) string {
 	if dueOn == nil {
 		return ""
 	}
-	date := dueOn.Format("2006-01-02")
+	date := formatDateWithFormatter(formatter, dueOn)
 	return pterm.ThemeDefault.WarningMessageStyle.Sprint(date)
 }
 
@@ -295,11 +295,11 @@ func formatDetailPrevState(value *store.State) string {
 	return pterm.ThemeDefault.SecondaryStyle.Sprint(string(*value))
 }
 
-func formatDetailDate(value *time.Time, style pterm.Style) string {
+func formatDetailDate(formatter *TimeFormatter, value *time.Time, style pterm.Style) string {
 	if value == nil {
 		return "-"
 	}
-	date := value.Format("2006-01-02")
+	date := formatDateWithFormatter(formatter, value)
 	return style.Sprint(date)
 }
 
@@ -316,7 +316,7 @@ func formatDetailList(values []string, style pterm.Style) string {
 
 const maxCommandDisplayLength = 50
 
-func writeHumanHistory(out io.Writer, entries []*HistoryEntry) error {
+func writeHumanHistory(out io.Writer, formatter *TimeFormatter, entries []*HistoryEntry) error {
 	if len(entries) == 0 {
 		return writeRenderedLine(out, pterm.DefaultBasicText.Sprintln("No history entries"))
 	}
@@ -331,7 +331,7 @@ func writeHumanHistory(out io.Writer, entries []*HistoryEntry) error {
 		if intent == "" {
 			intent = "-"
 		}
-		timeStr := e.Time.Format("2006-01-02 15:04")
+		timeStr := formatter.Format(e.Time)
 		cmd := e.Command
 		if len(cmd) > maxCommandDisplayLength {
 			cmd = cmd[:maxCommandDisplayLength-3] + "..."
@@ -342,13 +342,13 @@ func writeHumanHistory(out io.Writer, entries []*HistoryEntry) error {
 }
 
 //nolint:gocognit // Rendering diff output combines formatting and color decisions.
-func writeHumanTaskVersionDiff(out io.Writer, versions []*store.TaskVersion) error {
+func writeHumanTaskVersionDiff(out io.Writer, formatter *TimeFormatter, versions []*store.TaskVersion) error {
 	if len(versions) == 0 {
 		return writeRenderedLine(out, pterm.DefaultBasicText.Sprintln("No task history entries"))
 	}
 
 	for i, current := range versions {
-		header := fmt.Sprintf("Version %d  %s", current.VersionID, current.UpdatedAt.Format("2006-01-02 15:04:05"))
+		header := fmt.Sprintf("Version %d  %s", current.VersionID, formatter.Format(current.UpdatedAt))
 		header = pterm.ThemeDefault.PrimaryStyle.Sprint(header)
 		if err := writeRenderedLine(out, header+"\n"); err != nil {
 			return err

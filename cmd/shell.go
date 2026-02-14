@@ -46,6 +46,9 @@ var shellCmd = &cli.Command{
 		} else {
 			opts.Mode = shell.ModeInteractive
 		}
+		if loadedConfig != nil {
+			opts.DisplayCfg = loadedConfig.Display
+		}
 
 		repl := shell.NewREPL(svc, opts)
 		err = repl.Run(ctx)

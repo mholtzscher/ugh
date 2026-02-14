@@ -31,10 +31,17 @@ type Daemon struct {
 	SyncRetryBackoff string `toml:"sync_retry_backoff"` // Initial retry backoff (default: "1s")
 }
 
+// Display holds display-related configuration.
+type Display struct {
+	DatetimeFormat string `toml:"datetime_format"` // Go time format (default: "2006-01-02 15:04")
+	Timezone       string `toml:"timezone"`        // "local" or IANA timezone (default: "local")
+}
+
 type Config struct {
-	Version int    `toml:"version"`
-	DB      DB     `toml:"db"`
-	Daemon  Daemon `toml:"daemon"`
+	Version int     `toml:"version"`
+	DB      DB      `toml:"db"`
+	Daemon  Daemon  `toml:"daemon"`
+	Display Display `toml:"display"`
 }
 
 type LoadResult struct {
@@ -148,6 +155,12 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Version == 0 {
 		cfg.Version = DefaultVersion
+	}
+	if cfg.Display.DatetimeFormat == "" {
+		cfg.Display.DatetimeFormat = "2006-01-02 15:04"
+	}
+	if cfg.Display.Timezone == "" {
+		cfg.Display.Timezone = "local"
 	}
 }
 

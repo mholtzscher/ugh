@@ -143,6 +143,10 @@ func loadConfig(cmd *cli.Command) error {
 					SyncRetryMax:     defaultDaemonSyncRetryMax,
 					SyncRetryBackoff: "1s",
 				},
+				Display: config.Display{
+					DatetimeFormat: "2006-01-02 15:04",
+					Timezone:       "local",
+				},
 			}
 
 			err = config.Save(cfgPath, result.Config)
@@ -196,11 +200,13 @@ func effectiveDBPath() (string, error) {
 
 func Execute() {
 	if err := rootCmd.Run(context.Background(), os.Args); err != nil {
-		writer := output.Writer{
-			Out:  os.Stderr,
-			JSON: false,
-			TTY:  term.IsTerminal(int(os.Stderr.Fd())),
+		displayCfg := config.Display{}
+		if loadedConfig != nil {
+			displayCfg = loadedConfig.Display
 		}
+		writer := output.NewWriter(false, displayCfg)
+		writer.Out = os.Stderr
+		writer.TTY = term.IsTerminal(int(os.Stderr.Fd()))
 		_ = writer.WriteErr(err)
 		os.Exit(1)
 	}
@@ -296,5 +302,9 @@ func userDataDir() (string, error) {
 }
 
 func outputWriter() output.Writer {
-	return output.NewWriter(rootJSON)
+	displayCfg := config.Display{}
+	if loadedConfig != nil {
+		displayCfg = loadedConfig.Display
+	}
+	return output.NewWriter(rootJSON, displayCfg)
 }

@@ -118,4 +118,4 @@ stdout '"key1":"val1"'
 stdout '"key2":"val2"'
 
 -- want-show.txt --
-1	now	2026-01-02	Alice	Plan trip
+1	now	2026-01-02 00:00	Alice	Plan trip
