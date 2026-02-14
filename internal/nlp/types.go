@@ -45,3 +45,41 @@ type ParseResult struct {
 	Command     Command
 	Diagnostics []Diagnostic
 }
+
+type DiagnosticError struct {
+	err         error
+	diagnostics []Diagnostic
+}
+
+func NewDiagnosticError(err error, diagnostics []Diagnostic) error {
+	if err == nil {
+		return nil
+	}
+	if len(diagnostics) == 0 {
+		return err
+	}
+	return DiagnosticError{err: err, diagnostics: diagnostics}
+}
+
+func (e DiagnosticError) Error() string {
+	if e.err == nil {
+		if len(e.diagnostics) == 0 {
+			return ""
+		}
+		return e.diagnostics[0].Message
+	}
+	return e.err.Error()
+}
+
+func (e DiagnosticError) Unwrap() error {
+	return e.err
+}
+
+func (e DiagnosticError) Diagnostics() []Diagnostic {
+	if len(e.diagnostics) == 0 {
+		return nil
+	}
+	items := make([]Diagnostic, len(e.diagnostics))
+	copy(items, e.diagnostics)
+	return items
+}

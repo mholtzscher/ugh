@@ -9,7 +9,7 @@ stderr 'compile: invalid id filter "abc"'
 # Parse-stage error: missing predicate value
 ! exec ugh --no-color --db $WORK/db.sqlite shell --file cmd-missing-value.txt
 stderr 'line 1'
-stderr 'parse: expected value'
+stderr 'expected value'
 
 -- cmd-invalid-id.txt --
 find id:abc

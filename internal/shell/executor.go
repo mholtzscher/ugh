@@ -1,16 +1,12 @@
 package shell
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
-
-	"github.com/pterm/pterm"
 
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/nlp/compile"
@@ -20,8 +16,6 @@ import (
 )
 
 const (
-	contextNoneValue = "none"
-
 	viewNameInbox    = "inbox"
 	viewNameNow      = "now"
 	viewNameWaiting  = "waiting"
@@ -31,19 +25,17 @@ const (
 
 // Executor bridges NLP parsing to service execution.
 type Executor struct {
-	svc     service.Service
-	state   *SessionState
-	parser  nlp.Parser
-	noColor bool
+	svc    service.Service
+	state  *SessionState
+	parser nlp.Parser
 }
 
 // NewExecutor creates a new executor.
-func NewExecutor(svc service.Service, state *SessionState, noColor bool) *Executor {
+func NewExecutor(svc service.Service, state *SessionState) *Executor {
 	return &Executor{
-		svc:     svc,
-		state:   state,
-		parser:  nlp.NewParser(),
-		noColor: noColor,
+		svc:    svc,
+		state:  state,
+		parser: nlp.NewParser(),
 	}
 }
 
@@ -73,14 +65,14 @@ func (e *Executor) Execute(ctx context.Context, input string) (*ExecuteResult, e
 
 	parseResult, err := e.parser.Parse(ctx, input, parseOpts)
 	if err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
+		return nil, err
 	}
 
 	// Check for parse diagnostics
 	if len(parseResult.Diagnostics) > 0 {
 		for _, diag := range parseResult.Diagnostics {
 			if diag.Severity == nlp.SeverityError {
-				return nil, fmt.Errorf("parse error: %s", diag.Message)
+				return nil, nlp.NewDiagnosticError(errors.New(diag.Message), []nlp.Diagnostic{diag})
 			}
 		}
 	}
@@ -166,7 +158,7 @@ func (e *Executor) executePlan(
 	case nlp.IntentUpdate:
 		return e.executeUpdate(ctx, plan)
 	case nlp.IntentFilter:
-		return e.executeFilter(ctx, plan)
+		return e.executeFilter(ctx, plan, parseResult)
 	case nlp.IntentView:
 		return e.executeView(ctx, parseResult)
 	case nlp.IntentContext:
@@ -214,6 +206,7 @@ func (e *Executor) executeContext(parseResult nlp.ParseResult) (*ExecuteResult, 
 		return &ExecuteResult{
 			Intent:    "context",
 			Message:   "Context filters cleared",
+			Level:     ResultLevelInfo,
 			Summary:   "cleared context",
 			Timestamp: time.Now(),
 		}, nil
@@ -224,6 +217,7 @@ func (e *Executor) executeContext(parseResult nlp.ParseResult) (*ExecuteResult, 
 		return &ExecuteResult{
 			Intent:    "context",
 			Message:   fmt.Sprintf("Set project context to #%s", cmd.Arg.Project),
+			Level:     ResultLevelInfo,
 			Summary:   fmt.Sprintf("context project #%s", cmd.Arg.Project),
 			Timestamp: time.Now(),
 		}, nil
@@ -234,6 +228,7 @@ func (e *Executor) executeContext(parseResult nlp.ParseResult) (*ExecuteResult, 
 		return &ExecuteResult{
 			Intent:    "context",
 			Message:   fmt.Sprintf("Set context filter to @%s", cmd.Arg.Context),
+			Level:     ResultLevelInfo,
 			Summary:   fmt.Sprintf("context @%s", cmd.Arg.Context),
 			Timestamp: time.Now(),
 		}, nil
@@ -260,15 +255,10 @@ func (e *Executor) executeLog(ctx context.Context, plan compile.Plan) (*ExecuteR
 
 	e.state.LastTaskIDs = []int64{taskID}
 
-	var rendered bytes.Buffer
-	writer := output.Writer{Out: &rendered, JSON: false, TTY: true}
-	if writeErr := writer.WriteTaskVersionDiff(versions); writeErr != nil {
-		return nil, fmt.Errorf("write version diff: %w", writeErr)
-	}
-
 	return &ExecuteResult{
 		Intent:    "show log",
-		Message:   strings.TrimSuffix(rendered.String(), "\n"),
+		Versions:  versions,
+		Level:     ResultLevelInfo,
 		TaskIDs:   []int64{taskID},
 		Summary:   fmt.Sprintf("showed %d versions", len(versions)),
 		Timestamp: time.Now(),
@@ -293,59 +283,20 @@ func viewFilterQuery(viewName string) (string, error) {
 }
 
 func (e *Executor) showContext() *ExecuteResult {
-	selected := contextNoneValue
-	if e.state.SelectedTaskID != nil {
-		selected = fmt.Sprintf("#%d", *e.state.SelectedTaskID)
-	}
-
-	last := formatTaskIDs(e.state.LastTaskIDs)
-	project := formatContextValue(e.state.ContextProject, "#")
-	ctx := formatContextValue(e.state.ContextContext, "@")
-
-	data := pterm.TableData{
-		{"Selected", selected},
-		{"Last", last},
-		{"Project", project},
-		{"Context", ctx},
-	}
-
-	var msg string
-	if !e.noColor {
-		table, _ := pterm.DefaultTable.WithData(data).Srender()
-		msg = pterm.ThemeDefault.HighlightStyle.Sprint("Current Context:\n") + table
-	} else {
-		var b strings.Builder
-		b.WriteString("Current Context:\n")
-		for _, row := range data {
-			_, _ = fmt.Fprintf(&b, "  %s: %s\n", row[0], row[1])
-		}
-		msg = b.String()
+	status := output.ContextStatus{
+		SelectedID: e.state.SelectedTaskID,
+		LastIDs:    e.state.LastTaskIDs,
+		Project:    e.state.ContextProject,
+		Context:    e.state.ContextContext,
 	}
 
 	return &ExecuteResult{
 		Intent:    "context",
-		Message:   msg,
+		Context:   &status,
+		Level:     ResultLevelInfo,
 		Summary:   "showing context",
 		Timestamp: time.Now(),
 	}
-}
-
-func formatTaskIDs(ids []int64) string {
-	if len(ids) == 0 {
-		return contextNoneValue
-	}
-	strs := make([]string, len(ids))
-	for i, id := range ids {
-		strs[i] = fmt.Sprintf("#%d", id)
-	}
-	return strings.Join(strs, ", ")
-}
-
-func formatContextValue(value, prefix string) string {
-	if value == "" {
-		return contextNoneValue
-	}
-	return prefix + value
 }
 
 func firstDisallowedControlRune(input string) (rune, int, bool) {
@@ -377,30 +328,21 @@ func formatControlRune(r rune) string {
 }
 
 func (e *Executor) showViewHelp() *ExecuteResult {
-	var msg string
-	if !e.noColor {
-		msg = pterm.ThemeDefault.SuccessMessageStyle.Sprint("Available Views:\n") +
-			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("i, inbox") + "     Inbox tasks\n" +
-			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("n, now") + "       Now tasks\n" +
-			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("w, waiting") + "   Waiting tasks\n" +
-			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("l, later") + "     Later tasks\n" +
-			"  " + pterm.ThemeDefault.SuccessMessageStyle.Sprint("c, calendar") + "  Tasks with due dates\n" +
-			"\nUsage: view <name> (e.g., view i or view inbox)"
-	} else {
-		var b strings.Builder
-		b.WriteString("Available Views:\n")
-		b.WriteString("  i, inbox     Inbox tasks\n")
-		b.WriteString("  n, now       Now tasks\n")
-		b.WriteString("  w, waiting   Waiting tasks\n")
-		b.WriteString("  l, later     Later tasks\n")
-		b.WriteString("  c, calendar  Tasks with due dates\n")
-		b.WriteString("\nUsage: view <name> (e.g., view i or view inbox)")
-		msg = b.String()
+	help := output.ViewHelp{
+		Entries: []output.ViewHelpEntry{
+			{Label: "i, inbox", Description: "Inbox tasks"},
+			{Label: "n, now", Description: "Now tasks"},
+			{Label: "w, waiting", Description: "Waiting tasks"},
+			{Label: "l, later", Description: "Later tasks"},
+			{Label: "c, calendar", Description: "Tasks with due dates"},
+		},
+		Usage: "view <name> (e.g., view i or view inbox)",
 	}
 
 	return &ExecuteResult{
 		Intent:    "view",
-		Message:   msg,
+		ViewHelp:  &help,
+		Level:     ResultLevelInfo,
 		Summary:   "showing view help",
 		Timestamp: time.Now(),
 	}
@@ -422,6 +364,7 @@ func (e *Executor) executeCreate(ctx context.Context, plan compile.Plan) (*Execu
 		Intent:    "create",
 		Message:   formatTaskCreated(task),
 		TaskIDs:   []int64{task.ID},
+		Level:     ResultLevelSuccess,
 		Summary:   fmt.Sprintf("created task #%d", task.ID),
 		Timestamp: time.Now(),
 	}, nil
@@ -446,12 +389,17 @@ func (e *Executor) executeUpdate(ctx context.Context, plan compile.Plan) (*Execu
 		Intent:    "update",
 		Message:   formatTaskUpdated(task),
 		TaskIDs:   []int64{task.ID},
+		Level:     ResultLevelSuccess,
 		Summary:   fmt.Sprintf("updated task #%d", task.ID),
 		Timestamp: time.Now(),
 	}, nil
 }
 
-func (e *Executor) executeFilter(ctx context.Context, plan compile.Plan) (*ExecuteResult, error) {
+func (e *Executor) executeFilter(
+	ctx context.Context,
+	plan compile.Plan,
+	parseResult nlp.ParseResult,
+) (*ExecuteResult, error) {
 	if plan.Filter == nil {
 		return nil, errors.New("no filter request compiled")
 	}
@@ -468,9 +416,26 @@ func (e *Executor) executeFilter(ctx context.Context, plan compile.Plan) (*Execu
 	}
 	e.state.LastTaskIDs = taskIDs
 
+	showVerb := false
+	if cmd, ok := parseResult.Command.(*nlp.FilterCommand); ok {
+		showVerb = string(cmd.Verb) == "show"
+	}
+
+	if showVerb && len(tasks) == 1 {
+		return &ExecuteResult{
+			Intent:    "show",
+			Task:      tasks[0],
+			Level:     ResultLevelInfo,
+			TaskIDs:   taskIDs,
+			Summary:   fmt.Sprintf("showed task #%d", tasks[0].ID),
+			Timestamp: time.Now(),
+		}, nil
+	}
+
 	return &ExecuteResult{
 		Intent:    "filter",
-		Message:   formatTaskList(tasks, e.noColor),
+		Tasks:     tasks,
+		Level:     ResultLevelInfo,
 		TaskIDs:   taskIDs,
 		Summary:   fmt.Sprintf("found %d tasks", len(tasks)),
 		Timestamp: time.Now(),
@@ -483,81 +448,4 @@ func formatTaskCreated(task *store.Task) string {
 
 func formatTaskUpdated(task *store.Task) string {
 	return fmt.Sprintf("Updated task #%d: %s", task.ID, task.Title)
-}
-
-func formatTaskList(tasks []*store.Task, noColor bool) string {
-	if len(tasks) == 0 {
-		return "No tasks found"
-	}
-
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Found %d task(s):\n\n", len(tasks)))
-	for _, task := range tasks {
-		sb.WriteString(formatTaskLine(task, noColor) + "\n")
-	}
-	return sb.String()
-}
-
-func formatTaskLine(task *store.Task, noColor bool) string {
-	state := task.State
-	if state == "" {
-		state = "inbox"
-	}
-
-	idStr := formatID(task.ID, noColor)
-	stateStr := formatState(string(state), noColor)
-	tags := formatTags(task.Projects, task.Contexts, noColor)
-	dueStr := formatDueDate(task.DueOn, noColor)
-
-	line := fmt.Sprintf("  %s %s %s", idStr, task.Title, stateStr)
-	if tags != "" {
-		line += " " + tags
-	}
-	if dueStr != "" {
-		line += " " + dueStr
-	}
-	return line
-}
-
-func formatID(id int64, noColor bool) string {
-	if noColor {
-		return "#" + strconv.FormatInt(id, 10)
-	}
-	return pterm.ThemeDefault.PrimaryStyle.Sprint("#" + strconv.FormatInt(id, 10))
-}
-
-func formatState(state string, noColor bool) string {
-	if noColor {
-		return "[" + state + "]"
-	}
-	return pterm.ThemeDefault.SecondaryStyle.Sprint("[" + state + "]")
-}
-
-func formatTags(projects, contexts []string, noColor bool) string {
-	var tags []string
-	for _, p := range projects {
-		if noColor {
-			tags = append(tags, "#"+p)
-		} else {
-			tags = append(tags, pterm.ThemeDefault.PrimaryStyle.Sprint("#"+p))
-		}
-	}
-	for _, c := range contexts {
-		if noColor {
-			tags = append(tags, "@"+c)
-		} else {
-			tags = append(tags, pterm.ThemeDefault.SuccessMessageStyle.Sprint("@"+c))
-		}
-	}
-	return strings.Join(tags, " ")
-}
-
-func formatDueDate(dueOn *time.Time, noColor bool) string {
-	if dueOn == nil {
-		return ""
-	}
-	if noColor {
-		return dueOn.Format("2006-01-02")
-	}
-	return pterm.ThemeDefault.WarningMessageStyle.Sprint(dueOn.Format("2006-01-02"))
 }

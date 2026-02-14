@@ -20,7 +20,7 @@ func TestExecuteCreateQuotedHashStillInjectsStickyContext(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"})
 
 	_, err := exec.Execute(context.Background(), `add buy milk "email #hashtag"`)
 	require.NoError(t, err, "execute error")
@@ -33,7 +33,7 @@ func TestExecuteCreateExplicitProjectSkipsStickyProject(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"})
 
 	_, err := exec.Execute(context.Background(), "add buy milk #personal")
 	require.NoError(t, err, "execute error")
@@ -46,7 +46,7 @@ func TestExecuteFilterInjectsMissingPredicates(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"})
 
 	_, err := exec.Execute(context.Background(), "find done")
 	require.NoError(t, err, "execute error")
@@ -59,7 +59,7 @@ func TestExecuteUpdateInjectsMissingTags(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work", ContextContext: "phone"})
 
 	_, err := exec.Execute(context.Background(), "set #7 title: hello")
 	require.NoError(t, err, "execute error")
@@ -88,7 +88,7 @@ func TestExecuteFilterStickyProjectWrapsEntireOrExpression(t *testing.T) {
 	})
 	require.NoError(t, err, "create waiting-work error")
 
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"})
 	result, err := exec.Execute(ctx, "find state:now or state:waiting")
 	require.NoError(t, err, "execute error")
 
@@ -109,7 +109,7 @@ func TestExecuteUpdateStickyProjectStillAllowsExplicitRemoval(t *testing.T) {
 	task, err := svc.CreateTask(ctx, service.CreateTaskRequest{Title: "cleanup", Projects: []string{"work"}})
 	require.NoError(t, err, "create task error")
 
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"})
 	_, err = exec.Execute(ctx, fmt.Sprintf("set #%d -project:work", task.ID))
 	require.NoError(t, err, "execute error")
 
@@ -230,7 +230,7 @@ func TestExecuteEmptyCommand(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	_, err := exec.Execute(context.Background(), "")
 	require.Error(t, err, "expected error for empty command")
@@ -240,7 +240,7 @@ func TestExecuteWhitespaceOnlyCommand(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	_, err := exec.Execute(context.Background(), "   \t\n  ")
 	require.Error(t, err, "expected error for whitespace-only command")
@@ -250,7 +250,7 @@ func TestExecuteRejectsControlCharacters(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	_, err := exec.Execute(context.Background(), "\x16set #1 projects:work")
 	require.Error(t, err, "expected error for control character input")
@@ -264,7 +264,7 @@ func TestExecuteRejectsControlCharactersReportsRunePosition(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	_, err := exec.Execute(context.Background(), "é\x16set #1 projects:work")
 	require.Error(t, err, "expected error for control character input")
@@ -283,7 +283,7 @@ func TestExecuteUpdatesLastTaskID(t *testing.T) {
 
 	svc := service.NewTaskService(st)
 	state := &shell.SessionState{}
-	exec := shell.NewExecutor(svc, state, true)
+	exec := shell.NewExecutor(svc, state)
 
 	// Create first task
 	result1, err := exec.Execute(ctx, "add first task")
@@ -323,7 +323,7 @@ func TestExecuteFilterUpdatesLastTaskIDs(t *testing.T) {
 	}
 
 	state := &shell.SessionState{}
-	exec := shell.NewExecutor(svc, state, true)
+	exec := shell.NewExecutor(svc, state)
 
 	_, err = exec.Execute(ctx, "find state:now")
 	require.NoError(t, err, "execute filter error")
@@ -353,7 +353,7 @@ func TestExecuteUpdateSetsSelectedTaskID(t *testing.T) {
 	state := &shell.SessionState{
 		SelectedTaskID: &task.ID,
 	}
-	exec := shell.NewExecutor(svc, state, true)
+	exec := shell.NewExecutor(svc, state)
 
 	// Update with "selected" target should keep SelectedTaskID set
 	_, err = exec.Execute(ctx, "set selected title:updated")
@@ -377,7 +377,7 @@ func TestExecuteUpdateByIDDoesNotSetSelectedTaskID(t *testing.T) {
 	require.NoError(t, err, "create task error")
 
 	state := &shell.SessionState{}
-	exec := shell.NewExecutor(svc, state, true)
+	exec := shell.NewExecutor(svc, state)
 
 	// Update by explicit ID should NOT set SelectedTaskID
 	_, err = exec.Execute(ctx, fmt.Sprintf("set #%d title:updated", task.ID))
@@ -406,7 +406,7 @@ func TestExecutePronounSubstitution(t *testing.T) {
 	state := &shell.SessionState{
 		LastTaskIDs: []int64{task1.ID, task2.ID},
 	}
-	exec := shell.NewExecutor(svc, state, true)
+	exec := shell.NewExecutor(svc, state)
 
 	// "it" and "this" should refer to last task (task2)
 	_, err = exec.Execute(ctx, "set it title:updated via it")
@@ -445,7 +445,7 @@ func TestExecuteThatPronounSubstitution(t *testing.T) {
 	state := &shell.SessionState{
 		LastTaskIDs: []int64{task1.ID, task2.ID},
 	}
-	exec := shell.NewExecutor(svc, state, true)
+	exec := shell.NewExecutor(svc, state)
 
 	// "that" should refer to second-to-last task (task1)
 	_, err = exec.Execute(ctx, "set that title:updated via that")
@@ -472,7 +472,7 @@ func TestExecuteSelectedPronounSubstitution(t *testing.T) {
 	state := &shell.SessionState{
 		SelectedTaskID: &task.ID,
 	}
-	exec := shell.NewExecutor(svc, state, true)
+	exec := shell.NewExecutor(svc, state)
 
 	// "selected" should refer to selected task
 	_, err = exec.Execute(ctx, "set selected title:updated via selected")
@@ -487,7 +487,7 @@ func TestExecuteCreateWithoutContext(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	_, err := exec.Execute(context.Background(), "add buy milk")
 	require.NoError(t, err, "execute error")
@@ -500,7 +500,7 @@ func TestExecuteFilterWithoutContext(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	_, err := exec.Execute(context.Background(), "find state:now")
 	require.NoError(t, err, "execute error")
@@ -517,7 +517,7 @@ func TestExecuteInjectContextOnlyProject(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"})
 
 	_, err := exec.Execute(context.Background(), "add buy milk")
 	require.NoError(t, err, "execute error")
@@ -530,7 +530,7 @@ func TestExecuteInjectContextOnlyContext(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextContext: "phone"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextContext: "phone"})
 
 	_, err := exec.Execute(context.Background(), "add buy milk")
 	require.NoError(t, err, "execute error")
@@ -543,20 +543,22 @@ func TestExecuteViewShowsHelp(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	result, err := exec.Execute(context.Background(), "view")
 	require.NoError(t, err, "execute error")
 	require.NotNil(t, result, "result should not be nil")
 	assert.Equal(t, "view", result.Intent, "intent mismatch")
-	assert.Contains(t, result.Message, "Available Views:", "message should contain view help")
+	require.NotNil(t, result.ViewHelp, "view help should be set")
+	assert.Len(t, result.ViewHelp.Entries, 5, "view help entries mismatch")
+	assert.Equal(t, "view <name> (e.g., view i or view inbox)", result.ViewHelp.Usage, "usage mismatch")
 }
 
 func TestExecuteViewRunsFilterQuery(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	result, err := exec.Execute(context.Background(), "view now")
 	require.NoError(t, err, "execute error")
@@ -569,7 +571,7 @@ func TestExecuteViewCalendarRunsDueSetFilter(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{})
 
 	result, err := exec.Execute(context.Background(), "view calendar")
 	require.NoError(t, err, "execute error")
@@ -586,7 +588,7 @@ func TestExecuteViewRespectsStickyContext(t *testing.T) {
 	t.Parallel()
 
 	svc := &recordingService{}
-	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"}, true)
+	exec := shell.NewExecutor(svc, &shell.SessionState{ContextProject: "work"})
 
 	_, err := exec.Execute(context.Background(), "view now")
 	require.NoError(t, err, "execute error")
@@ -605,7 +607,7 @@ func TestExecuteContextSetShowAndClear(t *testing.T) {
 		SelectedTaskID: &selectedID,
 		LastTaskIDs:    []int64{3, 7},
 	}
-	exec := shell.NewExecutor(&recordingService{}, state, true)
+	exec := shell.NewExecutor(&recordingService{}, state)
 
 	result, err := exec.Execute(context.Background(), "context #work")
 	require.NoError(t, err, "set project context error")
@@ -619,10 +621,11 @@ func TestExecuteContextSetShowAndClear(t *testing.T) {
 
 	result, err = exec.Execute(context.Background(), "context")
 	require.NoError(t, err, "show context error")
-	assert.Contains(t, result.Message, "Selected: #9", "context output should include selected task")
-	assert.Contains(t, result.Message, "Last: #3, #7", "context output should include last tasks")
-	assert.Contains(t, result.Message, "Project: #work", "context output should include project")
-	assert.Contains(t, result.Message, "Context: @urgent", "context output should include context")
+	require.NotNil(t, result.Context, "context status should be set")
+	assert.Equal(t, &selectedID, result.Context.SelectedID, "selected id mismatch")
+	assert.Equal(t, []int64{3, 7}, result.Context.LastIDs, "last ids mismatch")
+	assert.Equal(t, "work", result.Context.Project, "project mismatch")
+	assert.Equal(t, "urgent", result.Context.Context, "context mismatch")
 
 	result, err = exec.Execute(context.Background(), "context clear")
 	require.NoError(t, err, "clear context error")

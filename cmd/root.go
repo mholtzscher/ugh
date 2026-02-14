@@ -201,7 +201,7 @@ func Execute() {
 			JSON: false,
 			TTY:  term.IsTerminal(int(os.Stderr.Fd())),
 		}
-		_ = writer.WriteError(err.Error())
+		_ = writer.WriteErr(err)
 		os.Exit(1)
 	}
 }

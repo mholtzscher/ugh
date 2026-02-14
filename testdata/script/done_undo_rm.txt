@@ -24,8 +24,8 @@ stdout 'Task one'
 ! stdout 'Task two'
 
 -- want-done.txt --
-done: 1 ids=1
+done: 1 ids=#1
 -- want-undo.txt --
-undo: 1 ids=1
+undo: 1 ids=#1
 -- want-rm.txt --
-rm: 1 ids=2
+rm: 1 ids=#2

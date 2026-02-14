@@ -21,47 +21,79 @@ type Summary struct {
 }
 
 func writeHumanTask(out io.Writer, task *store.Task) error {
-	rows := pterm.TableData{
-		{"Field", "Value"},
-		{"ID", strconv.FormatInt(task.ID, 10)},
-		{"State", string(task.State)},
-		{"Prev State", stateOrDash(task.PrevState)},
-		{"Created", dayFromTimeOrDash(task.CreatedAt)},
-		{"Updated", dayFromTimeOrDash(task.UpdatedAt)},
-		{"Completed", dateTimeOrDash(task.CompletedAt)},
-		{"Due", dateOrDash(task.DueOn)},
-		{"Waiting For", emptyDash(task.WaitingFor)},
-		{"Title", task.Title},
-		{"Notes", emptyDash(task.Notes)},
-		{"Projects", joinListOrDash(task.Projects)},
-		{"Contexts", joinListOrDash(task.Contexts)},
-		{"Meta", metaOrDash(task.Meta)},
+	if task == nil {
+		return nil
 	}
-	return renderTable(out, rows)
+
+	header := "Task " +
+		pterm.ThemeDefault.PrimaryStyle.Sprint("#"+strconv.FormatInt(task.ID, 10)) +
+		": " + task.Title
+
+	rows := []KeyValue{
+		{Key: "State", Value: formatDetailState(task.State)},
+		{Key: "Prev State", Value: formatDetailPrevState(task.PrevState)},
+		{Key: "Due", Value: formatDetailDate(task.DueOn, pterm.ThemeDefault.WarningMessageStyle)},
+		{Key: "Waiting For", Value: emptyDash(task.WaitingFor)},
+		{Key: "Projects", Value: formatDetailList(task.Projects, pterm.ThemeDefault.PrimaryStyle)},
+		{Key: "Contexts", Value: formatDetailList(task.Contexts, pterm.ThemeDefault.SuccessMessageStyle)},
+		{Key: "Meta", Value: metaOrDash(task.Meta)},
+		{Key: "Created", Value: dateTimeFromTimeOrDash(task.CreatedAt)},
+		{Key: "Updated", Value: dateTimeFromTimeOrDash(task.UpdatedAt)},
+		{Key: "Completed", Value: dateTimeOrDash(task.CompletedAt)},
+		{Key: "Notes", Value: emptyDash(task.Notes)},
+	}
+
+	var builder strings.Builder
+	builder.WriteString(header)
+	builder.WriteByte('\n')
+	for _, row := range rows {
+		builder.WriteString("  ")
+		builder.WriteString(pterm.ThemeDefault.SecondaryStyle.Sprint(row.Key))
+		builder.WriteString(": ")
+		builder.WriteString(row.Value)
+		builder.WriteByte('\n')
+	}
+
+	_, err := fmt.Fprint(out, builder.String())
+	return err
 }
 
 func writeHumanList(out io.Writer, tasks []*store.Task) error {
-	rows := pterm.TableData{{"ID", "State", "Due", "Task"}}
-	for _, task := range tasks {
-		rows = append(rows, []string{
-			strconv.FormatInt(task.ID, 10),
-			string(task.State),
-			dateOrDash(task.DueOn),
-			task.Title,
-		})
+	if len(tasks) == 0 {
+		_, err := fmt.Fprintln(out, "No tasks found")
+		return err
 	}
-	return renderTable(out, rows)
+
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("Found %d task(s):\n", len(tasks)))
+	for _, task := range tasks {
+		builder.WriteString(formatTaskLine(task))
+		builder.WriteByte('\n')
+	}
+
+	_, err := fmt.Fprint(out, builder.String())
+	return err
 }
 
 func writeHumanSummary(out io.Writer, summary any) error {
 	switch value := summary.(type) {
 	case Summary:
-		ids := "-"
+		ids := ""
 		if len(value.IDs) > 0 {
-			ids = joinIDs(value.IDs)
+			ids = " ids=" + joinSummaryIDs(value.IDs)
 		}
-		rows := pterm.TableData{{"Action", "Count", "IDs"}, {value.Action, strconv.FormatInt(value.Count, 10), ids}}
-		return renderTable(out, rows)
+		line := fmt.Sprintf("%s: %d%s", value.Action, value.Count, ids)
+		if value.File != "" {
+			line += " (" + value.File + ")"
+		}
+		switch value.Action {
+		case "done", "undo":
+			line = pterm.ThemeDefault.SuccessMessageStyle.Sprint(line)
+		case "rm":
+			line = pterm.ThemeDefault.WarningMessageStyle.Sprint(line)
+		}
+		_, err := fmt.Fprintln(out, line)
+		return err
 	default:
 		return writeRenderedLine(out, pterm.DefaultBasicText.Sprintln(fmt.Sprintf("%v", value)))
 	}
@@ -75,7 +107,7 @@ func writePlainSummary(out io.Writer, summary any) error {
 			line += " (" + value.File + ")"
 		}
 		if len(value.IDs) > 0 {
-			line += " ids=" + joinIDs(value.IDs)
+			line += " ids=" + joinSummaryIDs(value.IDs)
 		}
 		_, err := fmt.Fprintln(out, line)
 		return err
@@ -92,13 +124,6 @@ func emptyDash(value string) string {
 	return value
 }
 
-func dateOrDash(value *time.Time) string {
-	if value == nil {
-		return "-"
-	}
-	return value.Format("2006-01-02")
-}
-
 func dateTimeOrDash(value *time.Time) string {
 	if value == nil {
 		return "-"
@@ -106,26 +131,19 @@ func dateTimeOrDash(value *time.Time) string {
 	return value.UTC().Format(time.RFC3339)
 }
 
-func dayFromTimeOrDash(value time.Time) string {
+func dateTimeFromTimeOrDash(value time.Time) string {
 	if value.IsZero() {
 		return "-"
 	}
-	return value.UTC().Format("2006-01-02")
+	return value.UTC().Format(time.RFC3339)
 }
 
-func joinIDs(ids []int64) string {
+func joinSummaryIDs(ids []int64) string {
 	parts := make([]string, 0, len(ids))
 	for _, id := range ids {
-		parts = append(parts, strconv.FormatInt(id, 10))
+		parts = append(parts, "#"+strconv.FormatInt(id, 10))
 	}
 	return strings.Join(parts, ",")
-}
-
-func joinListOrDash(values []string) string {
-	if len(values) == 0 {
-		return "-"
-	}
-	return strings.Join(values, ", ")
 }
 
 func metaOrDash(meta map[string]string) string {
@@ -142,13 +160,6 @@ func metaOrDash(meta map[string]string) string {
 		parts = append(parts, k+"="+meta[k])
 	}
 	return strings.Join(parts, ", ")
-}
-
-func stateOrDash(value *store.State) string {
-	if value == nil || *value == "" {
-		return "-"
-	}
-	return string(*value)
 }
 
 func writeHumanTags(out io.Writer, tags []store.NameCount) error {
@@ -171,6 +182,39 @@ func writeHumanKeyValues(out io.Writer, rows []KeyValue) error {
 	return renderTable(out, tableData)
 }
 
+func writeHumanInfoBlock(out io.Writer, title string, rows []KeyValue) error {
+	header := pterm.ThemeDefault.HighlightStyle.Sprint(title)
+	if len(rows) == 0 {
+		_, err := fmt.Fprintln(out, header)
+		return err
+	}
+	data := make(pterm.TableData, 0, len(rows))
+	for _, row := range rows {
+		data = append(data, []string{row.Key, row.Value})
+	}
+	table := pterm.DefaultTable.WithData(data)
+	rendered, err := table.Srender()
+	if err != nil {
+		return err
+	}
+	return writeRenderedLine(out, header+"\n"+rendered)
+}
+
+func writePlainInfoBlock(out io.Writer, title string, rows []KeyValue) error {
+	var builder strings.Builder
+	builder.WriteString(title)
+	builder.WriteByte('\n')
+	for _, row := range rows {
+		builder.WriteString("  ")
+		builder.WriteString(row.Key)
+		builder.WriteString(": ")
+		builder.WriteString(row.Value)
+		builder.WriteByte('\n')
+	}
+	_, err := fmt.Fprint(out, builder.String())
+	return err
+}
+
 func renderTable(out io.Writer, data pterm.TableData) error {
 	table := pterm.DefaultTable.WithHasHeader().WithLeftAlignment().WithBoxed().WithData(data)
 	rendered, err := table.Srender()
@@ -183,6 +227,91 @@ func renderTable(out io.Writer, data pterm.TableData) error {
 func writeRenderedLine(out io.Writer, line string) error {
 	_, err := fmt.Fprint(out, line)
 	return err
+}
+
+func formatTaskLine(task *store.Task) string {
+	if task == nil {
+		return ""
+	}
+
+	state := task.State
+	if state == "" {
+		state = "inbox"
+	}
+
+	idStr := formatTaskID(task.ID)
+	stateStr := formatTaskState(string(state))
+	tags := formatTaskTags(task.Projects, task.Contexts)
+	dueStr := formatTaskDueDate(task.DueOn)
+
+	line := fmt.Sprintf("  %s %s %s", idStr, task.Title, stateStr)
+	if tags != "" {
+		line += " " + tags
+	}
+	if dueStr != "" {
+		line += " " + dueStr
+	}
+	return line
+}
+
+func formatTaskID(id int64) string {
+	return pterm.ThemeDefault.PrimaryStyle.Sprint("#" + strconv.FormatInt(id, 10))
+}
+
+func formatTaskState(state string) string {
+	return pterm.ThemeDefault.SecondaryStyle.Sprint("[" + state + "]")
+}
+
+func formatTaskTags(projects, contexts []string) string {
+	tags := make([]string, 0, len(projects)+len(contexts))
+	for _, project := range projects {
+		tags = append(tags, pterm.ThemeDefault.PrimaryStyle.Sprint("#"+project))
+	}
+	for _, context := range contexts {
+		tags = append(tags, pterm.ThemeDefault.SuccessMessageStyle.Sprint("@"+context))
+	}
+	return strings.Join(tags, " ")
+}
+
+func formatTaskDueDate(dueOn *time.Time) string {
+	if dueOn == nil {
+		return ""
+	}
+	date := dueOn.Format("2006-01-02")
+	return pterm.ThemeDefault.WarningMessageStyle.Sprint(date)
+}
+
+func formatDetailState(value store.State) string {
+	if value == "" {
+		return "-"
+	}
+	return pterm.ThemeDefault.SecondaryStyle.Sprint(string(value))
+}
+
+func formatDetailPrevState(value *store.State) string {
+	if value == nil || *value == "" {
+		return "-"
+	}
+	return pterm.ThemeDefault.SecondaryStyle.Sprint(string(*value))
+}
+
+func formatDetailDate(value *time.Time, style pterm.Style) string {
+	if value == nil {
+		return "-"
+	}
+	date := value.Format("2006-01-02")
+	return style.Sprint(date)
+}
+
+func formatDetailList(values []string, style pterm.Style) string {
+	if len(values) == 0 {
+		return "-"
+	}
+	styled := make([]string, len(values))
+	for i, value := range values {
+		styled[i] = style.Sprint(value)
+	}
+	return strings.Join(styled, ", ")
 }
 
 const maxCommandDisplayLength = 50
@@ -220,7 +349,8 @@ func writeHumanTaskVersionDiff(out io.Writer, versions []*store.TaskVersion) err
 
 	for i, current := range versions {
 		header := fmt.Sprintf("Version %d  %s", current.VersionID, current.UpdatedAt.Format("2006-01-02 15:04:05"))
-		if err := writeRenderedLine(out, pterm.ThemeDefault.PrimaryStyle.Sprint(header)+"\n"); err != nil {
+		header = pterm.ThemeDefault.PrimaryStyle.Sprint(header)
+		if err := writeRenderedLine(out, header+"\n"); err != nil {
 			return err
 		}
 
