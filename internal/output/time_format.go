@@ -1,6 +1,8 @@
 package output
 
 import (
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/mholtzscher/ugh/internal/config"
@@ -33,6 +35,8 @@ func loadLocation(tz string) *time.Location {
 	}
 	loc, err := time.LoadLocation(tz)
 	if err != nil {
+		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+		logger.Warn("invalid timezone, falling back to UTC", "timezone", tz, "error", err)
 		return time.UTC
 	}
 	return loc
