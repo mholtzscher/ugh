@@ -112,7 +112,7 @@ var addCmd = &cli.Command{
 			return writer.WriteTask(task)
 		}
 		if writer.TTY {
-			return writer.WriteLine(fmt.Sprintf("Created task #%d: %s", task.ID, task.Title))
+			return writer.WriteSuccess(fmt.Sprintf("Created task #%d: %s", task.ID, task.Title))
 		}
 		return writer.WriteTask(task)
 	},

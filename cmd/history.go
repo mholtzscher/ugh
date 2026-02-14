@@ -61,7 +61,7 @@ var historyCmd = &cli.Command{
 				return clearErr
 			}
 			writer := outputWriter()
-			return writer.WriteLine("History cleared")
+			return writer.WriteInfo("History cleared")
 		}
 
 		limit := int64(cmd.Int(flags.FlagLimit))

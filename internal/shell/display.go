@@ -68,11 +68,16 @@ func (d *Display) writeMessage(message string, level ResultLevel) {
 		return
 	}
 
-	if level == ResultLevelError {
+	switch level {
+	case ResultLevelInfo:
+		_ = d.writer.WriteLine(message)
+	case ResultLevelError:
 		_ = d.writer.WriteErr(errors.New(message))
-		return
+	case ResultLevelSuccess:
+		_ = d.writer.WriteSuccess(message)
+	case ResultLevelWarning:
+		_ = d.writer.WriteWarning(message)
 	}
-	_ = d.writer.WriteLine(message)
 }
 
 // Clear clears the screen.
