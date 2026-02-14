@@ -67,9 +67,9 @@ func (w Writer) WriteTask(task *store.Task) error {
 	}
 
 	if w.isHumanMode() {
-		return writeHumanTask(w.Out, w.formatter, task)
+		return w.writeHumanTask(task)
 	}
-	_, err := fmt.Fprintln(w.Out, plainLine(w.formatter, task))
+	_, err := fmt.Fprintln(w.Out, w.plainLine(task))
 	return err
 }
 
@@ -83,10 +83,10 @@ func (w Writer) WriteTasks(tasks []*store.Task) error {
 	}
 
 	if w.isHumanMode() {
-		return writeHumanList(w.Out, w.formatter, tasks)
+		return w.writeHumanList(tasks)
 	}
 	for _, task := range tasks {
-		if _, err := fmt.Fprintln(w.Out, plainLine(w.formatter, task)); err != nil {
+		if _, err := fmt.Fprintln(w.Out, w.plainLine(task)); err != nil {
 			return err
 		}
 	}
@@ -289,11 +289,11 @@ func toTaskJSON(task *store.Task) TaskJSON {
 	}
 }
 
-func plainLine(formatter *TimeFormatter, task *store.Task) string {
+func (w Writer) plainLine(task *store.Task) string {
 	if task == nil {
 		return ""
 	}
-	due := formatDateWithFormatter(formatter, task.DueOn)
+	due := w.formatDateWithFormatter(task.DueOn)
 	fields := []string{
 		strconv.FormatInt(task.ID, 10),
 		string(task.State),
@@ -404,10 +404,11 @@ func formatDateTime(val time.Time) string {
 	return val.UTC().Format(time.RFC3339)
 }
 
-func formatDateWithFormatter(formatter *TimeFormatter, val *time.Time) string {
+func (w Writer) formatDateWithFormatter(val *time.Time) string {
 	if val == nil {
 		return ""
 	}
+	formatter := w.formatter
 	if formatter == nil {
 		layout := "2006-01-02 15:04"
 		return val.UTC().Format(layout)
@@ -454,7 +455,7 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 	}
 
 	if w.isHumanMode() {
-		return writeHumanHistory(w.Out, w.formatter, entries)
+		return w.writeHumanHistory(entries)
 	}
 
 	for _, e := range entries {
@@ -527,7 +528,7 @@ func (w Writer) WriteTaskVersionDiff(versions []*store.TaskVersion) error {
 	}
 
 	if w.isHumanMode() {
-		return writeHumanTaskVersionDiff(w.Out, w.formatter, versions)
+		return w.writeHumanTaskVersionDiff(versions)
 	}
 
 	for i, current := range versions {

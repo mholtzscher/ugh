@@ -14,7 +14,7 @@ import (
 	"github.com/pterm/pterm/putils"
 	"golang.org/x/term"
 
-	"github.com/mholtzscher/ugh/internal/config"
+	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/service"
 )
 
@@ -29,9 +29,9 @@ const (
 
 // Options configures the shell behavior.
 type Options struct {
-	Mode       Mode
-	InputFile  string
-	DisplayCfg config.Display
+	Mode      Mode
+	InputFile string
+	Writer    output.Writer
 }
 
 // SessionState tracks the current shell session context.
@@ -64,7 +64,7 @@ func NewREPL(svc service.Service, opts Options) *REPL {
 			StartTime:    time.Now(),
 			CommandCount: 0,
 		},
-		display: NewDisplay(opts.Mode == ModeInteractive && term.IsTerminal(int(os.Stdout.Fd())), opts.DisplayCfg),
+		display: NewDisplay(opts.Mode == ModeInteractive && term.IsTerminal(int(os.Stdout.Fd())), opts.Writer),
 		history: NewHistory(svc),
 	}
 }

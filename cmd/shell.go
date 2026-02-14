@@ -38,6 +38,9 @@ var shellCmd = &cli.Command{
 		}
 
 		var opts shell.Options
+		writer := outputWriter()
+		writer.JSON = false
+		opts.Writer = writer
 		if cmd.String("file") != "" {
 			opts.Mode = shell.ModeScriptFile
 			opts.InputFile = cmd.String("file")
@@ -45,9 +48,6 @@ var shellCmd = &cli.Command{
 			opts.Mode = shell.ModeScriptStdin
 		} else {
 			opts.Mode = shell.ModeInteractive
-		}
-		if loadedConfig != nil {
-			opts.DisplayCfg = loadedConfig.Display
 		}
 
 		repl := shell.NewREPL(svc, opts)

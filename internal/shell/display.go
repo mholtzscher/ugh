@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/output"
 )
 
@@ -15,8 +14,7 @@ type Display struct {
 }
 
 // NewDisplay creates a new display handler.
-func NewDisplay(tty bool, displayCfg config.Display) *Display {
-	writer := output.NewWriter(false, displayCfg)
+func NewDisplay(tty bool, writer output.Writer) *Display {
 	writer.TTY = tty
 
 	return &Display{
