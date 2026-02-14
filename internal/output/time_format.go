@@ -12,10 +12,14 @@ type TimeFormatter struct {
 }
 
 func NewTimeFormatter(cfg config.Display) *TimeFormatter {
+	layout := cfg.DatetimeFormat
+	if layout == "" {
+		layout = "2006-01-02 15:04"
+	}
 	location := loadLocation(cfg.Timezone)
 	return &TimeFormatter{
 		location: location,
-		layout:   cfg.DatetimeFormat,
+		layout:   layout,
 	}
 }
 
