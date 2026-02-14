@@ -12,6 +12,7 @@ Task CLI (SQLite/libSQL) with optional Turso sync.
 
 - Never commit code unless explicitly prompted by the user.
 - After any change: run `just check`.
+- Do not add manual no-color branches in output; rely on `pterm.DisableColor()` + pterm styling.
 
 ## Commands
 

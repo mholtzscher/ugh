@@ -1,37 +1,25 @@
 package shell
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"strings"
-
-	"github.com/pterm/pterm"
 
 	"github.com/mholtzscher/ugh/internal/output"
 )
 
 // Display handles output formatting.
 type Display struct {
-	mode    DisplayMode
-	writer  output.Writer
-	noColor bool
+	writer output.Writer
 }
 
-// DisplayMode defines how to display results.
-type DisplayMode int
-
-const (
-	DisplayCompact DisplayMode = iota
-	DisplayTable
-	DisplayDetail
-)
-
 // NewDisplay creates a new display handler.
-func NewDisplay(noColor bool) *Display {
+func NewDisplay(tty bool) *Display {
+	writer := output.NewWriter(false)
+	writer.TTY = tty
+
 	return &Display{
-		mode:    DisplayCompact,
-		writer:  output.NewWriter(false),
-		noColor: noColor,
+		writer: writer,
 	}
 }
 
@@ -41,64 +29,61 @@ func (d *Display) ShowResult(result *ExecuteResult) {
 		return
 	}
 
-	switch d.mode {
-	case DisplayCompact:
-		d.showCompact(result)
-	case DisplayTable:
-		d.showTable(result)
-	case DisplayDetail:
-		d.showDetail(result)
+	if d.showPayload(result) {
+		return
 	}
+	d.writeMessage(result.Message, result.Level)
 }
 
-func (d *Display) showCompact(result *ExecuteResult) {
-	if result.Message == "" {
+func (d *Display) ShowError(err error) {
+	_ = d.writer.WriteErr(err)
+}
+
+func (d *Display) showPayload(result *ExecuteResult) bool {
+	if result.Context != nil {
+		_ = d.writer.WriteContextStatus(*result.Context)
+		return true
+	}
+	if result.ViewHelp != nil {
+		_ = d.writer.WriteViewHelp(*result.ViewHelp)
+		return true
+	}
+	if result.Tasks != nil {
+		_ = d.writer.WriteTasks(result.Tasks)
+		return true
+	}
+	if result.Task != nil {
+		_ = d.writer.WriteTask(result.Task)
+		return true
+	}
+	if result.Versions != nil {
+		_ = d.writer.WriteTaskVersionDiff(result.Versions)
+		return true
+	}
+	return false
+}
+
+func (d *Display) writeMessage(message string, level ResultLevel) {
+	if message == "" {
 		return
 	}
 
-	if d.noColor {
-		_ = d.writer.WriteLine(result.Message)
-		return
-	}
-
-	// Map intents to appropriate pterm styles
-	intent := strings.ToLower(result.Intent)
-	switch {
-	case strings.Contains(intent, "add"), strings.Contains(intent, "create"), strings.Contains(intent, "new"):
-		_ = pterm.Success.Println(result.Message)
-	case strings.Contains(intent, "done"), strings.Contains(intent, "complete"):
-		_ = pterm.Success.Println(result.Message)
-	case strings.Contains(intent, "undo"), strings.Contains(intent, "revert"):
-		_ = pterm.Success.Println(result.Message)
-	case strings.Contains(intent, "delete"), strings.Contains(intent, "rm"), strings.Contains(intent, "remove"):
-		_ = pterm.Warning.Println(result.Message)
-	case strings.Contains(intent, "error"), strings.Contains(intent, "fail"):
-		_ = pterm.Error.Println(result.Message)
-	case strings.Contains(intent, "show"),
-		strings.Contains(intent, "list"),
-		strings.Contains(intent, "find"),
-		strings.Contains(intent, "filter"):
-		_ = d.writer.WriteLine(result.Message)
-	case strings.Contains(intent, "context"), strings.Contains(intent, "help"):
-		_ = d.writer.WriteLine(result.Message)
-	default:
-		_ = d.writer.WriteLine(result.Message)
-	}
-}
-
-func (d *Display) showTable(result *ExecuteResult) {
-	if result.Message != "" {
-		_ = d.writer.WriteLine(result.Message)
-	}
-}
-
-func (d *Display) showDetail(result *ExecuteResult) {
-	if result.Message != "" {
-		_ = d.writer.WriteLine(result.Message)
+	switch level {
+	case ResultLevelInfo:
+		_ = d.writer.WriteLine(message)
+	case ResultLevelError:
+		_ = d.writer.WriteErr(errors.New(message))
+	case ResultLevelSuccess:
+		_ = d.writer.WriteSuccess(message)
+	case ResultLevelWarning:
+		_ = d.writer.WriteWarning(message)
 	}
 }
 
 // Clear clears the screen.
 func (d *Display) Clear() {
+	if !d.writer.TTY {
+		return
+	}
 	_, _ = fmt.Fprint(os.Stdout, "\033[H\033[2J")
 }

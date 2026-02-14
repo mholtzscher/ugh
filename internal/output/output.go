@@ -14,6 +14,7 @@ import (
 	"github.com/pterm/pterm"
 	"golang.org/x/term"
 
+	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/store"
 )
 
@@ -26,6 +27,23 @@ type Writer struct {
 type KeyValue struct {
 	Key   string
 	Value string
+}
+
+type ContextStatus struct {
+	SelectedID *int64  `json:"selectedId,omitempty"`
+	LastIDs    []int64 `json:"lastIds,omitempty"`
+	Project    string  `json:"project,omitempty"`
+	Context    string  `json:"context,omitempty"`
+}
+
+type ViewHelp struct {
+	Entries []ViewHelpEntry `json:"entries"`
+	Usage   string          `json:"usage,omitempty"`
+}
+
+type ViewHelpEntry struct {
+	Label       string `json:"label"`
+	Description string `json:"description"`
 }
 
 func NewWriter(jsonMode bool) Writer {
@@ -45,7 +63,7 @@ func (w Writer) WriteTask(task *store.Task) error {
 		return writeJSON(w.Out, payload)
 	}
 
-	if w.TTY {
+	if w.isHumanMode() {
 		return writeHumanTask(w.Out, task)
 	}
 	_, err := fmt.Fprintln(w.Out, plainLine(task))
@@ -61,7 +79,7 @@ func (w Writer) WriteTasks(tasks []*store.Task) error {
 		return writeJSON(w.Out, payload)
 	}
 
-	if w.TTY {
+	if w.isHumanMode() {
 		return writeHumanList(w.Out, tasks)
 	}
 	for _, task := range tasks {
@@ -77,7 +95,7 @@ func (w Writer) WriteTags(tags []store.NameCount) error {
 		return writeJSON(w.Out, tags)
 	}
 
-	if w.TTY {
+	if w.isHumanMode() {
 		return writeHumanTags(w.Out, tags)
 	}
 	for _, tag := range tags {
@@ -92,7 +110,7 @@ func (w Writer) WriteTagsWithCounts(tags []store.NameCount) error {
 	if w.JSON {
 		return writeJSON(w.Out, tags)
 	}
-	if w.TTY {
+	if w.isHumanMode() {
 		return writeHumanTagsWithCounts(w.Out, tags)
 	}
 
@@ -108,14 +126,14 @@ func (w Writer) WriteSummary(summary any) error {
 	if w.JSON {
 		return writeJSON(w.Out, summary)
 	}
-	if w.TTY {
+	if w.isHumanMode() {
 		return writeHumanSummary(w.Out, summary)
 	}
 	return writePlainSummary(w.Out, summary)
 }
 
 func (w Writer) WriteKeyValues(rows []KeyValue) error {
-	if w.TTY {
+	if w.isHumanMode() {
 		return writeHumanKeyValues(w.Out, rows)
 	}
 	for _, row := range rows {
@@ -126,8 +144,48 @@ func (w Writer) WriteKeyValues(rows []KeyValue) error {
 	return nil
 }
 
+func (w Writer) WriteInfoBlock(title string, rows []KeyValue) error {
+	if w.isHumanMode() {
+		return writeHumanInfoBlock(w.Out, title, rows)
+	}
+	return writePlainInfoBlock(w.Out, title, rows)
+}
+
+func (w Writer) WriteContextStatus(status ContextStatus) error {
+	if w.JSON {
+		return writeJSON(w.Out, status)
+	}
+	rows := []KeyValue{
+		{Key: formatContextLabel("Selected", w.TTY), Value: formatContextID(status.SelectedID, w.TTY)},
+		{Key: formatContextLabel("Last", w.TTY), Value: formatContextIDs(status.LastIDs, w.TTY)},
+		{Key: formatContextLabel("Project", w.TTY), Value: formatContextTag(status.Project, "#", w.TTY)},
+		{Key: formatContextLabel("Context", w.TTY), Value: formatContextTag(status.Context, "@", w.TTY)},
+	}
+	return w.WriteInfoBlock("Current Context:", rows)
+}
+
+func (w Writer) WriteViewHelp(help ViewHelp) error {
+	if w.JSON {
+		return writeJSON(w.Out, help)
+	}
+	rows := make([]KeyValue, 0, len(help.Entries)+1)
+	for _, entry := range help.Entries {
+		rows = append(rows, KeyValue{
+			Key:   formatViewLabel(entry.Label, w.TTY),
+			Value: formatViewDescription(entry.Description, w.TTY),
+		})
+	}
+	if help.Usage != "" {
+		rows = append(rows, KeyValue{
+			Key:   formatContextLabel("Usage", w.TTY),
+			Value: formatViewUsage(help.Usage, w.TTY),
+		})
+	}
+	return w.WriteInfoBlock("Available Views:", rows)
+}
+
 func (w Writer) WriteLine(line string) error {
-	if !w.TTY {
+	if !w.isHumanMode() {
 		_, err := fmt.Fprintln(w.Out, line)
 		return err
 	}
@@ -151,9 +209,33 @@ func (w Writer) WriteError(line string) error {
 	return w.writePrefixLine(pterm.Error, line)
 }
 
+func (w Writer) WriteErr(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var diagnosticErr nlp.DiagnosticError
+	if errors.As(err, &diagnosticErr) {
+		diagnostics := diagnosticErr.Diagnostics()
+		if len(diagnostics) > 0 {
+			line := err.Error()
+			if diagnostics[0].Hint != "" {
+				line += " (hint: " + diagnostics[0].Hint + ")"
+			}
+			return w.WriteError(line)
+		}
+	}
+
+	return w.WriteError(err.Error())
+}
+
 func (w Writer) writePrefixLine(printer pterm.PrefixPrinter, line string) error {
-	if !w.TTY {
-		_, err := fmt.Fprintln(w.Out, line)
+	if !w.isHumanMode() {
+		prefix := ""
+		if printer == pterm.Error {
+			prefix = "Error: "
+		}
+		_, err := fmt.Fprintln(w.Out, prefix+line)
 		return err
 	}
 	formatted := printer.Sprintln(line)
@@ -219,6 +301,80 @@ func plainLine(task *store.Task) string {
 	return strings.Join(fields, "\t")
 }
 
+const contextNoneValue = "none"
+
+func formatContextLabel(label string, tty bool) string {
+	if !tty {
+		return label
+	}
+	return pterm.ThemeDefault.SecondaryStyle.Sprint(label)
+}
+
+func formatContextID(id *int64, tty bool) string {
+	if id == nil {
+		return contextNoneValue
+	}
+	value := fmt.Sprintf("#%d", *id)
+	if !tty {
+		return value
+	}
+	return pterm.ThemeDefault.PrimaryStyle.Sprint(value)
+}
+
+func formatContextIDs(ids []int64, tty bool) string {
+	if len(ids) == 0 {
+		return contextNoneValue
+	}
+	parts := make([]string, len(ids))
+	for i, id := range ids {
+		value := fmt.Sprintf("#%d", id)
+		if tty {
+			value = pterm.ThemeDefault.PrimaryStyle.Sprint(value)
+		}
+		parts[i] = value
+	}
+	return strings.Join(parts, ", ")
+}
+
+func formatContextTag(value, prefix string, tty bool) string {
+	if value == "" {
+		return contextNoneValue
+	}
+	formatted := prefix + value
+	if !tty {
+		return formatted
+	}
+	if prefix == "@" {
+		return pterm.ThemeDefault.SuccessMessageStyle.Sprint(formatted)
+	}
+	return pterm.ThemeDefault.PrimaryStyle.Sprint(formatted)
+}
+
+func formatViewLabel(label string, tty bool) string {
+	if !tty {
+		return label
+	}
+	return pterm.ThemeDefault.SuccessMessageStyle.Sprint(label)
+}
+
+func formatViewDescription(description string, tty bool) string {
+	if !tty {
+		return description
+	}
+	return pterm.ThemeDefault.DefaultText.Sprint(description)
+}
+
+func formatViewUsage(usage string, tty bool) string {
+	if !tty {
+		return usage
+	}
+	return pterm.ThemeDefault.InfoMessageStyle.Sprint(usage)
+}
+
+func (w Writer) isHumanMode() bool {
+	return w.TTY
+}
+
 func writeJSON(out io.Writer, payload any) error {
 	enc := json.NewEncoder(out)
 	return enc.Encode(payload)
@@ -281,7 +437,7 @@ func (w Writer) WriteHistory(entries []*HistoryEntry) error {
 		return writeJSON(w.Out, payload)
 	}
 
-	if w.TTY {
+	if w.isHumanMode() {
 		return writeHumanHistory(w.Out, entries)
 	}
 
@@ -354,7 +510,7 @@ func (w Writer) WriteTaskVersionDiff(versions []*store.TaskVersion) error {
 		return writeJSON(w.Out, payload)
 	}
 
-	if w.TTY {
+	if w.isHumanMode() {
 		return writeHumanTaskVersionDiff(w.Out, versions)
 	}
 

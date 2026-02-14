@@ -38,8 +38,6 @@ var shellCmd = &cli.Command{
 		}
 
 		var opts shell.Options
-		opts.NoColor = rootNoColor
-
 		if cmd.String("file") != "" {
 			opts.Mode = shell.ModeScriptFile
 			opts.InputFile = cmd.String("file")

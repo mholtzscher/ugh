@@ -174,6 +174,12 @@ Use flags for quick single-field changes without opening an editor.
 		}
 
 		writer := outputWriter()
+		if writer.JSON {
+			return writer.WriteTask(saved)
+		}
+		if writer.TTY {
+			return writer.WriteSuccess(fmt.Sprintf("Updated task #%d: %s", saved.ID, saved.Title))
+		}
 		return writer.WriteTask(saved)
 	},
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
+	"golang.org/x/term"
 
 	"github.com/mholtzscher/ugh/internal/service"
 )
@@ -29,7 +30,6 @@ const (
 type Options struct {
 	Mode      Mode
 	InputFile string
-	NoColor   bool
 }
 
 // SessionState tracks the current shell session context.
@@ -62,14 +62,14 @@ func NewREPL(svc service.Service, opts Options) *REPL {
 			StartTime:    time.Now(),
 			CommandCount: 0,
 		},
-		display: NewDisplay(opts.NoColor),
+		display: NewDisplay(opts.Mode == ModeInteractive && term.IsTerminal(int(os.Stdout.Fd()))),
 		history: NewHistory(svc),
 	}
 }
 
 // Run starts the REPL loop.
 func (r *REPL) Run(ctx context.Context) error {
-	r.executor = NewExecutor(r.service, r.state, r.options.NoColor)
+	r.executor = NewExecutor(r.service, r.state)
 
 	switch r.options.Mode {
 	case ModeInteractive:
@@ -83,24 +83,15 @@ func (r *REPL) Run(ctx context.Context) error {
 	}
 }
 
-//nolint:gocognit // REPL loop with pterm styling has higher complexity but is maintainable
 func (r *REPL) runInteractive(ctx context.Context) error {
-	prompt, err := NewPrompt(r.service, r.options.NoColor)
+	prompt, err := NewPrompt(r.service)
 	if err != nil {
 		return fmt.Errorf("initialize prompt: %w", err)
 	}
 	r.prompt = prompt
 	defer r.prompt.Close()
 
-	if r.options.NoColor {
-		_, _ = fmt.Fprintln(os.Stdout, "ugh")
-		_, _ = fmt.Fprintln(os.Stdout, "Type 'help' for available commands, 'quit' to exit")
-	} else {
-		bigText, _ := pterm.DefaultBigText.WithLetters(putils.LettersFromString("ugh")).Srender()
-		pterm.Println(bigText)
-		pterm.Info.Println("Type 'help' for available commands, 'quit' to exit")
-	}
-	_, _ = fmt.Fprintln(os.Stdout, "")
+	r.showIntro()
 
 	for {
 		select {
@@ -130,13 +121,16 @@ func (r *REPL) runInteractive(ctx context.Context) error {
 			if errors.Is(procErr, errQuit) {
 				return nil
 			}
-			if r.options.NoColor {
-				_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", procErr)
-			} else {
-				pterm.Error.Println(procErr.Error())
-			}
+			r.display.ShowError(procErr)
 		}
 	}
+}
+
+func (r *REPL) showIntro() {
+	bigText, _ := pterm.DefaultBigText.WithLetters(putils.LettersFromString("ugh")).Srender()
+	pterm.Println(bigText)
+	pterm.Info.Println("Type 'help' for available commands, 'quit' to exit")
+	_, _ = fmt.Fprintln(os.Stdout, "")
 }
 
 func (r *REPL) runScriptFile(ctx context.Context, filename string) error {

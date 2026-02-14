@@ -16,11 +16,8 @@ type Prompt struct {
 }
 
 // NewPrompt creates a new interactive prompt with history loaded from SQLite.
-func NewPrompt(svc service.Service, noColor bool) (*Prompt, error) {
-	promptText := "ugh> "
-	if !noColor {
-		promptText = pterm.ThemeDefault.PrimaryStyle.Sprint("➜ ") + pterm.ThemeDefault.SecondaryStyle.Sprint("ugh> ")
-	}
+func NewPrompt(svc service.Service) (*Prompt, error) {
+	promptText := pterm.ThemeDefault.PrimaryStyle.Sprint("➜ ") + pterm.ThemeDefault.SecondaryStyle.Sprint("ugh> ")
 
 	cfg := &readline.Config{
 		Prompt:          promptText,
@@ -28,9 +25,7 @@ func NewPrompt(svc service.Service, noColor bool) (*Prompt, error) {
 		EOFPrompt:       "exit",
 		AutoComplete:    newShellCompleter(svc),
 	}
-	if !noColor {
-		cfg.Painter = newShellPainter()
-	}
+	cfg.Painter = newShellPainter()
 
 	rl, err := readline.NewEx(cfg)
 	if err != nil {

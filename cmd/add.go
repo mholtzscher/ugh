@@ -108,6 +108,12 @@ var addCmd = &cli.Command{
 		}
 
 		writer := outputWriter()
+		if writer.JSON {
+			return writer.WriteTask(task)
+		}
+		if writer.TTY {
+			return writer.WriteSuccess(fmt.Sprintf("Created task #%d: %s", task.ID, task.Title))
+		}
 		return writer.WriteTask(task)
 	},
 }

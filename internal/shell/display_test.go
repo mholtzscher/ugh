@@ -12,23 +12,15 @@ func TestNewDisplay(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		noColor bool
+		name string
 	}{
-		{
-			name:    "with color",
-			noColor: false,
-		},
-		{
-			name:    "no color",
-			noColor: true,
-		},
+		{name: "default"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			display := shell.NewDisplay(tt.noColor)
+			display := shell.NewDisplay(false)
 			assert.NotNil(t, display, "NewDisplay returned nil")
 		})
 	}
@@ -37,7 +29,7 @@ func TestNewDisplay(t *testing.T) {
 func TestDisplayShowResultNil(t *testing.T) {
 	t.Parallel()
 
-	display := shell.NewDisplay(true)
+	display := shell.NewDisplay(false)
 
 	// Should not panic when result is nil
 	display.ShowResult(nil)
@@ -47,9 +39,8 @@ func TestDisplayShowResult(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		result  *shell.ExecuteResult
-		noColor bool
+		name   string
+		result *shell.ExecuteResult
 	}{
 		{
 			name: "create intent",
@@ -57,7 +48,6 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "create",
 				Message: "Created task #1",
 			},
-			noColor: true,
 		},
 		{
 			name: "update intent",
@@ -65,7 +55,6 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "update",
 				Message: "Updated task #1",
 			},
-			noColor: true,
 		},
 		{
 			name: "filter intent",
@@ -73,7 +62,6 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "filter",
 				Message: "Found 5 tasks",
 			},
-			noColor: true,
 		},
 		{
 			name: "context intent",
@@ -81,7 +69,6 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "context",
 				Message: "Current context: #work",
 			},
-			noColor: true,
 		},
 		{
 			name: "help intent",
@@ -89,7 +76,6 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "help",
 				Message: "Available commands...",
 			},
-			noColor: true,
 		},
 		{
 			name: "done intent",
@@ -97,7 +83,6 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "done",
 				Message: "Marked 3 tasks as done",
 			},
-			noColor: true,
 		},
 		{
 			name: "delete intent",
@@ -105,7 +90,6 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "delete",
 				Message: "Deleted task #1",
 			},
-			noColor: true,
 		},
 		{
 			name: "error intent",
@@ -113,7 +97,6 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "error",
 				Message: "Something went wrong",
 			},
-			noColor: true,
 		},
 		{
 			name: "empty message",
@@ -121,22 +104,13 @@ func TestDisplayShowResult(t *testing.T) {
 				Intent:  "create",
 				Message: "",
 			},
-			noColor: true,
-		},
-		{
-			name: "with color",
-			result: &shell.ExecuteResult{
-				Intent:  "create",
-				Message: "Created task #1",
-			},
-			noColor: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			display := shell.NewDisplay(tt.noColor)
+			display := shell.NewDisplay(false)
 
 			// Should not panic
 			display.ShowResult(tt.result)
@@ -147,7 +121,7 @@ func TestDisplayShowResult(t *testing.T) {
 func TestDisplayClear(t *testing.T) {
 	t.Parallel()
 
-	display := shell.NewDisplay(true)
+	display := shell.NewDisplay(false)
 
 	// Should not panic - outputs ANSI escape codes
 	display.Clear()
@@ -163,7 +137,7 @@ func TestDisplayShowResultWithSummary(t *testing.T) {
 		TaskIDs: []int64{1},
 	}
 
-	display := shell.NewDisplay(true)
+	display := shell.NewDisplay(false)
 
 	// Should not panic
 	display.ShowResult(result)

@@ -20,15 +20,16 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 
 	root, err := dslParser.ParseString("", input)
 	if err != nil {
-		// Try to determine what kind of error this is
+		diagnostics := []Diagnostic{{
+			Severity: SeverityError,
+			Code:     "E_PARSE",
+			Message:  err.Error(),
+			Hint:     "check command syntax and quoting",
+		}}
 		return ParseResult{
-			Intent: IntentUnknown,
-			Diagnostics: []Diagnostic{{
-				Severity: SeverityError,
-				Code:     "E_PARSE",
-				Message:  err.Error(),
-			}},
-		}, err
+			Intent:      IntentUnknown,
+			Diagnostics: diagnostics,
+		}, NewDiagnosticError(err, diagnostics)
 	}
 
 	if root == nil || root.Cmd == nil {
@@ -37,7 +38,14 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 
 	intent, cmdResult, postErr := postProcess(root.Cmd)
 	if postErr != nil {
-		return ParseResult{Intent: intent}, postErr
+		diagnostics := []Diagnostic{{
+			Severity: SeverityError,
+			Code:     "E_PARSE",
+			Message:  postErr.Error(),
+			Hint:     "review command fields and values",
+		}}
+		return ParseResult{Intent: intent, Command: cmdResult, Diagnostics: diagnostics},
+			NewDiagnosticError(postErr, diagnostics)
 	}
 
 	want := IntentUnknown
@@ -55,7 +63,15 @@ func Parse(input string, opts ParseOptions) (ParseResult, error) {
 		want = IntentContext
 	}
 	if want != IntentUnknown && intent != want {
-		return ParseResult{Intent: intent, Command: cmdResult}, errors.New("command does not match parse mode")
+		err = errors.New("command does not match parse mode")
+		diagnostics := []Diagnostic{{
+			Severity: SeverityError,
+			Code:     "E_PARSE_MODE",
+			Message:  err.Error(),
+			Hint:     "use a command valid for this parsing mode",
+		}}
+		return ParseResult{Intent: intent, Command: cmdResult, Diagnostics: diagnostics},
+			NewDiagnosticError(err, diagnostics)
 	}
 
 	return ParseResult{Intent: intent, Command: cmdResult}, nil

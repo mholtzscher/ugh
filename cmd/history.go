@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/urfave/cli/v3"
@@ -62,8 +60,8 @@ var historyCmd = &cli.Command{
 			if clearErr := svc.ClearShellHistory(ctx); clearErr != nil {
 				return clearErr
 			}
-			fmt.Fprintln(os.Stdout, "History cleared")
-			return nil
+			writer := outputWriter()
+			return writer.WriteInfo("History cleared")
 		}
 
 		limit := int64(cmd.Int(flags.FlagLimit))
