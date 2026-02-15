@@ -22,12 +22,9 @@ schema = 3
   [mod."github.com/chzyer/readline"]
     version = "v1.5.1"
     hash = "sha256-6wKd6/JZ9/O7FwSyNKE3KOt8fVPZEunqbTHQUxlOUNc="
-  [mod."github.com/clipperhouse/stringish"]
-    version = "v0.1.1"
-    hash = "sha256-Mp8M1CRbwr6dcJ4BD9tXD5I78ZgCFEm0GDxJv0GYReg="
   [mod."github.com/clipperhouse/uax29/v2"]
-    version = "v2.5.0"
-    hash = "sha256-Men4JLhiuEtAx8ZSzId5ciRWhud68o3k/B48ppwyxkM="
+    version = "v2.6.0"
+    hash = "sha256-5ZkKO0DXNfsF179i0iDjH+Ir7W78bGdQRgJdDIRoHnc="
   [mod."github.com/containerd/console"]
     version = "v1.0.5"
     hash = "sha256-FY3+7lB6KmFEXHKtYZMwTraNkdYBRWTQXVHLwLED9Ys="
@@ -38,8 +35,8 @@ schema = 3
     version = "v0.9.1"
     hash = "sha256-iVfU8vaJ7IPa92dUeHeuW+yKvUbe59F/eV7GlDRIAcE="
   [mod."github.com/gookit/color"]
-    version = "v1.5.4"
-    hash = "sha256-6Xydefyslup+qohzatAdezGWrS065X5mx18wvRef3Rk="
+    version = "v1.6.0"
+    hash = "sha256-R0yyFzLdIGakHs4stb2cPadCJUsrR3j9IDQFIE9Talw="
   [mod."github.com/lann/builder"]
     version = "v0.0.0-20180802200727-47ae307949d0"
     hash = "sha256-NDZvsU6T2jVq5pfhp/VoJcMTq8DXKXiEkfZHloOX6c0="
@@ -77,8 +74,8 @@ schema = 3
     version = "v1.3.0"
     hash = "sha256-YUkBNda/RJ3zEzzWrF5YntSjgsgwWBdRTtOeJoOzp4k="
   [mod."github.com/tursodatabase/turso-go-platform-libs"]
-    version = "v0.4.3"
-    hash = "sha256-8dIVrU1Z7GSQ0G+OCdeNZJiAVkc2qgkdHUc3VSe41nI="
+    version = "v0.4.4"
+    hash = "sha256-dm1RACaujco1uWCeMgQwfuelNJNunlnQJn6VVwHEFbI="
   [mod."github.com/urfave/cli/v3"]
     version = "v3.6.2"
     hash = "sha256-GeTwfmXv2okvX2kmMREozvH4PH6ihPNVFSNSWrW+gyQ="
@@ -95,17 +92,17 @@ schema = 3
     version = "v0.19.0"
     hash = "sha256-RbRZ+sKZUurOczGhhzOoY/sojTlta3H9XjL4PXX/cno="
   [mod."golang.org/x/sys"]
-    version = "v0.40.0"
-    hash = "sha256-KDe+wMr7dfMFwKMJEljzk+f82pQWFFPoFHivjD7qJGg="
+    version = "v0.41.0"
+    hash = "sha256-owjs3/IzAKfFlIz1U1fiHSfl2+bTUhaXTyWEjL5SWHk="
   [mod."golang.org/x/term"]
-    version = "v0.39.0"
-    hash = "sha256-diP4VknZDlJmhGQdcsXwI2+sFayQdsILFuxK1FBPaUE="
+    version = "v0.40.0"
+    hash = "sha256-tu8USqDmcWfwery/+xti/BdUpNLbMNmZeghBNDsj1fQ="
   [mod."golang.org/x/text"]
-    version = "v0.27.0"
-    hash = "sha256-VX0rOh6L3qIvquKSGjfZQFU8URNtGvkNvxE7OZtboW8="
+    version = "v0.34.0"
+    hash = "sha256-wGKd1JkeiFROibvo2kkAuQ7JajSIfV4utGaoGbTQhQM="
   [mod."golang.org/x/tools"]
-    version = "v0.38.0"
-    hash = "sha256-GeIkpuKtUfxxrOZLikNlZA3lMKhdyO++PVvXppBGmbw="
+    version = "v0.41.0"
+    hash = "sha256-/Plnksa1jSr4jYJc2oCH9fcjGbWocM7EYposMP0tScQ="
   [mod."gopkg.in/yaml.v3"]
     version = "v3.0.1"
     hash = "sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU="
@@ -113,5 +110,5 @@ schema = 3
     version = "v1.67.6"
     hash = "sha256-AmcruJSR6Rd6ORFKTm+xSB6G9aqW2dAw/+mWsG2FwcU="
   [mod."turso.tech/database/tursogo"]
-    version = "v0.4.3"
-    hash = "sha256-u4a8+ceRzZ3TiA1bb30FQCBA+U07ggvG3ApjGRRNtiU="
+    version = "v0.4.4"
+    hash = "sha256-XmUlXxOZOoTMul5Mb1QuVqLw5HADCh/lKKal+Iv3Cy4="
