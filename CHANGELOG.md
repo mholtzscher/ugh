@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/mholtzscher/ugh/compare/v0.2.0...v0.2.1) (2026-02-14)
+
+
+### Features
+
+* add task events audit trail ([#99](https://github.com/mholtzscher/ugh/issues/99)) ([a336e56](https://github.com/mholtzscher/ugh/commit/a336e56f4c5ad1a9c31291713cae8c803eb8018e))
+* **display:** add configurable datetime formatting ([#109](https://github.com/mholtzscher/ugh/issues/109)) ([63ed6d7](https://github.com/mholtzscher/ugh/commit/63ed6d7a5cbaaca7fecaa4b6bd5ebc1706dc8907))
+* **filter:** support wildcard set predicates ([#87](https://github.com/mholtzscher/ugh/issues/87)) ([42ac354](https://github.com/mholtzscher/ugh/commit/42ac3546a40b407d34fd5b8cf6256ecd4e2e8bf6))
+* **list:** add recent mode and list limits ([#106](https://github.com/mholtzscher/ugh/issues/106)) ([ef8d30c](https://github.com/mholtzscher/ugh/commit/ef8d30c9971b7c79523edc93742190fe4cecedf6))
+* **log:** add task activity command and version diff output ([#103](https://github.com/mholtzscher/ugh/issues/103)) ([a72d27e](https://github.com/mholtzscher/ugh/commit/a72d27e30ec24870d8a47665132dc60dbb64ecf9))
+* **seed:** add hidden temp-db seeding command ([#107](https://github.com/mholtzscher/ugh/issues/107)) ([b9ca562](https://github.com/mholtzscher/ugh/commit/b9ca5621ca129aa2684be2943642ae93e79f5654))
+
+
+### Bug Fixes
+
+* **release:** enable homebrew release ([#98](https://github.com/mholtzscher/ugh/issues/98)) ([691bb6e](https://github.com/mholtzscher/ugh/commit/691bb6e566e468992f3ca98019e4c24f7bf5b7c3))
+* **shell:** make calendar view consistent with calendar command ([#85](https://github.com/mholtzscher/ugh/issues/85)) ([6f78f63](https://github.com/mholtzscher/ugh/commit/6f78f6378f6f0a6a25c1e73a81db1382ea061f86))
+
 ## [0.2.0](https://github.com/mholtzscher/ugh/compare/v0.1.1...v0.2.0) (2026-02-11)
 
 

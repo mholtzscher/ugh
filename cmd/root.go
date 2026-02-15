@@ -28,7 +28,7 @@ const (
 // Version is set at build time.
 //
 //nolint:gochecknoglobals // Version must be mutable for ldflags injection at build time.
-var Version = "0.2.0" // x-release-please-version
+var Version = "0.2.1" // x-release-please-version
 
 //nolint:gochecknoglobals // Root CLI flags and config cache are process-wide command state.
 var (
