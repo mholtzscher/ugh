@@ -11,12 +11,12 @@ import (
 
 	"github.com/pterm/pterm"
 	"github.com/urfave/cli/v3"
-	"golang.org/x/term"
 
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/flags"
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/store"
+	"github.com/mholtzscher/ugh/internal/termutil"
 )
 
 const (
@@ -206,7 +206,7 @@ func Execute() {
 		}
 		writer := output.NewWriter(false, displayCfg)
 		writer.Out = os.Stderr
-		writer.TTY = term.IsTerminal(int(os.Stderr.Fd()))
+		writer.TTY = termutil.IsTerminal(os.Stderr)
 		_ = writer.WriteErr(err)
 		os.Exit(1)
 	}

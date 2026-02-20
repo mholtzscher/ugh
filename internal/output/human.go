@@ -65,7 +65,7 @@ func (w Writer) writeHumanList(tasks []*store.Task) error {
 	}
 
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("Found %d task(s):\n", len(tasks)))
+	_, _ = fmt.Fprintf(&builder, "Found %d task(s):\n", len(tasks))
 	for _, task := range tasks {
 		builder.WriteString(w.formatTaskLine(task))
 		builder.WriteByte('\n')

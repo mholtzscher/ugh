@@ -139,6 +139,7 @@ enabled = true
 	}
 
 	editor := getEditor()
+	//nolint:gosec // Editor command is explicit argv, no shell interpolation.
 	cmd := exec.CommandContext(context.Background(), editor, tmpPath)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -149,6 +150,7 @@ enabled = true
 		return nil, false, fmt.Errorf("run editor: %w", err)
 	}
 
+	//nolint:gosec // tmpPath is generated via os.CreateTemp in a private temp dir.
 	edited, err := os.ReadFile(tmpPath)
 	if err != nil {
 		return nil, false, fmt.Errorf("read edited file: %w", err)

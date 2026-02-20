@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/pterm/pterm"
-	"golang.org/x/term"
 
 	"github.com/mholtzscher/ugh/internal/config"
 	"github.com/mholtzscher/ugh/internal/nlp"
 	"github.com/mholtzscher/ugh/internal/store"
+	"github.com/mholtzscher/ugh/internal/termutil"
 )
 
 type Writer struct {
@@ -52,7 +52,7 @@ func NewWriter(jsonMode bool, displayCfg config.Display) Writer {
 	return Writer{
 		Out:       os.Stdout,
 		JSON:      jsonMode,
-		TTY:       term.IsTerminal(int(os.Stdout.Fd())),
+		TTY:       termutil.IsTerminal(os.Stdout),
 		formatter: NewTimeFormatter(displayCfg),
 	}
 }

@@ -18,7 +18,7 @@ const (
 type DB struct {
 	Path        string `toml:"path"`
 	SyncURL     string `toml:"sync_url"`
-	AuthToken   string `toml:"auth_token"`
+	AuthToken   string `toml:"auth_token"` //nolint:gosec // Config field stores optional API token by design.
 	SyncOnWrite bool   `toml:"sync_on_write"`
 }
 
@@ -80,7 +80,7 @@ func Save(path string, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("create temp config: %w", err)
 	}
-	defer func() { _ = os.Remove(file.Name()) }()
+	defer func() { _ = os.Remove(file.Name()) }() //nolint:gosec // Temp file path is created by os.CreateTemp in configDir.
 
 	err = toml.NewEncoder(file).Encode(cfg)
 	if err != nil {
@@ -97,10 +97,12 @@ func Save(path string, cfg Config) error {
 		return fmt.Errorf("close temp config: %w", err)
 	}
 
+	//nolint:gosec // Source is temp file in config dir; destination is explicit config path.
 	err = os.Rename(file.Name(), path)
 	if err != nil {
 		if errors.Is(err, os.ErrExist) {
 			if removeErr := os.Remove(path); removeErr == nil {
+				//nolint:gosec // Same validated temp file and destination as above.
 				err = os.Rename(file.Name(), path)
 			}
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +20,7 @@ func TestScripts(t *testing.T) {
 	binDir := t.TempDir()
 	binPath := filepath.Join(binDir, "ugh")
 
-	cmd := exec.Command("go", "build", "-o", binPath, ".")
+	cmd := exec.CommandContext(context.Background(), "go", "build", "-o", binPath, ".")
 	cmd.Env = os.Environ()
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "build failed: %v\n%s", err, output)
