@@ -33,6 +33,20 @@ func findSetOpValue(ops []nlp.Operation, field nlp.Field) (string, bool) {
 	return "", false
 }
 
+func assertCreateSetOpValue(t *testing.T, input string, field nlp.Field, wantValue, message string) {
+	t.Helper()
+
+	result, err := nlp.Parse(input, nlp.ParseOptions{})
+	require.NoError(t, err, "Parse error")
+
+	cmd, ok := result.Command.(*nlp.CreateCommand)
+	require.True(t, ok, "command type should be CreateCommand, got %T", result.Command)
+
+	value, found := findSetOpValue(cmd.Ops, field)
+	require.True(t, found, "%s operation not found", message)
+	assert.Equal(t, wantValue, value, "%s mismatch", message)
+}
+
 func findAddOpValue(ops []nlp.Operation, field nlp.Field) (string, bool) {
 	for _, op := range ops {
 		addOp, ok := op.(nlp.AddOp)
@@ -150,7 +164,8 @@ func TestParseCreate_WithProjects(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.CreateCommand)
+			cmd, ok := result.Command.(*nlp.CreateCommand)
+			require.True(t, ok, "command type should be CreateCommand, got %T", result.Command)
 			assert.Equal(t, tt.wantTitle, cmd.Title, "title mismatch")
 			assert.Equal(t, tt.wantProjects, extractTags(cmd, nlp.TagProject), "projects mismatch")
 		})
@@ -192,7 +207,8 @@ func TestParseCreate_WithContexts(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.CreateCommand)
+			cmd, ok := result.Command.(*nlp.CreateCommand)
+			require.True(t, ok, "command type should be CreateCommand, got %T", result.Command)
 			assert.Equal(t, tt.wantContexts, extractTags(cmd, nlp.TagContext), "contexts mismatch")
 		})
 	}
@@ -225,7 +241,8 @@ func TestParseCreate_WithDates(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{Now: now})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.CreateCommand)
+			cmd, ok := result.Command.(*nlp.CreateCommand)
+			require.True(t, ok, "command type should be CreateCommand, got %T", result.Command)
 			foundDueValue, ok := findSetOpValue(cmd.Ops, nlp.FieldDue)
 			require.True(t, ok, "due operation not found")
 			assert.Equal(t, tt.wantDueValue, foundDueValue, "due value mismatch")
@@ -278,7 +295,8 @@ func TestParseCreate_WithState(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.CreateCommand)
+			cmd, ok := result.Command.(*nlp.CreateCommand)
+			require.True(t, ok, "command type should be CreateCommand, got %T", result.Command)
 			foundState, ok := findSetOpValue(cmd.Ops, nlp.FieldState)
 			require.True(t, ok, "state operation not found")
 			assert.Equal(t, tt.wantState, foundState, "state mismatch")
@@ -309,12 +327,7 @@ func TestParseCreate_WithWaiting(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
-			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.CreateCommand)
-			foundWaiting, ok := findSetOpValue(cmd.Ops, nlp.FieldWaiting)
-			require.True(t, ok, "waiting operation not found")
-			assert.Equal(t, tt.wantWaiting, foundWaiting, "waiting mismatch")
+			assertCreateSetOpValue(t, tt.input, nlp.FieldWaiting, tt.wantWaiting, "waiting")
 		})
 	}
 }
@@ -342,12 +355,7 @@ func TestParseCreate_WithNotes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
-			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.CreateCommand)
-			foundNotes, ok := findSetOpValue(cmd.Ops, nlp.FieldNotes)
-			require.True(t, ok, "notes operation not found")
-			assert.Equal(t, tt.wantNotes, foundNotes, "notes mismatch")
+			assertCreateSetOpValue(t, tt.input, nlp.FieldNotes, tt.wantNotes, "notes")
 		})
 	}
 }
@@ -364,7 +372,8 @@ func TestParseCreate_Complex(t *testing.T) {
 	)
 	require.NoError(t, err, "Parse error")
 
-	cmd := result.Command.(*nlp.CreateCommand)
+	cmd, ok := result.Command.(*nlp.CreateCommand)
+	require.True(t, ok, "command type should be CreateCommand, got %T", result.Command)
 	assert.Equal(t, "buy milk", cmd.Title, "title mismatch")
 
 	// The actual number of ops depends on parser implementation
@@ -428,7 +437,8 @@ func TestParseUpdate_Targets(t *testing.T) {
 				return
 			}
 			require.Equal(t, nlp.IntentUpdate, result.Intent, "intent mismatch")
-			cmd := result.Command.(*nlp.UpdateCommand)
+			cmd, ok := result.Command.(*nlp.UpdateCommand)
+			require.True(t, ok, "command type should be UpdateCommand, got %T", result.Command)
 			assert.Equal(t, tt.wantKind, cmd.Target.Kind, "target kind mismatch")
 			if tt.wantID > 0 {
 				assert.Equal(t, tt.wantID, cmd.Target.ID, "target ID mismatch")
@@ -483,7 +493,8 @@ func TestParseUpdate_SetOperations(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.UpdateCommand)
+			cmd, ok := result.Command.(*nlp.UpdateCommand)
+			require.True(t, ok, "command type should be UpdateCommand, got %T", result.Command)
 
 			value, found := findSetOpValue(cmd.Ops, tt.wantField)
 			assert.True(t, found, "set operation for field %v not found", tt.wantField)
@@ -528,7 +539,8 @@ func TestParseUpdate_AddOperations(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.UpdateCommand)
+			cmd, ok := result.Command.(*nlp.UpdateCommand)
+			require.True(t, ok, "command type should be UpdateCommand, got %T", result.Command)
 
 			value, found := findAddOpValue(cmd.Ops, tt.wantField)
 			assert.True(t, found, "add operation for field %v not found", tt.wantField)
@@ -567,7 +579,8 @@ func TestParseUpdate_RemoveOperations(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.UpdateCommand)
+			cmd, ok := result.Command.(*nlp.UpdateCommand)
+			require.True(t, ok, "command type should be UpdateCommand, got %T", result.Command)
 
 			value, found := findRemoveOpValue(cmd.Ops, tt.wantField)
 			assert.True(t, found, "remove operation for field %v not found", tt.wantField)
@@ -608,7 +621,8 @@ func TestParseUpdate_ClearOperations(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.UpdateCommand)
+			cmd, ok := result.Command.(*nlp.UpdateCommand)
+			require.True(t, ok, "command type should be UpdateCommand, got %T", result.Command)
 
 			assert.True(t, hasClearOp(cmd.Ops, tt.wantField), "clear operation for field %v not found", tt.wantField)
 		})
@@ -622,7 +636,8 @@ func TestParseUpdate_Combined(t *testing.T) {
 	result, err := nlp.Parse(`set selected state:now +project:work !due`, nlp.ParseOptions{})
 	require.NoError(t, err, "Parse error")
 
-	cmd := result.Command.(*nlp.UpdateCommand)
+	cmd, ok := result.Command.(*nlp.UpdateCommand)
+	require.True(t, ok, "command type should be UpdateCommand, got %T", result.Command)
 	assert.Equal(t, nlp.TargetSelected, cmd.Target.Kind, "target kind mismatch")
 	assert.Len(t, cmd.Ops, 3, "ops count mismatch")
 }
@@ -761,7 +776,8 @@ func TestParseFilter_Predicates(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.FilterCommand)
+			cmd, ok := result.Command.(*nlp.FilterCommand)
+			require.True(t, ok, "command type should be FilterCommand, got %T", result.Command)
 
 			pred, ok := cmd.Expr.(nlp.Predicate)
 			require.True(t, ok, "expr type should be Predicate, got %T", cmd.Expr)
@@ -794,7 +810,8 @@ func TestParseFilter_LogicalAnd(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.FilterCommand)
+			cmd, ok := result.Command.(*nlp.FilterCommand)
+			require.True(t, ok, "command type should be FilterCommand, got %T", result.Command)
 
 			binary, ok := cmd.Expr.(nlp.FilterBinary)
 			require.True(t, ok, "expr type should be FilterBinary, got %T", cmd.Expr)
@@ -826,7 +843,8 @@ func TestParseFilter_LogicalOr(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.FilterCommand)
+			cmd, ok := result.Command.(*nlp.FilterCommand)
+			require.True(t, ok, "command type should be FilterCommand, got %T", result.Command)
 
 			binary, ok := cmd.Expr.(nlp.FilterBinary)
 			require.True(t, ok, "expr type should be FilterBinary, got %T", cmd.Expr)
@@ -858,7 +876,8 @@ func TestParseFilter_LogicalNot(t *testing.T) {
 			t.Parallel()
 			result, err := nlp.Parse(tt.input, nlp.ParseOptions{})
 			require.NoError(t, err, "Parse error")
-			cmd := result.Command.(*nlp.FilterCommand)
+			cmd, ok := result.Command.(*nlp.FilterCommand)
+			require.True(t, ok, "command type should be FilterCommand, got %T", result.Command)
 
 			notExpr, ok := cmd.Expr.(nlp.FilterNot)
 			require.True(t, ok, "expr type should be FilterNot, got %T", cmd.Expr)
@@ -879,7 +898,8 @@ func TestParseFilter_PrecedenceAndParentheses(t *testing.T) {
 
 		result, err := nlp.Parse("find state:now or state:waiting and project:work", nlp.ParseOptions{})
 		require.NoError(t, err, "Parse error")
-		cmd := result.Command.(*nlp.FilterCommand)
+		cmd, ok := result.Command.(*nlp.FilterCommand)
+		require.True(t, ok, "command type should be FilterCommand, got %T", result.Command)
 
 		root, ok := cmd.Expr.(nlp.FilterBinary)
 		require.True(t, ok, "root should be FilterBinary, got %T", cmd.Expr)
@@ -895,7 +915,8 @@ func TestParseFilter_PrecedenceAndParentheses(t *testing.T) {
 
 		result, err := nlp.Parse("find (state:now or state:waiting) and project:work", nlp.ParseOptions{})
 		require.NoError(t, err, "Parse error")
-		cmd := result.Command.(*nlp.FilterCommand)
+		cmd, ok := result.Command.(*nlp.FilterCommand)
+		require.True(t, ok, "command type should be FilterCommand, got %T", result.Command)
 
 		root, ok := cmd.Expr.(nlp.FilterBinary)
 		require.True(t, ok, "root should be FilterBinary, got %T", cmd.Expr)

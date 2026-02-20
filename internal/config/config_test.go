@@ -44,7 +44,7 @@ func TestLoad_Valid(t *testing.T) {
 [db]
 path = "~/.local/share/ugh/ugh.sqlite"
 `
-	require.NoError(t, os.WriteFile(cfgPath, []byte(cfgContent), 0o644), "write config error")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(cfgContent), 0o600), "write config error")
 
 	result, err := Load(cfgPath, false)
 	require.NoError(t, err, "Load() error")
@@ -59,7 +59,7 @@ func TestLoad_Invalid(t *testing.T) {
 	invalidContent := `[invalid section
 something = "value"
 `
-	require.NoError(t, os.WriteFile(cfgPath, []byte(invalidContent), 0o644), "write config error")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(invalidContent), 0o600), "write config error")
 
 	_, err := Load(cfgPath, false)
 	require.Error(t, err, "Load() should return error for invalid TOML")
@@ -95,7 +95,7 @@ func TestResolveDBPath_ExpandHomeAlone(t *testing.T) {
 func TestResolveDBPath_RelativeToConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "config", "ugh-config.toml")
-	require.NoError(t, os.MkdirAll(filepath.Dir(cfgPath), 0o755), "mkdir error")
+	require.NoError(t, os.MkdirAll(filepath.Dir(cfgPath), 0o750), "mkdir error")
 
 	path, err := ResolveDBPath(cfgPath, "data/ugh.sqlite")
 	require.NoError(t, err, "ResolveDBPath() error")
@@ -105,7 +105,7 @@ func TestResolveDBPath_RelativeToConfig(t *testing.T) {
 func TestResolveDBPath_RelativeNoConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Chdir(tmpDir)
-	err := os.WriteFile("ugh.sqlite", []byte{}, 0o644)
+	err := os.WriteFile("ugh.sqlite", []byte{}, 0o600)
 	require.NoError(t, err, "create sqlite file error")
 
 	path, err := ResolveDBPath("", "ugh.sqlite")
