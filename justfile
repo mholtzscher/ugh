@@ -43,7 +43,7 @@ vet:
 
 # Run comprehensive linting
 lint:
-    golangci-lint run
+    go tool golangci-lint run
 
 # Generate code (sqlc)
 generate:
