@@ -12,10 +12,10 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
-	"golang.org/x/term"
 
 	"github.com/mholtzscher/ugh/internal/output"
 	"github.com/mholtzscher/ugh/internal/service"
+	"github.com/mholtzscher/ugh/internal/termutil"
 )
 
 // Mode defines how the shell operates.
@@ -64,7 +64,7 @@ func NewREPL(svc service.Service, opts Options) *REPL {
 			StartTime:    time.Now(),
 			CommandCount: 0,
 		},
-		display: NewDisplay(opts.Mode == ModeInteractive && term.IsTerminal(int(os.Stdout.Fd())), opts.Writer),
+		display: NewDisplay(opts.Mode == ModeInteractive && termutil.IsTerminal(os.Stdout), opts.Writer),
 		history: NewHistory(svc),
 	}
 }

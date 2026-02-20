@@ -33,8 +33,8 @@ type Store struct {
 type Options struct {
 	Path        string
 	SyncURL     string
-	AuthToken   string
-	BusyTimeout int // Milliseconds to wait for locks (default: 5000)
+	AuthToken   string //nolint:gosec // Runtime option carries optional libSQL auth token.
+	BusyTimeout int    // Milliseconds to wait for locks (default: 5000)
 }
 
 //nolint:gocognit,nestif,funlen // Store initialization handles sync, pragmas, and migrations in one flow.
