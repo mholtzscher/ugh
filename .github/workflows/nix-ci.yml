@@ -12,12 +12,19 @@ permissions:
   contents: read
 
 jobs:
-  check:
-    name: Nix Flake Check
-    runs-on: ubuntu-latest
+  nix-check:
+    name: Nix Check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v21
