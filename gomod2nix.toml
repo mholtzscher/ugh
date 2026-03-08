@@ -214,8 +214,8 @@ schema = 3
     hash = 'sha256-e/6dNARKOfAcHKqJDvz0z1kxWPNLWThMrHijfjb122g='
 
   [mod.'github.com/clipperhouse/uax29/v2']
-    version = 'v2.6.0'
-    hash = 'sha256-5ZkKO0DXNfsF179i0iDjH+Ir7W78bGdQRgJdDIRoHnc='
+    version = 'v2.7.0'
+    hash = 'sha256-GO3az7WiGcwU0OvmocwdfR5ohGRL8NbjscIaMyhAdxE='
 
   [mod.'github.com/containerd/console']
     version = 'v1.0.5'
@@ -550,8 +550,8 @@ schema = 3
     hash = 'sha256-qhw9hWtU5wnyFyuMbKx+7RB8ckQaFQ8D+8GKPkN3HHQ='
 
   [mod.'github.com/mattn/go-runewidth']
-    version = 'v0.0.19'
-    hash = 'sha256-GpnbKplhX410Q/eIdknvWbYZgdav1keN+7wNUeOSMHE='
+    version = 'v0.0.20'
+    hash = 'sha256-Y3qYfCqPt+Ce/MEk8dr6pSdd1ZwO2Nwm5sjLIbw26TY='
 
   [mod.'github.com/matttproud/golang_protobuf_extensions']
     version = 'v1.0.1'
@@ -630,8 +630,8 @@ schema = 3
     hash = 'sha256-PJW21pew9v+XA7Miow8JVPct+FPIHmQHphwO+g2kNWA='
 
   [mod.'github.com/pterm/pterm']
-    version = 'v0.12.82'
-    hash = 'sha256-rAOQkCP1FfKpVjfCZcDNZPUUz8XEjXFoChMP6LcIhzg='
+    version = 'v0.12.83'
+    hash = 'sha256-MaYCGUl9+1xNpnINDTcJ/LN34lIz4qtCVxbpwEmxRaI='
 
   [mod.'github.com/quasilyte/go-ruleguard']
     version = 'v0.4.5'
@@ -782,8 +782,8 @@ schema = 3
     hash = 'sha256-SzTbk3PRnhKUNP2/d6vqKP7he/OXU/LDSagif8UuRig='
 
   [mod.'github.com/tursodatabase/turso-go-platform-libs']
-    version = 'v0.4.4'
-    hash = 'sha256-dm1RACaujco1uWCeMgQwfuelNJNunlnQJn6VVwHEFbI='
+    version = 'v0.5.0'
+    hash = 'sha256-VMbQUvlf8B2xqS9hw0ndsgXGB2ZnYFeAppIc6fZWd1s='
 
   [mod.'github.com/ultraware/funlen']
     version = 'v0.2.0'
@@ -794,8 +794,8 @@ schema = 3
     hash = 'sha256-m56XF350CsHgKsbCTQ0Q1Joz2/a+S4+fnkMCx2upJ4Q='
 
   [mod.'github.com/urfave/cli/v3']
-    version = 'v3.6.2'
-    hash = 'sha256-GeTwfmXv2okvX2kmMREozvH4PH6ihPNVFSNSWrW+gyQ='
+    version = 'v3.7.0'
+    hash = 'sha256-orXzqMVkRBlGGjmPoYr2uqDdeNf0hq5yOHOL99RBtuk='
 
   [mod.'github.com/uudashr/gocognit']
     version = 'v1.2.0'
@@ -914,5 +914,5 @@ schema = 3
     hash = 'sha256-Xxl2ERHRqKbC0fqFSMqw5+yF/UiqEtz0xaFCBdYy85k='
 
   [mod.'turso.tech/database/tursogo']
-    version = 'v0.4.4'
-    hash = 'sha256-XmUlXxOZOoTMul5Mb1QuVqLw5HADCh/lKKal+Iv3Cy4='
+    version = 'v0.5.0'
+    hash = 'sha256-EhqxEt9OiPKg+PfS6tFCP6C4HkVpMkUT489G8maAzbM='
