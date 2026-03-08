@@ -50,7 +50,7 @@ generate:
     sqlc generate
     go generate ./internal/nlp/...
 
-# Run all checks (generate, format, vet, lint, test, tidy, gomod2nix)
+# Run all checks (tidy, gomod2nix, generate, fmt, vet, lint, test)
 check: tidy gomod2nix generate fmt vet lint test
 
 # Update Go dependencies
