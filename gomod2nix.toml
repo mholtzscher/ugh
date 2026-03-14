@@ -782,8 +782,8 @@ schema = 3
     hash = 'sha256-SzTbk3PRnhKUNP2/d6vqKP7he/OXU/LDSagif8UuRig='
 
   [mod.'github.com/tursodatabase/turso-go-platform-libs']
-    version = 'v0.5.0'
-    hash = 'sha256-VMbQUvlf8B2xqS9hw0ndsgXGB2ZnYFeAppIc6fZWd1s='
+    version = 'v0.5.1'
+    hash = 'sha256-L6yF9gbkWpzehpdXwZPp2MhzTijCPX42EAsBZPHBVL0='
 
   [mod.'github.com/ultraware/funlen']
     version = 'v0.2.0'
@@ -870,12 +870,12 @@ schema = 3
     hash = 'sha256-RbRZ+sKZUurOczGhhzOoY/sojTlta3H9XjL4PXX/cno='
 
   [mod.'golang.org/x/sys']
-    version = 'v0.41.0'
-    hash = 'sha256-owjs3/IzAKfFlIz1U1fiHSfl2+bTUhaXTyWEjL5SWHk='
+    version = 'v0.42.0'
+    hash = 'sha256-LhNedvUEJbPYyR6EoU91rfOr3DBBoauLOcMcyqghEos='
 
   [mod.'golang.org/x/term']
-    version = 'v0.40.0'
-    hash = 'sha256-tu8USqDmcWfwery/+xti/BdUpNLbMNmZeghBNDsj1fQ='
+    version = 'v0.41.0'
+    hash = 'sha256-EQVhfumFhP5O1Qo2PxWpESwC4EnIpfyjMIlMWbobAUQ='
 
   [mod.'golang.org/x/text']
     version = 'v0.34.0'
@@ -914,5 +914,5 @@ schema = 3
     hash = 'sha256-Xxl2ERHRqKbC0fqFSMqw5+yF/UiqEtz0xaFCBdYy85k='
 
   [mod.'turso.tech/database/tursogo']
-    version = 'v0.5.0'
-    hash = 'sha256-EhqxEt9OiPKg+PfS6tFCP6C4HkVpMkUT489G8maAzbM='
+    version = 'v0.5.1'
+    hash = 'sha256-3ESb5Rn2W06rTKLNKr1d9xZFhuKBsZp+dhA9iMr2WbM='
