@@ -12,7 +12,7 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/stretchr/testify v1.11.1
 	github.com/tj/go-naturaldate v1.3.0
-	github.com/urfave/cli/v3 v3.7.0
+	github.com/urfave/cli/v3 v3.8.0
 	golang.org/x/term v0.41.0
 	turso.tech/database/tursogo v0.5.1
 )
