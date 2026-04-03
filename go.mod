@@ -14,7 +14,7 @@ require (
 	github.com/tj/go-naturaldate v1.3.0
 	github.com/urfave/cli/v3 v3.8.0
 	golang.org/x/term v0.41.0
-	turso.tech/database/tursogo v0.5.1
+	turso.tech/database/tursogo v0.5.3
 )
 
 require (
@@ -204,7 +204,7 @@ require (
 	github.com/timonwong/loggercheck v0.11.0 // indirect
 	github.com/tomarrell/wrapcheck/v2 v2.12.0 // indirect
 	github.com/tommy-muehle/go-mnd/v2 v2.5.1 // indirect
-	github.com/tursodatabase/turso-go-platform-libs v0.5.1 // indirect
+	github.com/tursodatabase/turso-go-platform-libs v0.5.3 // indirect
 	github.com/ultraware/funlen v0.2.0 // indirect
 	github.com/ultraware/whitespace v0.2.0 // indirect
 	github.com/uudashr/gocognit v1.2.0 // indirect
