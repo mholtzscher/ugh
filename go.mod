@@ -13,8 +13,8 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tj/go-naturaldate v1.3.0
 	github.com/urfave/cli/v3 v3.8.0
-	golang.org/x/term v0.41.0
-	turso.tech/database/tursogo v0.5.1
+	golang.org/x/term v0.42.0
+	turso.tech/database/tursogo v0.5.3
 )
 
 require (
@@ -204,7 +204,7 @@ require (
 	github.com/timonwong/loggercheck v0.11.0 // indirect
 	github.com/tomarrell/wrapcheck/v2 v2.12.0 // indirect
 	github.com/tommy-muehle/go-mnd/v2 v2.5.1 // indirect
-	github.com/tursodatabase/turso-go-platform-libs v0.5.1 // indirect
+	github.com/tursodatabase/turso-go-platform-libs v0.5.3 // indirect
 	github.com/ultraware/funlen v0.2.0 // indirect
 	github.com/ultraware/whitespace v0.2.0 // indirect
 	github.com/uudashr/gocognit v1.2.0 // indirect
@@ -225,7 +225,7 @@ require (
 	golang.org/x/exp/typeparams v0.0.0-20260209203927-2842357ff358 // indirect
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
