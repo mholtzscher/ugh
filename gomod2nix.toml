@@ -546,8 +546,8 @@ schema = 3
     hash = 'sha256-JC60PjKj7MvhZmUHTZ9p372FV72I9Mxvli3fivTbxuA='
 
   [mod.'github.com/mattn/go-isatty']
-    version = 'v0.0.20'
-    hash = 'sha256-qhw9hWtU5wnyFyuMbKx+7RB8ckQaFQ8D+8GKPkN3HHQ='
+    version = 'v0.0.21'
+    hash = 'sha256-B70ZCZYoajKE8xxKPh9sgyVz2URKi0EyaOX8XFDqWKw='
 
   [mod.'github.com/mattn/go-runewidth']
     version = 'v0.0.20'
@@ -610,8 +610,8 @@ schema = 3
     hash = 'sha256-/FtmHnaGjdvEIKAJtrUfEhV7EVo5A/eYrtdnUkuxLDA='
 
   [mod.'github.com/pressly/goose/v3']
-    version = 'v3.27.0'
-    hash = 'sha256-RNn1Ghw8DKne+KvHavrmoBqLy2qfxnkVgNSqDaVViPA='
+    version = 'v3.27.1'
+    hash = 'sha256-8LM2vQ2cSfmrxLgxwDWXlDdlPySYbjnu53KpyI9Ds84='
 
   [mod.'github.com/prometheus/client_golang']
     version = 'v1.12.1'
@@ -626,8 +626,8 @@ schema = 3
     hash = 'sha256-LdgJBz4EcjrBaZVr2CjDjM0hTwRFQIJE2yACEG631bQ='
 
   [mod.'github.com/prometheus/procfs']
-    version = 'v0.19.2'
-    hash = 'sha256-PJW21pew9v+XA7Miow8JVPct+FPIHmQHphwO+g2kNWA='
+    version = 'v0.20.1'
+    hash = 'sha256-L6RuVGYgdBCCke8BibA7cXgfwizGE2pA0gNo9dGJ8WQ='
 
   [mod.'github.com/pterm/pterm']
     version = 'v0.12.83'
@@ -862,12 +862,12 @@ schema = 3
     hash = 'sha256-H92+0L1kY6OHen1YctecROkC2/a/tLx7oWan/XaInA0='
 
   [mod.'golang.org/x/mod']
-    version = 'v0.33.0'
-    hash = 'sha256-NR+ZSeQKbfVP4Cu/SlNIivMa+c1OMyOSMxLSjX+LZJI='
+    version = 'v0.34.0'
+    hash = 'sha256-BJgLn+wh9s/XyS2LDmnXTj4ooR+r0Ew2SlxvJA+6GCs='
 
   [mod.'golang.org/x/sync']
-    version = 'v0.19.0'
-    hash = 'sha256-RbRZ+sKZUurOczGhhzOoY/sojTlta3H9XjL4PXX/cno='
+    version = 'v0.20.0'
+    hash = 'sha256-ybcjhCfK6lroUM0yswUvWooW8MOQZBXyiSqoxG6Uy0Y='
 
   [mod.'golang.org/x/sys']
     version = 'v0.43.0'
@@ -878,12 +878,12 @@ schema = 3
     hash = 'sha256-FCiDvAfq7dgBGQuiDYDFJbj/JPawhrmPF2qdUEftQ1c='
 
   [mod.'golang.org/x/text']
-    version = 'v0.34.0'
-    hash = 'sha256-wGKd1JkeiFROibvo2kkAuQ7JajSIfV4utGaoGbTQhQM='
+    version = 'v0.36.0'
+    hash = 'sha256-/0t9C6Mc8kYjxweFB0us2lGKo8GovHhBiq5nlMOppC0='
 
   [mod.'golang.org/x/tools']
-    version = 'v0.42.0'
-    hash = 'sha256-JTwzoJeqCW5aphjQR0SItRGov7dKVbFk3a4V2U2+vd4='
+    version = 'v0.43.0'
+    hash = 'sha256-CqwqQl9inMT0/5LJ8hmV3HNR1XdI/xBFbi3305VJUlo='
 
   [mod.'google.golang.org/protobuf']
     version = 'v1.36.11'
