@@ -662,8 +662,8 @@ schema = 3
     hash = 'sha256-rDcdNYH6ZD8KouyyiZCUEy8JrjOQoAkxHBhugrfHjFo='
 
   [mod.'github.com/rogpeppe/go-internal']
-    version = 'v1.14.1'
-    hash = 'sha256-6NzhXCCD1Qhj05WHbCDxH5hwfNM6psoAk7uIxm7N55E='
+    version = 'v1.15.0'
+    hash = 'sha256-ZZ2PcP8AzQqkCApO0/qaw5ufqqV/00sxaNnPI7b3qZo='
 
   [mod.'github.com/ryancurrah/gomodguard']
     version = 'v1.4.1'
@@ -782,8 +782,8 @@ schema = 3
     hash = 'sha256-SzTbk3PRnhKUNP2/d6vqKP7he/OXU/LDSagif8UuRig='
 
   [mod.'github.com/tursodatabase/turso-go-platform-libs']
-    version = 'v0.6.0'
-    hash = 'sha256-2GhcFDKLa93gG0ooOC2xdR58/csxi7F82iLXZtfhFyM='
+    version = 'v0.6.1'
+    hash = 'sha256-DRuJ/ATFQZGVKcLYqdvLtHES9PlnSBNIotBDK0T248E='
 
   [mod.'github.com/ultraware/funlen']
     version = 'v0.2.0'
@@ -914,5 +914,5 @@ schema = 3
     hash = 'sha256-Xxl2ERHRqKbC0fqFSMqw5+yF/UiqEtz0xaFCBdYy85k='
 
   [mod.'turso.tech/database/tursogo']
-    version = 'v0.6.0'
-    hash = 'sha256-ckLsdfCOhAIGF5iUUPXnKNaYFD63IaC4vn/ki/UWw+4='
+    version = 'v0.6.1'
+    hash = 'sha256-Ds/hDmwZh+C3mNlbE9Dgu3Rd+KcpfSbbBlIuhUzPz4E='
