@@ -794,8 +794,8 @@ schema = 3
     hash = 'sha256-m56XF350CsHgKsbCTQ0Q1Joz2/a+S4+fnkMCx2upJ4Q='
 
   [mod.'github.com/urfave/cli/v3']
-    version = 'v3.9.0'
-    hash = 'sha256-G7F0o+VGex6fg68e9VH7EqvtSRRm5TZepZlhHWtPVP0='
+    version = 'v3.9.1'
+    hash = 'sha256-1aASQm18iCAiCKrkts6Cp/KDjr/GeyRENfqFhaZuF98='
 
   [mod.'github.com/uudashr/gocognit']
     version = 'v1.2.0'
@@ -870,12 +870,12 @@ schema = 3
     hash = 'sha256-ybcjhCfK6lroUM0yswUvWooW8MOQZBXyiSqoxG6Uy0Y='
 
   [mod.'golang.org/x/sys']
-    version = 'v0.44.0'
-    hash = 'sha256-JDlj+PKsG6I6kjv5JyOUNreY51u5An0oZ5OZMHZSk+A='
+    version = 'v0.46.0'
+    hash = 'sha256-NzRXMSEk6upeudJvUEPVnw6clJ3d8UdC/vdfANWAc8g='
 
   [mod.'golang.org/x/term']
-    version = 'v0.43.0'
-    hash = 'sha256-gFV1oGgs/vpRamvDWmu93voN57iyZMk/hh+oL8L9VrQ='
+    version = 'v0.44.0'
+    hash = 'sha256-nzbvOgvGRbx1qpq1rbk7b6zNsNeNj8mOGoyZLtnzq3w='
 
   [mod.'golang.org/x/text']
     version = 'v0.36.0'
