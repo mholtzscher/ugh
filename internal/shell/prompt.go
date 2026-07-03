@@ -3,6 +3,7 @@ package shell
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/chzyer/readline"
 	"github.com/pterm/pterm"
@@ -38,8 +39,8 @@ func NewPrompt(svc service.Service) (*Prompt, error) {
 	history, err := svc.ListShellHistory(ctx, historyLoadLimit)
 	if err == nil {
 		// Add oldest first so newest ends up at the end (most recent)
-		for i := len(history) - 1; i >= 0; i-- {
-			_ = rl.SaveHistory(history[i].Command)
+		for _, entry := range slices.Backward(history) {
+			_ = rl.SaveHistory(entry.Command)
 		}
 	}
 
