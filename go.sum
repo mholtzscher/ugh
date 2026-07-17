@@ -666,8 +666,8 @@ github.com/tomarrell/wrapcheck/v2 v2.12.0 h1:H/qQ1aNWz/eeIhxKAFvkfIA+N7YDvq6TWVF
 github.com/tomarrell/wrapcheck/v2 v2.12.0/go.mod h1:AQhQuZd0p7b6rfW+vUwHm5OMCGgp63moQ9Qr/0BpIWo=
 github.com/tommy-muehle/go-mnd/v2 v2.5.1 h1:NowYhSdyE/1zwK9QCLeRb6USWdoif80Ie+v+yU8u1Zw=
 github.com/tommy-muehle/go-mnd/v2 v2.5.1/go.mod h1:WsUAkMJMYww6l/ufffCD3m+P7LEvr8TnZn9lwVDlgzw=
-github.com/tursodatabase/turso-go-platform-libs v0.6.1 h1:tHdgAaDuCMYziySLmDURKtbByFNwle8LrZTLGWP5XVo=
-github.com/tursodatabase/turso-go-platform-libs v0.6.1/go.mod h1:bo+Lpv5OYOX1gRV9L5DLKMsYxmDs56SkZwnCOLEFcxU=
+github.com/tursodatabase/turso-go-platform-libs v0.7.0 h1:NPTPklRhKsPwuwpvvCyJRPklXExdLyP1iRN9meQm1W4=
+github.com/tursodatabase/turso-go-platform-libs v0.7.0/go.mod h1:bo+Lpv5OYOX1gRV9L5DLKMsYxmDs56SkZwnCOLEFcxU=
 github.com/ultraware/funlen v0.2.0 h1:gCHmCn+d2/1SemTdYMiKLAHFYxTYz7z9VIDRaTGyLkI=
 github.com/ultraware/funlen v0.2.0/go.mod h1:ZE0q4TsJ8T1SQcjmkhN/w+MceuatI6pBFSxxyteHIJA=
 github.com/ultraware/whitespace v0.2.0 h1:TYowo2m9Nfj1baEQBjuHzvMRbp19i+RCcRYrSWoFa+g=
@@ -1099,5 +1099,5 @@ mvdan.cc/unparam v0.0.0-20251027182757-5beb8c8f8f15/go.mod h1:4M5MMXl2kW6fivUT6y
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
-turso.tech/database/tursogo v0.6.1 h1:FPqbvwjEAbV2w5lDTRivR9sTE+nZnfGL+kr4Jat5RO0=
-turso.tech/database/tursogo v0.6.1/go.mod h1:VzWSW6CFBTSS9uVts78GcWH6IB8LEqDLmlPY9NBd238=
+turso.tech/database/tursogo v0.7.0 h1:SER1jXs1rAFlUlibX5YL3Qf9DzcFRCKXee+Oi0qrcN8=
+turso.tech/database/tursogo v0.7.0/go.mod h1:6CMOLO6jRD3PcPfyngEDISFonVj+Ucx5LBAtQI0GuJ0=
