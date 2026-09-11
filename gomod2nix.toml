@@ -542,8 +542,8 @@ schema = 3
     hash = 'sha256-JC60PjKj7MvhZmUHTZ9p372FV72I9Mxvli3fivTbxuA='
 
   [mod.'github.com/mattn/go-isatty']
-    version = 'v0.0.23'
-    hash = 'sha256-CbvLefXb6HYNFEsPyLDGj5jhnYwXNNC4aOM2oJsGhnk='
+    version = 'v0.0.24'
+    hash = 'sha256-pmq8KKIb2+qMF3E1cR2B7NAj5joF2tZduyXjIfIlkTk='
 
   [mod.'github.com/mattn/go-runewidth']
     version = 'v0.0.20'
@@ -602,8 +602,8 @@ schema = 3
     hash = 'sha256-8qQIPldbsS5RO8v/FW/se3ZsAyvLzexiivzJCbGRg2Q='
 
   [mod.'github.com/pressly/goose/v3']
-    version = 'v3.27.3'
-    hash = 'sha256-YK507tEYbm/SVmqtLmuRnD0+ArykxkYog+dz+lCD+aM='
+    version = 'v3.28.0'
+    hash = 'sha256-exsO8rb7hlVxNezQAOw9LjLIss0Zr0DklWASdb73Es8='
 
   [mod.'github.com/prometheus/client_golang']
     version = 'v1.12.1'
@@ -618,8 +618,8 @@ schema = 3
     hash = 'sha256-LdgJBz4EcjrBaZVr2CjDjM0hTwRFQIJE2yACEG631bQ='
 
   [mod.'github.com/prometheus/procfs']
-    version = 'v0.21.1'
-    hash = 'sha256-5SpWprdX29oVntHJyadiICOk9UAP+hu+xJM51/A8Ig4='
+    version = 'v0.22.0'
+    hash = 'sha256-TRwVHKgW4NnPuC6Me38OD57ccM8AfnS7IxtcAx2TAH4='
 
   [mod.'github.com/pterm/pterm']
     version = 'v0.12.83'
@@ -854,8 +854,8 @@ schema = 3
     hash = 'sha256-H92+0L1kY6OHen1YctecROkC2/a/tLx7oWan/XaInA0='
 
   [mod.'golang.org/x/mod']
-    version = 'v0.37.0'
-    hash = 'sha256-dspScRv3KO4nytvjavhNO2b03P4UtiJQyWVGuEy9OUk='
+    version = 'v0.38.0'
+    hash = 'sha256-BpKfvsmb7ecEDvTBKx9ZHauxoWRkOAZCqg4BrHM2/S0='
 
   [mod.'golang.org/x/sync']
     version = 'v0.22.0'
@@ -870,16 +870,16 @@ schema = 3
     hash = 'sha256-vPBeJkepEZ1D9k4oaV20IuQlVmfAFv15KQgnhl9MNgw='
 
   [mod.'golang.org/x/text']
-    version = 'v0.40.0'
-    hash = 'sha256-LJfnki46XEreGbSgjl+DeqgcTsINTOu2owyXNvijMcA='
+    version = 'v0.41.0'
+    hash = 'sha256-22nHcolG87qSPahT2Ey8S5iGlCLAglE9ObYXO6XZ3ZY='
 
   [mod.'golang.org/x/tools']
-    version = 'v0.47.0'
-    hash = 'sha256-LyCNqEb/Jm94O6gaM01vXSHP9Yw/Cw0qVWXGxhCgwzo='
+    version = 'v0.48.0'
+    hash = 'sha256-9cRNUaup6fexA5S1zc+Ic3aaoxAgKWntyMJ2xaOdiP8='
 
   [mod.'google.golang.org/protobuf']
-    version = 'v1.36.11'
-    hash = 'sha256-7W+6jntfI/awWL3JP6yQedxqP5S9o3XvPgJ2XxxsIeE='
+    version = 'v1.36.12'
+    hash = 'sha256-MKd0AdkWEe2A79mGPzOY5I76nMqTsGJKQNPJOKyOwkQ='
 
   [mod.'gopkg.in/ini.v1']
     version = 'v1.67.0'
